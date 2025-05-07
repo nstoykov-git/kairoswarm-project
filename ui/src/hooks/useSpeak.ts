@@ -1,15 +1,13 @@
-const API_SPEAK_URL = import.meta.env.VITE_API_SPEAK_URL;
+const API_BASE = import.meta.env.VITE_API_BASE_URL;
 
 export const useSpeak = () => {
   const speak = async (text: string) => {
     try {
-      const response = await fetch(API_SPEAK_URL, {
+      const response = await fetch(`${API_BASE}/speak`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ text }),
-      });
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text }), // or { participant_id, message }
+      });      
 
       if (!response.ok) {
         throw new Error(`Server error: ${response.statusText}`);
