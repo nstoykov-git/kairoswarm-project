@@ -1,13 +1,16 @@
 const API_BASE = import.meta.env.VITE_API_BASE_URL;
 
 export const useSpeak = () => {
-  const speak = async (text: string) => {
+  const speak = async (participantId: string, message: string) => {
     try {
       const response = await fetch(`${API_BASE}/speak`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text }), // or { participant_id, message }
-      });      
+        body: JSON.stringify({
+          participant_id: participantId,
+          message,
+        }),
+      });
 
       if (!response.ok) {
         throw new Error(`Server error: ${response.statusText}`);
@@ -23,4 +26,3 @@ export const useSpeak = () => {
 
   return { speak };
 };
-
