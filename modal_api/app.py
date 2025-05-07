@@ -1,60 +1,86 @@
-from modal import App, fastapi_endpoint, Secret, Image
-from fastapi import Request
+from modal import App, asgi_app, Secret, Image
+from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 import redis.asyncio as redis
-import uuid
-import json
-import os
+import uuid, json, os
 
-app = App(
-    name="kairoswarm-serverless-api",
-    image=Image.debian_slim().pip_install("redis", "fastapi[standard]"),
-    secrets=[Secret.from_name("upstash-redis-url")]
+# --- FastAPI with CORS enabled ---
+api = FastAPI()
+api.add_middleware(
+    CORSMiddleware,
+    allow_origins=["https://kairoswarm-ui.vercel.app"],  # or ["*"] for dev
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 def get_redis():
-    return redis.from_url(os.environ["REDIS_URL"], decode_responses=True)
+    url = os.environ["UPSTASH_REDIS_URL"]
+    return redis.from_url(url, decode_responses=True)
 
+# --- Modal App definition ---
+app = App(
+    name="kairoswarm-serverless-api",
+    image=Image.debian_slim().pip_install("redis", "fastapi[standard]"),
+    secrets=[Secret.from_name("upstash-redis-url")],
+)
+
+# --- expose the entire FastAPI as one ASGI app ---
 @app.function()
-@fastapi_endpoint(method="POST")
+@asgi_app()
+def serve_api():
+    return api
+
+# --- now define all your routes on `api` as usual: --
+@api.post("/join")
 async def join(request: Request):
     body = await request.json()
-    participant_id = str(uuid.uuid4())
-
+    pid = str(uuid.uuid4())
     async with get_redis() as r:
-        await r.hset("participants", participant_id, json.dumps({
-            "id": participant_id,
+        await r.hset("participants", pid, json.dumps({
+            "id": pid,
             "name": body["name"],
             "type": body["type"],
-            "metadata": body.get("metadata", {})
+            "metadata": body.get("metadata", {}),
         }))
+    return {"participant_id": pid}
 
-    return {"participant_id": participant_id}
+#@api.post("/speak")
+#async def speak(request: Request):
+#    body = await request.json()
+#    pid = body["participant_id"]
+#    async with get_redis() as r:
+#        part = await r.hget("participants", pid)
+#        if not part:
+#            return {"error": "Participant not found."}
+#        p = json.loads(part)
+#        entry = {"from": p["name"], "type": p["type"], "message": body["message"]}
+#        await r.rpush("conversation_tape", json.dumps(entry))
+#    return {"status": "ok", "entry": entry}
 
-@app.function()
-@fastapi_endpoint(method="POST")
+@api.post("/speak")
 async def speak(request: Request):
     body = await request.json()
-    participant_id = body["participant_id"]
-    message = body["message"]
 
-    async with get_redis() as r:
-        participant_data = await r.hget("participants", participant_id)
-        if not participant_data:
-            return {"error": "Participant not found."}
+    # Simulated participant for testing
+    fake_participant = {
+        "name": "Kai",
+        "type": "bot"
+    }
 
-        participant = json.loads(participant_data)
-        entry = {
-            "from": participant["name"],
-            "type": participant["type"],
-            "message": message,
-        }
-        await r.rpush("conversation_tape", json.dumps(entry))
+    entry = {
+        "from": fake_participant["name"],
+        "type": fake_participant["type"],
+        "message": body.get("message", "[no message]")
+    }
 
+    # No Redis — just return it
     return {"status": "ok", "entry": entry}
 
-@app.function()
-@fastapi_endpoint(method="GET")
+
+@api.get("/tape")
 async def tape():
     async with get_redis() as r:
-        tape = await r.lrange("conversation_tape", 0, -1)
-        return [json.loads(entry) for entry in tape]
+        raw = await r.lrange("conversation_tape", 0, -1)
+    return [json.loads(x) for x in raw]
+
