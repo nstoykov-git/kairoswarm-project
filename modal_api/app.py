@@ -2,7 +2,7 @@ from modal import App, asgi_app, Secret, Image
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 import redis.asyncio as redis
-from openai import AsyncOpenAI
+import openai
 import uuid, json, os
 
 # --- FastAPI with CORS enabled ---
@@ -22,9 +22,19 @@ def get_redis():
 # --- Modal App definition ---
 app = App(
     name="kairoswarm-serverless-api",
-    image=Image.debian_slim().pip_install("redis", "fastapi[standard]"),
-    secrets=[Secret.from_name("upstash-redis-url")],
+    image=Image.debian_slim().pip_install(
+        "redis",
+        "fastapi[standard]",
+        "openai",
+        "aiohttp"  # ✅ required for AsyncOpenAI transport
+        ),
+    secrets=[Secret.from_name("upstash-redis-url"),
+             Secret.from_name("openai-key")],
 )
+
+# use AsyncOpenAI explicitly
+openai.api_key = os.environ["OPENAI_API_KEY"]
+client = openai.AsyncOpenAI(api_key=openai.api_key)  
 
 # --- expose the entire FastAPI as one ASGI app ---
 @app.function()
@@ -33,8 +43,6 @@ def serve_api():
     return api
 
 # --- now define all your routes on `api` as usual: --
-client = AsyncOpenAI(api_key=os.environ["OPENAI_API_KEY"])
-
 @api.post("/add-agent")
 async def add_agent(request: Request):
     body = await request.json()
@@ -44,21 +52,15 @@ async def add_agent(request: Request):
         return {"error": "Missing agentId"}
 
     try:
-        assistant = await client.beta.assistants.retrieve(agent_id)
-        thread = await client.beta.threads.create()
-        agent_key = f"agent:{agent_id}"
+        assistant = openai.beta.assistants.retrieve(agent_id)
+        thread = openai.beta.threads.create()
 
-        async with get_redis() as r:
-            await r.hset(agent_key, mapping={
-                "name": assistant.name or f"Agent-{agent_id[-4:]}",
-                "agent_id": agent_id,
-                "thread_id": thread.id
-            })
-
-        return {"name": assistant.name}
+        return {
+            "name": assistant.name,
+            "thread_id": thread.id
+        }
 
     except Exception as e:
-        print(f"Error retrieving agent {agent_id}: {e}")
         return {"error": str(e)}
 
 @api.post("/join")
@@ -78,22 +80,68 @@ async def join(request: Request):
 async def speak(request: Request):
     body = await request.json()
     pid = body["participant_id"]
+    message = body["message"]
 
     async with get_redis() as r:
-        part = await r.hget("participants", pid)
-        if not part:
-            print(f"Participant not found: {pid}")
+        part_raw = await r.hget("participants", pid)
+        if not part_raw:
             return {"error": "Participant not found."}
 
-        p = json.loads(part)
+        part = json.loads(part_raw)
         entry = {
-            "from": p["name"],
-            "type": p["type"],
-            "message": body["message"]
+            "from": part["name"],
+            "type": part["type"],
+            "message": message
         }
+
+        # Save message to tape
         await r.rpush("conversation_tape", json.dumps(entry))
 
-    return {"status": "ok", "entry": entry}
+        # If not an agent, done
+        if part["type"] != "agent":
+            return {"status": "ok", "entry": entry}
+
+        # Get agent info
+        agent_id = part["id"]
+        agent_data = await r.hgetall(f"agent:{agent_id}")
+        if not agent_data:
+            return {"error": "Agent data not found."}
+
+        thread_id = agent_data["thread_id"]
+        assistant_id = agent_data["agent_id"]
+
+        # Append user message
+        await client.beta.threads.messages.create(
+            thread_id=thread_id,
+            role="user",
+            content=message
+        )
+
+        # Run the assistant
+        run = await client.beta.threads.runs.create_and_poll(
+            thread_id=thread_id,
+            assistant_id=assistant_id
+        )
+
+        # Get assistant reply
+        messages = (await client.beta.threads.messages.list(thread_id=thread_id)).data
+        reply = next(
+            (m for m in reversed(messages)
+             if m.role == "assistant" and m.run_id == run.id),
+            None
+        )
+
+        if reply:
+            response_text = reply.content[0].text.value.strip()
+            agent_entry = {
+                "from": part["name"],
+                "type": "agent",
+                "message": response_text
+            }
+            await r.rpush("conversation_tape", json.dumps(agent_entry))
+            return {"status": "ok", "entry": agent_entry}
+        else:
+            return {"error": "Agent replied, but no usable content."}
 
 @api.get("/tape")
 async def tape():

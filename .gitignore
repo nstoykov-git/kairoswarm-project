@@ -175,4 +175,14 @@ cython_debug/
 .DS_Store
 .vscode/
 node_modules/
+# Next.js + Tailwind build output
+.next/
+out/
+*.log
+
+# Local dev settings
+.env.local
+
+# Modal cache (if used)
+.modal/
 
