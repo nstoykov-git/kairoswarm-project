@@ -5,12 +5,13 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Mic, Send, User, Bot, PlusCircle } from "lucide-react";
+import { Mic, Send, User, Bot, PlusCircle, Users } from "lucide-react";
 
 export default function KairoswarmDashboard() {
   const [input, setInput] = useState("");
   const [joinName, setJoinName] = useState("");
   const [agentId, setAgentId] = useState("");
+  const [showParticipants, setShowParticipants] = useState(false);
   const [participants, setParticipants] = useState([
     { id: 1, name: "Nina", type: "human" },
     { id: 2, name: "KAI-5", type: "agent" },
@@ -108,14 +109,19 @@ export default function KairoswarmDashboard() {
       {/* Top Bar */}
       <div className="flex justify-between items-center border-b border-gray-700 pb-2">
         <h1 className="text-xl font-bold">Kairoswarm Dashboard</h1>
-        <div className="text-sm text-gray-400">Mode: Lecture</div>
+        <div className="flex items-center space-x-2">
+          <div className="text-sm text-gray-400 hidden md:block">Mode: Lecture</div>
+          <Button variant="ghost" onClick={() => setShowParticipants((prev) => !prev)} className="md:hidden">
+            <Users className="w-5 h-5" />
+          </Button>
+        </div>
       </div>
 
-      <div className="flex flex-1 space-x-4 overflow-hidden">
-        {/* Participants Panel */}
-        <div className="w-1/4 bg-gray-800 rounded-2xl p-4 shadow-md">
+      <div className="flex flex-1 space-x-4 overflow-hidden relative">
+        {/* Participants Panel (Desktop) */}
+        <div className="basis-1/4 min-w-[220px] max-w-[300px] bg-gray-800 rounded-2xl p-4 shadow-md hidden md:block">
           <h2 className="text-lg font-semibold mb-4">Participants</h2>
-          <div className="space-y-3">
+          <div className="space-y-3 overflow-y-auto max-h-[60vh] pr-1">
             {participants.map((p) => (
               <Card key={p.id}>
                 <CardContent className="flex items-center space-x-2 p-3">
@@ -152,6 +158,26 @@ export default function KairoswarmDashboard() {
           </div>
         </div>
 
+        {/* Participants Panel (Mobile) */}
+        {showParticipants && (
+          <div className="absolute top-0 left-0 w-full bg-gray-800 rounded-2xl p-4 shadow-md z-10 md:hidden">
+            <h2 className="text-lg font-semibold mb-4">Participants</h2>
+            <div className="space-y-3 overflow-y-auto max-h-[60vh] pr-1">
+              {participants.map((p) => (
+                <Card key={p.id}>
+                  <CardContent className="flex items-center space-x-2 p-3">
+                    {p.type === "human" ? <User className="text-green-400" /> : <Bot className="text-blue-400" />}
+                    <div>
+                      <p className="font-medium">{p.name}</p>
+                      <p className="text-xs text-gray-400">{p.type === "human" ? "Active" : "Agent"}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Tape Panel */}
         <div className="flex-1 bg-gray-850 rounded-2xl p-4 shadow-inner overflow-hidden flex flex-col">
           <h2 className="text-lg font-semibold mb-4">Tape</h2>
@@ -184,4 +210,3 @@ export default function KairoswarmDashboard() {
     </div>
   );
 }
-
