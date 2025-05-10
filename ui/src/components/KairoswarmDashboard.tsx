@@ -1,4 +1,3 @@
-// src/components/KairoswarmDashboard.tsx
 "use client";
 
 import { useState, useEffect, useRef } from "react";
