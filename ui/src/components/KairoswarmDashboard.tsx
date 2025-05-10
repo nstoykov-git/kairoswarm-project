@@ -1,3 +1,4 @@
+// KairoswarmDashboard.tsx
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -10,6 +11,7 @@ import { Mic, Send, User, Bot, PlusCircle, Users } from "lucide-react";
 export default function KairoswarmDashboard() {
   const [input, setInput] = useState("");
   const [joinName, setJoinName] = useState("");
+  const [participantId, setParticipantId] = useState<string | null>(null);
   const [agentId, setAgentId] = useState("");
   const [showParticipants, setShowParticipants] = useState(false);
   const [participants, setParticipants] = useState([
@@ -30,60 +32,64 @@ export default function KairoswarmDashboard() {
   }, [tape]);
 
   const handleSubmit = async () => {
-    if (!input.trim()) return;
-    const newHumanEntry = {
-      id: tape.length + 1,
-      type: "human",
-      name: "You",
-      text: input,
-    };
+    if (!input.trim() || !participantId) return;
 
-    setTape((prev) => [...prev, newHumanEntry]);
-    setInput("");
+    const response = await fetch("https://kairoswarm-serverless-api.modal.run/speak", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        participant_id: participantId,
+        message: input,
+      }),
+    });
 
-    // Simulate agent response
-    setTimeout(() => {
-      const agentReply = {
-        id: tape.length + 2,
-        type: "agent",
-        name: "KAI-5",
-        text: generateAgentReply(input),
-      };
-      setTape((prev) => [...prev, agentReply]);
-    }, 800);
-  };
+    const data = await response.json();
 
-  const generateAgentReply = (inputText: string) => {
-    if (inputText.toLowerCase().includes("gravity")) {
-      return "Gravity is the curvature of spacetime caused by mass. Would you like a diagram?";
-    } else if (inputText.toLowerCase().includes("ready")) {
-      return "I'm ready when you are. Initializing lecture state.";
-    } else {
-      return "Could you clarify that? I'm still updating my context.";
+    if (data.entry) {
+      setTape((prev) => [
+        ...prev,
+        {
+          id: prev.length + 1,
+          name: data.entry.from,
+          text: data.entry.message,
+          type: data.entry.type,
+        },
+      ]);
     }
+
+    setInput("");
   };
 
-  const handleJoin = () => {
+  const handleJoin = async () => {
     if (!joinName.trim()) return;
+
+    const response = await fetch("https://kairoswarm-serverless-api.modal.run/join", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: joinName, type: "human" }),
+    });
+
+    const data = await response.json();
+    setParticipantId(data.participant_id);
+
     const newParticipant = {
       id: participants.length + 1,
       name: joinName,
       type: "human",
     };
+
     setParticipants([...participants, newParticipant]);
     setJoinName("");
   };
 
   const handleAddAgent = async () => {
     if (!agentId.trim()) return;
-    console.log("Submitting agent ID:", agentId);
     const response = await fetch("/api/add-agent", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ agentId }),
     });
     const data = await response.json();
-    console.log("Agent response:", data);
     if (data.name) {
       const newAgent = {
         id: participants.length + 1,
@@ -106,7 +112,6 @@ export default function KairoswarmDashboard() {
 
   return (
     <div className="flex flex-col h-screen bg-gray-900 text-white p-4 space-y-4">
-      {/* Top Bar */}
       <div className="flex justify-between items-center border-b border-gray-700 pb-2">
         <h1 className="text-xl font-bold">Kairoswarm Dashboard</h1>
         <div className="flex items-center space-x-2">
@@ -118,7 +123,6 @@ export default function KairoswarmDashboard() {
       </div>
 
       <div className="flex flex-1 space-x-4 overflow-hidden relative">
-        {/* Participants Panel (Desktop) */}
         <div className="basis-1/4 min-w-[220px] max-w-[300px] bg-gray-800 rounded-2xl p-4 shadow-md hidden md:block">
           <h2 className="text-lg font-semibold mb-4">Participants</h2>
           <div className="space-y-3 overflow-y-auto max-h-[60vh] pr-1">
@@ -135,30 +139,19 @@ export default function KairoswarmDashboard() {
             ))}
           </div>
           <div className="mt-4 flex space-x-2">
-            <Input
-              placeholder="Join as..."
-              value={joinName}
-              onChange={(e) => setJoinName(e.target.value)}
-              className="text-sm"
-            />
+            <Input placeholder="Join as..." value={joinName} onChange={(e) => setJoinName(e.target.value)} className="text-sm" />
             <Button variant="outline" onClick={handleJoin}>
               <PlusCircle className="w-4 h-4 mr-1" /> Join
             </Button>
           </div>
           <div className="mt-2 flex space-x-2">
-            <Input
-              placeholder="Add AI (agent ID)"
-              value={agentId}
-              onChange={(e) => setAgentId(e.target.value)}
-              className="text-sm"
-            />
+            <Input placeholder="Add AI (agent ID)" value={agentId} onChange={(e) => setAgentId(e.target.value)} className="text-sm" />
             <Button variant="secondary" onClick={handleAddAgent}>
               <PlusCircle className="w-4 h-4 mr-1" /> Add AI
             </Button>
           </div>
         </div>
 
-        {/* Participants Panel (Mobile) */}
         {showParticipants && (
           <div className="absolute top-0 left-0 w-full bg-gray-800 rounded-2xl p-4 shadow-md z-10 md:hidden">
             <h2 className="text-lg font-semibold mb-4">Participants</h2>
@@ -178,7 +171,6 @@ export default function KairoswarmDashboard() {
           </div>
         )}
 
-        {/* Tape Panel */}
         <div className="flex-1 bg-gray-850 rounded-2xl p-4 shadow-inner overflow-hidden flex flex-col">
           <h2 className="text-lg font-semibold mb-4">Tape</h2>
           <ScrollArea className="flex-1 space-y-2 overflow-auto pr-2" ref={scrollRef}>
@@ -195,7 +187,6 @@ export default function KairoswarmDashboard() {
         </div>
       </div>
 
-      {/* Speak Input */}
       <div className="flex items-center space-x-2 border-t border-gray-700 pt-2">
         <Input
           placeholder="Speak to the swarm..."
