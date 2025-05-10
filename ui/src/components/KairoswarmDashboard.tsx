@@ -30,6 +30,7 @@ export default function KairoswarmDashboard() {
     const fetchParticipants = async () => {
       const res = await fetch("https://nstoykov-git--kairoswarm-serverless-api-serve-api.modal.run/participants-full");
       const data = await res.json();
+      console.log("Fetched tape:", data); // 👈 Add this line
       setParticipants(data);
     };
 
@@ -46,6 +47,7 @@ export default function KairoswarmDashboard() {
     const interval = setInterval(async () => {
       const response = await fetch("https://nstoykov-git--kairoswarm-serverless-api-serve-api.modal.run/tape");
       const data = await response.json();
+      console.log("Fetched participants:", data); // 👈 Add this line
       setTape(data);
     }, 2000);
 
