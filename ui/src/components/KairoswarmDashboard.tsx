@@ -25,6 +25,15 @@ export default function KairoswarmDashboard() {
     if (storedPid) {
       setParticipantId(storedPid);
     }
+
+    // Fetch participants on initial load
+    const fetchParticipants = async () => {
+      const res = await fetch("https://nstoykov-git--kairoswarm-serverless-api-serve-api.modal.run/participants");
+      const data = await res.json();
+      setParticipants(data);
+    };
+
+    fetchParticipants();
   }, []);
 
   useEffect(() => {
@@ -163,24 +172,14 @@ export default function KairoswarmDashboard() {
             ))}
           </div>
           <div className="mt-4 flex space-x-2">
-            <Input
-              placeholder="Join as..."
-              value={joinName}
-              onChange={(e) => setJoinName(e.target.value)}
-              className="text-sm"
-            />
-            <Button variant="outline" onClick={handleJoin}>
+            <Input placeholder="Join as..." value={joinName} onChange={(e) => setJoinName(e.target.value)} className="text-sm" />
+            <Button variant="outline" onClick={handleJoin} className="whitespace-nowrap">
               <PlusCircle className="w-4 h-4 mr-1" /> Join
             </Button>
           </div>
           <div className="mt-2 flex space-x-2">
-            <Input
-              placeholder="Add AI (agent ID)"
-              value={agentId}
-              onChange={(e) => setAgentId(e.target.value)}
-              className="text-sm"
-            />
-            <Button variant="secondary" onClick={handleAddAgent}>
+            <Input placeholder="Add AI (agent ID)" value={agentId} onChange={(e) => setAgentId(e.target.value)} className="text-sm" />
+            <Button variant="secondary" onClick={handleAddAgent} className="whitespace-nowrap">
               <PlusCircle className="w-4 h-4 mr-1" /> Add AI
             </Button>
           </div>
@@ -207,24 +206,14 @@ export default function KairoswarmDashboard() {
               ))}
             </div>
             <div className="mt-4 flex space-x-2">
-              <Input
-                placeholder="Join as..."
-                value={joinName}
-                onChange={(e) => setJoinName(e.target.value)}
-                className="text-sm"
-              />
-              <Button variant="outline" onClick={handleJoin}>
+              <Input placeholder="Join as..." value={joinName} onChange={(e) => setJoinName(e.target.value)} className="text-sm" />
+              <Button variant="outline" onClick={handleJoin} className="whitespace-nowrap">
                 <PlusCircle className="w-4 h-4 mr-1" /> Join
               </Button>
             </div>
             <div className="mt-2 flex space-x-2">
-              <Input
-                placeholder="Add AI (agent ID)"
-                value={agentId}
-                onChange={(e) => setAgentId(e.target.value)}
-                className="text-sm"
-              />
-              <Button variant="secondary" onClick={handleAddAgent}>
+              <Input placeholder="Add AI (agent ID)" value={agentId} onChange={(e) => setAgentId(e.target.value)} className="text-sm" />
+              <Button variant="secondary" onClick={handleAddAgent} className="whitespace-nowrap">
                 <PlusCircle className="w-4 h-4 mr-1" /> Add AI
               </Button>
             </div>
@@ -249,12 +238,7 @@ export default function KairoswarmDashboard() {
       </div>
 
       <div className="flex items-center space-x-2 border-t border-gray-700 pt-2">
-        <Input
-          placeholder="Speak to the swarm..."
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          className="flex-1"
-        />
+        <Input placeholder="Speak to the swarm..." value={input} onChange={(e) => setInput(e.target.value)} className="flex-1" />
         <Button onClick={handleSubmit}>
           <Send className="w-4 h-4 mr-1" /> Send
         </Button>
