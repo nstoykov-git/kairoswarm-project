@@ -82,11 +82,12 @@ export default function KairoswarmDashboard() {
   const handleAddAgent = async () => {
     if (!agentId.trim()) return;
 
-    const response = await fetch("/api/add-agent", {
+    const response = await fetch("https://nstoykov-git--kairoswarm-serverless-api-serve-api.modal.run/add-agent", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ agentId }),
     });
+    
 
     const data = await response.json();
     if (data.name) {
