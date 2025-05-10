@@ -1,5 +1,5 @@
-// KairoswarmDashboard.tsx
 "use client";
+// KairoswarmDashboard.tsx
 
 import { useState, useEffect, useRef } from "react";
 import { Input } from "@/components/ui/input";
