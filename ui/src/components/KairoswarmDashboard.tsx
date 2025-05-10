@@ -16,81 +16,111 @@ export default function KairoswarmDashboard() {
   const [showParticipants, setShowParticipants] = useState(false);
   const [participants, setParticipants] = useState<any[]>([]);
   const [tape, setTape] = useState<any[]>([]);
-  const scrollRef = useRef<HTMLDivElement | null>(null);
 
-  const API_BASE = "https://nstoykov-git--kairoswarm-serverless-api-serve-api.modal.run";
+  const scrollRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const storedPid = localStorage.getItem("kairoswarm_pid");
-    if (storedPid) setParticipantId(storedPid);
-
-    const loadParticipants = async () => {
-      const res = await fetch(`${API_BASE}/participants`);
-      const data = await res.json();
-      setParticipants(data);
-    };
-
-    loadParticipants();
+    if (storedPid) {
+      setParticipantId(storedPid);
+    }
   }, []);
 
   useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [tape]);
+
+  useEffect(() => {
     const interval = setInterval(async () => {
-      const res = await fetch(`${API_BASE}/tape`);
-      const data = await res.json();
+      const response = await fetch("https://nstoykov-git--kairoswarm-serverless-api-serve-api.modal.run/tape");
+      const data = await response.json();
       setTape(data);
+      if (scrollRef.current) {
+        scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      }
     }, 2000);
 
     return () => clearInterval(interval);
   }, []);
 
-  useEffect(() => {
-    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-  }, [tape]);
-
   const handleSubmit = async () => {
     if (!input.trim() || !participantId) {
-      alert("Please join the swarm first.");
+      alert("Please join the swarm before sending a message.");
       return;
     }
-    await fetch(`${API_BASE}/speak`, {
+
+    const response = await fetch("https://nstoykov-git--kairoswarm-serverless-api-serve-api.modal.run/speak", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ participant_id: participantId, message: input }),
     });
+
+    await response.json();
     setInput("");
   };
 
   const handleJoin = async () => {
     if (!joinName.trim()) return;
-    const res = await fetch(`${API_BASE}/join`, {
+
+    const response = await fetch("https://nstoykov-git--kairoswarm-serverless-api-serve-api.modal.run/join", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: joinName, type: "human" }),
     });
-    const data = await res.json();
+
+    const data = await response.json();
+    if (!data.participant_id) {
+      alert("Join failed.");
+      return;
+    }
+
     setParticipantId(data.participant_id);
     localStorage.setItem("kairoswarm_pid", data.participant_id);
+
+    const newParticipant = {
+      id: participants.length + 1,
+      name: joinName,
+      type: "human",
+    };
+    setParticipants((prev) => [...prev, newParticipant]);
     setJoinName("");
   };
 
   const handleAddAgent = async () => {
     if (!agentId.trim()) return;
-    const res = await fetch(`${API_BASE}/add-agent`, {
+
+    const response = await fetch("https://nstoykov-git--kairoswarm-serverless-api-serve-api.modal.run/add-agent", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ agentId }),
     });
-    const data = await res.json();
-    if (data.name) setParticipants((prev) => [...prev, { id: data.thread_id, name: data.name, type: "agent" }]);
-    setAgentId("");
+
+    const data = await response.json();
+    if (data.name) {
+      const newAgent = {
+        id: participants.length + 1,
+        name: data.name,
+        type: "agent",
+      };
+      setParticipants((prev) => [...prev, newAgent]);
+      setAgentId("");
+    }
   };
 
   const handleNukeRedis = async () => {
-    await fetch(`${API_BASE}/debug/nuke`, { method: "POST" });
+    await fetch("https://nstoykov-git--kairoswarm-serverless-api-serve-api.modal.run/debug/nuke", {
+      method: "POST"
+    });
     alert("Redis cleared.");
     localStorage.removeItem("kairoswarm_pid");
+    setParticipantId(null);
     setParticipants([]);
     setTape([]);
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
   };
 
   return (
@@ -98,7 +128,8 @@ export default function KairoswarmDashboard() {
       <div className="flex justify-between items-center border-b border-gray-700 pb-2">
         <h1 className="text-xl font-bold">Kairoswarm Dashboard</h1>
         <div className="flex items-center space-x-2">
-          <Button variant="ghost" onClick={() => setShowParticipants((prev) => !prev)}>
+          <div className="text-sm text-gray-400 hidden md:block">Mode: Lecture</div>
+          <Button variant="ghost" onClick={() => setShowParticipants((prev) => !prev)} className="md:hidden">
             <Users className="w-5 h-5" />
           </Button>
           <Button variant="ghost" onClick={handleNukeRedis} title="Clear Redis">
