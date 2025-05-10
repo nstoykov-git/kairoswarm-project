@@ -18,6 +18,7 @@ export default function KairoswarmDashboard() {
   const [tape, setTape] = useState<any[]>([]);
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const participantsRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const storedPid = localStorage.getItem("kairoswarm_pid");
@@ -37,9 +38,6 @@ export default function KairoswarmDashboard() {
       const response = await fetch("https://nstoykov-git--kairoswarm-serverless-api-serve-api.modal.run/tape");
       const data = await response.json();
       setTape(data);
-      if (scrollRef.current) {
-        scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-      }
     }, 2000);
 
     return () => clearInterval(interval);
@@ -86,6 +84,13 @@ export default function KairoswarmDashboard() {
     };
     setParticipants((prev) => [...prev, newParticipant]);
     setJoinName("");
+
+    // scroll participants
+    setTimeout(() => {
+      if (participantsRef.current) {
+        participantsRef.current.scrollTop = participantsRef.current.scrollHeight;
+      }
+    }, 100);
   };
 
   const handleAddAgent = async () => {
@@ -106,6 +111,12 @@ export default function KairoswarmDashboard() {
       };
       setParticipants((prev) => [...prev, newAgent]);
       setAgentId("");
+
+      setTimeout(() => {
+        if (participantsRef.current) {
+          participantsRef.current.scrollTop = participantsRef.current.scrollHeight;
+        }
+      }, 100);
     }
   };
 
@@ -118,9 +129,6 @@ export default function KairoswarmDashboard() {
     setParticipantId(null);
     setParticipants([]);
     setTape([]);
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
   };
 
   return (
@@ -139,11 +147,14 @@ export default function KairoswarmDashboard() {
       </div>
 
       <div className="flex flex-1 space-x-4 overflow-hidden relative">
-        {/* Participants Panel */}
-        {(showParticipants || true) && (
-          <div className="basis-1/4 min-w-[220px] max-w-[300px] bg-gray-800 rounded-2xl p-4 shadow-md">
-            <h2 className="text-lg font-semibold mb-4">Participants</h2>
-            <div className="space-y-3 overflow-y-auto max-h-[60vh] pr-1">
+        {/* Mobile Participants Panel */}
+        {showParticipants && (
+          <div className="absolute inset-0 z-20 bg-gray-800 p-4 rounded-xl md:hidden overflow-y-auto">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-semibold">Participants</h2>
+              <Button size="sm" variant="ghost" onClick={() => setShowParticipants(false)}>Close</Button>
+            </div>
+            <div ref={participantsRef} className="space-y-3 max-h-[65vh] overflow-y-auto pr-1">
               {participants.map((p) => (
                 <Card key={p.id}>
                   <CardContent className="flex items-center space-x-2 p-3">
@@ -156,18 +167,6 @@ export default function KairoswarmDashboard() {
                 </Card>
               ))}
             </div>
-            <div className="mt-4 flex space-x-2">
-              <Input placeholder="Join as..." value={joinName} onChange={(e) => setJoinName(e.target.value)} className="text-sm" />
-              <Button variant="outline" onClick={handleJoin}>
-                <PlusCircle className="w-4 h-4 mr-1" /> Join
-              </Button>
-            </div>
-            <div className="mt-2 flex space-x-2">
-              <Input placeholder="Add AI (agent ID)" value={agentId} onChange={(e) => setAgentId(e.target.value)} className="text-sm" />
-              <Button variant="secondary" onClick={handleAddAgent}>
-                <PlusCircle className="w-4 h-4 mr-1" /> Add AI
-              </Button>
-            </div>
           </div>
         )}
 
@@ -175,8 +174,8 @@ export default function KairoswarmDashboard() {
         <div className="flex-1 bg-gray-850 rounded-2xl p-4 shadow-inner overflow-hidden flex flex-col">
           <h2 className="text-lg font-semibold mb-4">Tape</h2>
           <ScrollArea className="flex-1 space-y-2 overflow-auto pr-2" ref={scrollRef}>
-            {tape.map((entry, idx) => (
-              <div key={idx} className="flex items-start space-x-2">
+            {tape.map((entry, index) => (
+              <div key={index} className="flex items-start space-x-2">
                 {entry.type === "human" ? <User className="text-green-400" /> : <Bot className="text-blue-400" />}
                 <div>
                   <p className="font-medium text-sm">{entry.from}</p>
@@ -188,9 +187,13 @@ export default function KairoswarmDashboard() {
         </div>
       </div>
 
-      {/* Speak Input */}
       <div className="flex items-center space-x-2 border-t border-gray-700 pt-2">
-        <Input placeholder="Speak to the swarm..." value={input} onChange={(e) => setInput(e.target.value)} className="flex-1" />
+        <Input
+          placeholder="Speak to the swarm..."
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          className="flex-1"
+        />
         <Button onClick={handleSubmit}>
           <Send className="w-4 h-4 mr-1" /> Send
         </Button>
