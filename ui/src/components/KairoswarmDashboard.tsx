@@ -22,14 +22,24 @@ export default function KairoswarmDashboard() {
     { id: 1, type: "human", name: "Nina", text: "Hey team, ready to begin?" },
     { id: 2, type: "agent", name: "KAI-5", text: "Affirmative. Lecture mode engaged." },
   ]);
-
+  
+  // Load stored participant ID on initial mount
+  useEffect(() => {
+    const storedPid = localStorage.getItem("kairoswarm_pid");
+    if (storedPid) {
+      setParticipantId(storedPid);
+    }
+  }, []);
+  
   const scrollRef = useRef<HTMLDivElement | null>(null);
-
+  
+  // Scroll to bottom on tape update
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [tape]);
+  
 
   const handleSubmit = async () => {
     if (!input.trim() || !participantId) return;
@@ -71,6 +81,7 @@ export default function KairoswarmDashboard() {
 
     const data = await response.json();
     setParticipantId(data.participant_id);
+    localStorage.setItem("kairoswarm_pid", data.participant_id);
 
     const newParticipant = {
       id: participants.length + 1,
