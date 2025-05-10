@@ -106,6 +106,16 @@ export default function KairoswarmDashboard() {
     }
   };
 
+  const handleNukeRedis = async () => {
+    await fetch("https://nstoykov-git--kairoswarm-serverless-api-serve-api.modal.run/debug/nuke", {
+      method: "POST"
+    });
+    alert("Redis cleared.");
+    localStorage.removeItem("kairoswarm_pid");
+    setParticipants([]);
+    setTape([]);
+  };
+  
   return (
     <div className="flex flex-col h-screen bg-gray-900 text-white p-4 space-y-4">
       <div className="flex justify-between items-center border-b border-gray-700 pb-2">
