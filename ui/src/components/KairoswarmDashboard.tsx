@@ -1,12 +1,10 @@
-"use client";
 // KairoswarmDashboard.tsx
+"use client";
 
 import { useState, useEffect, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Mic, Send, User, Bot, PlusCircle, Users } from "lucide-react";
+import { User, Bot, PlusCircle, Users } from "lucide-react";
 
 export default function KairoswarmDashboard() {
   const [input, setInput] = useState("");
@@ -16,7 +14,6 @@ export default function KairoswarmDashboard() {
   const [showParticipants, setShowParticipants] = useState(false);
   const [participants, setParticipants] = useState<any[]>([]);
   const [tape, setTape] = useState<any[]>([]);
-
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -24,6 +21,15 @@ export default function KairoswarmDashboard() {
     if (storedPid) {
       setParticipantId(storedPid);
     }
+  }, []);
+
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      const res = await fetch("https://nstoykov-git--kairoswarm-serverless-api-serve-api.modal.run/tape");
+      const data = await res.json();
+      setTape(data);
+    }, 2000);
+    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
@@ -43,11 +49,6 @@ export default function KairoswarmDashboard() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ participant_id: participantId, message: input }),
     });
-
-    const data = await response.json();
-    if (data.entry) {
-      setTape((prev) => [...prev, data.entry]);
-    }
 
     setInput("");
   };
@@ -69,134 +70,67 @@ export default function KairoswarmDashboard() {
 
     setParticipantId(data.participant_id);
     localStorage.setItem("kairoswarm_pid", data.participant_id);
-
-    const newParticipant = {
-      id: participants.length + 1,
-      name: joinName,
-      type: "human",
-    };
+    const newParticipant = { id: participants.length + 1, name: joinName, type: "human" };
     setParticipants((prev) => [...prev, newParticipant]);
     setJoinName("");
   };
 
   const handleAddAgent = async () => {
     if (!agentId.trim()) return;
-
     const response = await fetch("https://nstoykov-git--kairoswarm-serverless-api-serve-api.modal.run/add-agent", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ agentId }),
     });
-    
 
     const data = await response.json();
     if (data.name) {
-      const newAgent = {
-        id: participants.length + 1,
-        name: data.name,
-        type: "agent",
-      };
+      const newAgent = { id: participants.length + 1, name: data.name, type: "agent" };
       setParticipants((prev) => [...prev, newAgent]);
-      setTape((prev) => [
-        ...prev,
-        {
-          id: prev.length + 1,
-          type: "agent",
-          name: data.name,
-          message: "Hello, I've joined the swarm.",
-        },
-      ]);
       setAgentId("");
     }
   };
 
   return (
-    <div className="flex flex-col h-screen bg-gray-900 text-white p-4 space-y-4">
-      <div className="flex justify-between items-center border-b border-gray-700 pb-2">
-        <h1 className="text-xl font-bold">Kairoswarm Dashboard</h1>
-        <div className="flex items-center space-x-2">
-          <div className="text-sm text-gray-400 hidden md:block">Mode: Lecture</div>
-          <Button variant="ghost" onClick={() => setShowParticipants((prev) => !prev)} className="md:hidden">
-            <Users className="w-5 h-5" />
-          </Button>
-        </div>
-      </div>
+    <div style={{ padding: 16, backgroundColor: "#111", color: "#fff", height: "100vh", display: "flex", flexDirection: "column" }}>
+      <h1 style={{ fontSize: 20, fontWeight: "bold" }}>Kairoswarm Dashboard</h1>
 
-      <div className="flex flex-1 space-x-4 overflow-hidden relative">
-        <div className="basis-1/4 min-w-[220px] max-w-[300px] bg-gray-800 rounded-2xl p-4 shadow-md hidden md:block">
-          <h2 className="text-lg font-semibold mb-4">Participants</h2>
-          <div className="space-y-3 overflow-y-auto max-h-[60vh] pr-1">
+      <div style={{ display: "flex", flex: 1, marginTop: 16, overflow: "hidden" }}>
+        <div style={{ width: 250, paddingRight: 12 }}>
+          <h2 style={{ fontSize: 16, fontWeight: "bold" }}>Participants</h2>
+          <ul>
             {participants.map((p) => (
-              <Card key={p.id}>
-                <CardContent className="flex items-center space-x-2 p-3">
-                  {p.type === "human" ? <User className="text-green-400" /> : <Bot className="text-blue-400" />}
-                  <div>
-                    <p className="font-medium">{p.name}</p>
-                    <p className="text-xs text-gray-400">{p.type === "human" ? "Active" : "Agent"}</p>
-                  </div>
-                </CardContent>
-              </Card>
+              <li key={p.id}>
+                {p.type === "human" ? "🟢" : "🤖"} {p.name}
+              </li>
             ))}
-          </div>
-          <div className="mt-4 flex space-x-2">
-            <Input placeholder="Join as..." value={joinName} onChange={(e) => setJoinName(e.target.value)} className="text-sm" />
-            <Button variant="outline" onClick={handleJoin}>
-              <PlusCircle className="w-4 h-4 mr-1" /> Join
-            </Button>
-          </div>
-          <div className="mt-2 flex space-x-2">
-            <Input placeholder="Add AI (agent ID)" value={agentId} onChange={(e) => setAgentId(e.target.value)} className="text-sm" />
-            <Button variant="secondary" onClick={handleAddAgent}>
-              <PlusCircle className="w-4 h-4 mr-1" /> Add AI
-            </Button>
-          </div>
+          </ul>
+          <input placeholder="Join as..." value={joinName} onChange={(e) => setJoinName(e.target.value)} />
+          <button onClick={handleJoin}>Join</button>
+          <input placeholder="Add AI (agent ID)" value={agentId} onChange={(e) => setAgentId(e.target.value)} />
+          <button onClick={handleAddAgent}>Add AI</button>
         </div>
 
-        {showParticipants && (
-          <div className="absolute top-0 left-0 w-full bg-gray-800 rounded-2xl p-4 shadow-md z-10 md:hidden">
-            <h2 className="text-lg font-semibold mb-4">Participants</h2>
-            <div className="space-y-3 overflow-y-auto max-h-[60vh] pr-1">
-              {participants.map((p) => (
-                <Card key={p.id}>
-                  <CardContent className="flex items-center space-x-2 p-3">
-                    {p.type === "human" ? <User className="text-green-400" /> : <Bot className="text-blue-400" />}
-                    <div>
-                      <p className="font-medium">{p.name}</p>
-                      <p className="text-xs text-gray-400">{p.type === "human" ? "Active" : "Agent"}</p>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </div>
-        )}
-
-        <div className="flex-1 bg-gray-850 rounded-2xl p-4 shadow-inner overflow-hidden flex flex-col">
-          <h2 className="text-lg font-semibold mb-4">Tape</h2>
-          <ScrollArea className="flex-1 space-y-2 overflow-auto pr-2" ref={scrollRef}>
+        <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", paddingLeft: 16 }}>
+          <h2 style={{ fontSize: 16, fontWeight: "bold" }}>Tape</h2>
+          <ul>
             {tape.map((entry, i) => (
-              <div key={i} className="flex items-start space-x-2">
-                {entry.type === "human" ? <User className="text-green-400" /> : <Bot className="text-blue-400" />}
-                <div>
-                  <p className="font-medium text-sm">{entry.name || entry.from}</p>
-                  <p className="text-sm text-gray-200">{entry.text || entry.message}</p>
-                </div>
-              </div>
+              <li key={i}>
+                {entry.type === "human" ? "🟢" : "🤖"} <strong>{entry.name || entry.from}:</strong> {entry.text || entry.message}
+              </li>
             ))}
-          </ScrollArea>
+          </ul>
         </div>
       </div>
 
-      <div className="flex items-center space-x-2 border-t border-gray-700 pt-2">
-        <Input
+      <div style={{ display: "flex", marginTop: 8 }}>
+        <input
           placeholder="Speak to the swarm..."
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          className="flex-1"
+          style={{ flex: 1 }}
         />
-        <Button onClick={handleSubmit}>
-          <Send className="w-4 h-4 mr-1" /> Send
-        </Button>
+        <button onClick={handleSubmit}>Send</button>
       </div>
     </div>
   );
