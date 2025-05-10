@@ -147,7 +147,7 @@ export default function KairoswarmDashboard() {
 
       <div className="flex flex-1 space-x-4 overflow-hidden relative">
         {/* Desktop Participants Panel */}
-        <div className="hidden md:block w-1/4 bg-gray-800 rounded-2xl p-4 shadow-md overflow-y-auto max-h-[65vh] pr-1 scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800" ref={participantsRef}>
+        <div className="hidden md:flex flex-col w-1/4 bg-gray-800 rounded-2xl p-4 shadow-md overflow-y-auto max-h-[65vh] pr-1 scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800" ref={participantsRef}>
           <h2 className="text-lg font-semibold mb-4">Participants</h2>
           <div className="space-y-3">
             {participants.map((p) => (
@@ -161,6 +161,28 @@ export default function KairoswarmDashboard() {
                 </CardContent>
               </Card>
             ))}
+          </div>
+          <div className="mt-4 flex space-x-2">
+            <Input
+              placeholder="Join as..."
+              value={joinName}
+              onChange={(e) => setJoinName(e.target.value)}
+              className="text-sm"
+            />
+            <Button variant="outline" onClick={handleJoin}>
+              <PlusCircle className="w-4 h-4 mr-1" /> Join
+            </Button>
+          </div>
+          <div className="mt-2 flex space-x-2">
+            <Input
+              placeholder="Add AI (agent ID)"
+              value={agentId}
+              onChange={(e) => setAgentId(e.target.value)}
+              className="text-sm"
+            />
+            <Button variant="secondary" onClick={handleAddAgent}>
+              <PlusCircle className="w-4 h-4 mr-1" /> Add AI
+            </Button>
           </div>
         </div>
 
@@ -183,6 +205,28 @@ export default function KairoswarmDashboard() {
                   </CardContent>
                 </Card>
               ))}
+            </div>
+            <div className="mt-4 flex space-x-2">
+              <Input
+                placeholder="Join as..."
+                value={joinName}
+                onChange={(e) => setJoinName(e.target.value)}
+                className="text-sm"
+              />
+              <Button variant="outline" onClick={handleJoin}>
+                <PlusCircle className="w-4 h-4 mr-1" /> Join
+              </Button>
+            </div>
+            <div className="mt-2 flex space-x-2">
+              <Input
+                placeholder="Add AI (agent ID)"
+                value={agentId}
+                onChange={(e) => setAgentId(e.target.value)}
+                className="text-sm"
+              />
+              <Button variant="secondary" onClick={handleAddAgent}>
+                <PlusCircle className="w-4 h-4 mr-1" /> Add AI
+              </Button>
             </div>
           </div>
         )}
