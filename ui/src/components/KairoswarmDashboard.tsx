@@ -85,7 +85,6 @@ export default function KairoswarmDashboard() {
     setParticipants((prev) => [...prev, newParticipant]);
     setJoinName("");
 
-    // scroll participants
     setTimeout(() => {
       if (participantsRef.current) {
         participantsRef.current.scrollTop = participantsRef.current.scrollHeight;
@@ -147,6 +146,24 @@ export default function KairoswarmDashboard() {
       </div>
 
       <div className="flex flex-1 space-x-4 overflow-hidden relative">
+        {/* Desktop Participants Panel */}
+        <div className="hidden md:block w-1/4 bg-gray-800 rounded-2xl p-4 shadow-md overflow-y-auto max-h-[65vh] pr-1 scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800" ref={participantsRef}>
+          <h2 className="text-lg font-semibold mb-4">Participants</h2>
+          <div className="space-y-3">
+            {participants.map((p) => (
+              <Card key={p.id}>
+                <CardContent className="flex items-center space-x-2 p-3">
+                  {p.type === "human" ? <User className="text-green-400" /> : <Bot className="text-blue-400" />}
+                  <div>
+                    <p className="font-medium">{p.name}</p>
+                    <p className="text-xs text-gray-400">{p.type === "human" ? "Active" : "Agent"}</p>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+
         {/* Mobile Participants Panel */}
         {showParticipants && (
           <div className="absolute inset-0 z-20 bg-gray-800 p-4 rounded-xl md:hidden overflow-y-auto">
@@ -154,7 +171,7 @@ export default function KairoswarmDashboard() {
               <h2 className="text-lg font-semibold">Participants</h2>
               <Button size="sm" variant="ghost" onClick={() => setShowParticipants(false)}>Close</Button>
             </div>
-            <div ref={participantsRef} className="space-y-3 max-h-[65vh] overflow-y-auto pr-1">
+            <div ref={participantsRef} className="space-y-3 max-h-[65vh] overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800">
               {participants.map((p) => (
                 <Card key={p.id}>
                   <CardContent className="flex items-center space-x-2 p-3">
