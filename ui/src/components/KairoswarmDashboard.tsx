@@ -22,27 +22,30 @@ export default function KairoswarmDashboard() {
     { id: 1, type: "human", name: "Nina", text: "Hey team, ready to begin?" },
     { id: 2, type: "agent", name: "KAI-5", text: "Affirmative. Lecture mode engaged." },
   ]);
-  
-  // Load stored participant ID on initial mount
+
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+
+  // Restore participantId from localStorage on mount
   useEffect(() => {
     const storedPid = localStorage.getItem("kairoswarm_pid");
     if (storedPid) {
       setParticipantId(storedPid);
     }
   }, []);
-  
-  const scrollRef = useRef<HTMLDivElement | null>(null);
-  
-  // Scroll to bottom on tape update
+
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [tape]);
-  
 
   const handleSubmit = async () => {
-    if (!input.trim() || !participantId) return;
+    if (!input.trim() || !participantId) {
+      alert("Please join the swarm before sending a message.");
+      return;
+    }
+
+    console.log("Sending to /speak:", input, participantId);
 
     const response = await fetch("https://kairoswarm-serverless-api.modal.run/speak", {
       method: "POST",
@@ -54,7 +57,6 @@ export default function KairoswarmDashboard() {
     });
 
     const data = await response.json();
-
     if (data.entry) {
       setTape((prev) => [
         ...prev,
