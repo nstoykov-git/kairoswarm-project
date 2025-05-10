@@ -26,9 +26,9 @@ export default function KairoswarmDashboard() {
       setParticipantId(storedPid);
     }
 
-    // Fetch participants on initial load
+    // Fetch all participants (humans + agents) on load
     const fetchParticipants = async () => {
-      const res = await fetch("https://nstoykov-git--kairoswarm-serverless-api-serve-api.modal.run/participants");
+      const res = await fetch("https://nstoykov-git--kairoswarm-serverless-api-serve-api.modal.run/participants-full");
       const data = await res.json();
       setParticipants(data);
     };
