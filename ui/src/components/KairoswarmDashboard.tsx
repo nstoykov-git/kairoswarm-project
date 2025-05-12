@@ -1,6 +1,5 @@
 "use client";
 // KairoswarmDashboard.tsx
-"use client";
 
 import { useEffect, useState, useRef, useMemo } from "react";
 import { v4 as uuidv4 } from "uuid";
@@ -43,14 +42,20 @@ export default function KairoswarmDashboard() {
 
   useEffect(() => {
     const poll = setInterval(async () => {
-      const [tapeRes, participantsRes] = await Promise.all([
-        fetch(`https://kairoswarm-serverless-api.modal.run/tape?swarm_id=${swarmId}`),
-        fetch(`https://kairoswarm-serverless-api.modal.run/participants-full?swarm_id=${swarmId}`)
-      ]);
-      const tapeData = await tapeRes.json();
-      const participantsData = await participantsRes.json();
-      if (Array.isArray(tapeData)) setTape(tapeData);
-      if (Array.isArray(participantsData)) setParticipants(participantsData);
+      try {
+        const [tapeRes, participantsRes] = await Promise.all([
+          fetch(`https://kairoswarm-serverless-api.modal.run/tape?swarm_id=${swarmId}`),
+          fetch(`https://kairoswarm-serverless-api.modal.run/participants-full?swarm_id=${swarmId}`)
+        ]);
+        const tapeData = await tapeRes.json();
+        const participantsData = await participantsRes.json();
+        if (Array.isArray(tapeData)) setTape(tapeData);
+        else console.warn("Invalid tape response", tapeData);
+        if (Array.isArray(participantsData)) setParticipants(participantsData);
+        else console.warn("Invalid participants response", participantsData);
+      } catch (err) {
+        console.error("Polling error:", err);
+      }
     }, 3000);
     return () => clearInterval(poll);
   }, [swarmId]);
