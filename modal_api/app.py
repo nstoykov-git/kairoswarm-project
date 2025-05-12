@@ -1,5 +1,6 @@
 from modal import App, asgi_app, Secret, Image
 from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 import redis.asyncio as redis
 import openai
@@ -55,7 +56,9 @@ async def join(request: Request):
     return {"participant_id": pid}
 
 @api.get("/participants-full")
-async def participants_full(swarm_id: str):
+async def participants_full(swarm_id: str = None):
+    if not swarm_id:
+        return JSONResponse(status_code=400, content={"error": "Missing swarm_id"})
     async with get_redis() as r:
         raw = await r.hvals(f"{swarm_id}:participants")
     return [json.loads(x) for x in raw]
