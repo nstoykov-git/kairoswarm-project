@@ -175,7 +175,7 @@ export default function KairoswarmDashboard() {
           </div>
           <div className="mt-4 flex space-x-2">
             <Input placeholder="Join as..." value={joinName} onChange={(e) => setJoinName(e.target.value)} className="text-sm" />
-            <Button variant="outline" onClick={handleJoin} className="whitespace-nowrap">
+            <Button variant="secondary" onClick={handleJoin} className="whitespace-nowrap">
               <PlusCircle className="w-4 h-4 mr-1" /> Join
             </Button>
           </div>
