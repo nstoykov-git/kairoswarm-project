@@ -40,6 +40,7 @@ export default function KairoswarmDashboard() {
   }, [tape]);
 
   useEffect(() => {
+    if (!swarmId) return;    // ← bail out until we have a non-empty ID
     const poll = setInterval(async () => {
       try {
         const [tapeRes, participantsRes] = await Promise.all([
