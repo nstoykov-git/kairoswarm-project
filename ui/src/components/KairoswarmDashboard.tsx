@@ -1,5 +1,6 @@
 "use client";
 // KairoswarmDashboard.tsx
+"use client";
 
 import { useEffect, useState, useRef, useMemo } from "react";
 import { v4 as uuidv4 } from "uuid";
@@ -7,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { User, Bot, Send, PlusCircle, Users } from "lucide-react";
+import { User, Bot, Send, Users } from "lucide-react";
 
 export default function KairoswarmDashboard() {
   const [input, setInput] = useState("");
@@ -46,8 +47,10 @@ export default function KairoswarmDashboard() {
         fetch(`https://kairoswarm-serverless-api.modal.run/tape?swarm_id=${swarmId}`),
         fetch(`https://kairoswarm-serverless-api.modal.run/participants-full?swarm_id=${swarmId}`)
       ]);
-      setTape(await tapeRes.json());
-      setParticipants(await participantsRes.json());
+      const tapeData = await tapeRes.json();
+      const participantsData = await participantsRes.json();
+      if (Array.isArray(tapeData)) setTape(tapeData);
+      if (Array.isArray(participantsData)) setParticipants(participantsData);
     }, 3000);
     return () => clearInterval(poll);
   }, [swarmId]);
