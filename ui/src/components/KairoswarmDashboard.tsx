@@ -181,7 +181,7 @@ export default function KairoswarmDashboard() {
         <div className="flex-1 bg-gray-850 rounded-2xl p-4 shadow-inner overflow-hidden flex flex-col">
           <h2 className="text-lg font-semibold mb-4">Tape</h2>
           <ScrollArea className="flex-1 space-y-2 overflow-auto pr-2" ref={scrollRef}>
-            {tape.map((entry, i) => (
+            {(Array.isArray(tape) ? tape : []).map((entry, i) => (
               <div key={i} className="flex items-start space-x-2">
                 {entry.type === "human" ? <User className="text-green-400" /> : <Bot className="text-blue-400" />}
                 <div>
