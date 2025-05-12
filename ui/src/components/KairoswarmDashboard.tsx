@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Mic, Send, User, Bot, PlusCircle, Users, Trash2 } from "lucide-react";
+import { v4 as uuidv4 } from "uuid";
 
 export default function KairoswarmDashboard() {
   const [input, setInput] = useState("");
@@ -16,26 +17,28 @@ export default function KairoswarmDashboard() {
   const [showParticipants, setShowParticipants] = useState(false);
   const [participants, setParticipants] = useState<any[]>([]);
   const [tape, setTape] = useState<any[]>([]);
+  const [swarmId, setSwarmId] = useState<string>(() => {
+    return sessionStorage.getItem("kairoswarm_sid") || uuidv4();
+  });
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const participantsRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    const storedPid = localStorage.getItem("kairoswarm_pid");
+    sessionStorage.setItem("kairoswarm_sid", swarmId);
+    const storedPid = sessionStorage.getItem("kairoswarm_pid");
     if (storedPid) {
       setParticipantId(storedPid);
     }
 
-    // Fetch all participants (humans + agents) on load
     const fetchParticipants = async () => {
-      const res = await fetch("https://nstoykov-git--kairoswarm-serverless-api-serve-api.modal.run/participants-full");
+      const res = await fetch(`https://nstoykov-git--kairoswarm-serverless-api-serve-api.modal.run/participants-full?swarm_id=${swarmId}`);
       const data = await res.json();
-      console.log("Fetched tape:", data); // 👈 Add this line
       setParticipants(data);
     };
 
     fetchParticipants();
-  }, []);
+  }, [swarmId]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -45,14 +48,13 @@ export default function KairoswarmDashboard() {
 
   useEffect(() => {
     const interval = setInterval(async () => {
-      const response = await fetch("https://nstoykov-git--kairoswarm-serverless-api-serve-api.modal.run/tape");
+      const response = await fetch(`https://nstoykov-git--kairoswarm-serverless-api-serve-api.modal.run/tape?swarm_id=${swarmId}`);
       const data = await response.json();
-      console.log("Fetched participants:", data); // 👈 Add this line
       setTape(data);
     }, 2000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [swarmId]);
 
   const handleSubmit = async () => {
     if (!input.trim() || !participantId) {
@@ -63,7 +65,7 @@ export default function KairoswarmDashboard() {
     const response = await fetch("https://nstoykov-git--kairoswarm-serverless-api-serve-api.modal.run/speak", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ participant_id: participantId, message: input }),
+      body: JSON.stringify({ swarm_id: swarmId, participant_id: participantId, message: input }),
     });
 
     await response.json();
@@ -76,7 +78,7 @@ export default function KairoswarmDashboard() {
     const response = await fetch("https://nstoykov-git--kairoswarm-serverless-api-serve-api.modal.run/join", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: joinName, type: "human" }),
+      body: JSON.stringify({ swarm_id: swarmId, name: joinName, type: "human" }),
     });
 
     const data = await response.json();
@@ -86,7 +88,7 @@ export default function KairoswarmDashboard() {
     }
 
     setParticipantId(data.participant_id);
-    localStorage.setItem("kairoswarm_pid", data.participant_id);
+    sessionStorage.setItem("kairoswarm_pid", data.participant_id);
 
     const newParticipant = {
       id: participants.length + 1,
@@ -109,7 +111,7 @@ export default function KairoswarmDashboard() {
     const response = await fetch("https://nstoykov-git--kairoswarm-serverless-api-serve-api.modal.run/add-agent", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ agentId }),
+      body: JSON.stringify({ swarm_id: swarmId, agentId }),
     });
 
     const data = await response.json();
@@ -135,10 +137,12 @@ export default function KairoswarmDashboard() {
       method: "POST"
     });
     alert("Redis cleared.");
-    localStorage.removeItem("kairoswarm_pid");
+    sessionStorage.removeItem("kairoswarm_pid");
+    sessionStorage.removeItem("kairoswarm_sid");
     setParticipantId(null);
     setParticipants([]);
     setTape([]);
+    setSwarmId(uuidv4());
   };
 
   return (
