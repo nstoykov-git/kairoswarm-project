@@ -19,22 +19,12 @@ export default function KairoswarmDashboard() {
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
   const swarmId = useMemo(() => {
-    let existing = null;
-    try {
-      existing = localStorage.getItem("kairoswarm_swarm_id");
-    } catch (e) {
-      console.warn("Unable to access localStorage. Falling back to default swarm.");
-    }
+    const existing = localStorage.getItem("kairoswarm_swarm_id");
     if (existing) return existing;
-    const fallback = "default"; // Use literal "default" as the fallback swarm
-    try {
-      localStorage.setItem("kairoswarm_swarm_id", fallback);
-    } catch (e) {
-      console.warn("Unable to write to localStorage. Using transient fallback.");
-    }
-    return fallback;
+    const newId = uuidv4();
+    localStorage.setItem("kairoswarm_swarm_id", newId);
+    return newId;
   }, []);
-  
 
   useEffect(() => {
     const storedPid = localStorage.getItem("kairoswarm_pid");
@@ -50,32 +40,15 @@ export default function KairoswarmDashboard() {
   }, [tape]);
 
   useEffect(() => {
-    if (!swarmId) return;    // ← bail out until we have a non-empty ID
     const poll = setInterval(async () => {
-      try {
-        const [tapeRes, participantsRes] = await Promise.all([
-          fetch(`https://kairoswarm-serverless-api.modal.run/tape?swarm_id=${swarmId}`),
-          fetch(`https://kairoswarm-serverless-api.modal.run/participants-full?swarm_id=${swarmId}`)
-        ]);
-        const tapeData = await tapeRes.json();
-        const participantsData = await participantsRes.json();
-
-        if (Array.isArray(tapeData)) setTape(tapeData);
-        else {
-          console.warn("Invalid tape response", tapeData);
-          setTape([]);
-        }
-
-        if (Array.isArray(participantsData)) setParticipants(participantsData);
-        else {
-          console.warn("Invalid participants response", participantsData);
-          setParticipants([]);
-        }
-      } catch (err) {
-        console.error("Polling error:", err);
-        setParticipants([]);
-        setTape([]);
-      }
+      const [tapeRes, participantsRes] = await Promise.all([
+        fetch(`https://kairoswarm-serverless-api.modal.run/tape?swarm_id=${swarmId}`),
+        fetch(`https://kairoswarm-serverless-api.modal.run/participants-full?swarm_id=${swarmId}`)
+      ]);
+      const tapeData = await tapeRes.json();
+      const participantsData = await participantsRes.json();
+      setTape(Array.isArray(tapeData) ? tapeData : []);
+      setParticipants(Array.isArray(participantsData) ? participantsData : []);
     }, 3000);
     return () => clearInterval(poll);
   }, [swarmId]);
@@ -95,38 +68,30 @@ export default function KairoswarmDashboard() {
 
   const handleSubmit = async () => {
     if (!input.trim() || !participantId) return;
-    try {
-      const response = await fetch("https://kairoswarm-serverless-api.modal.run/speak", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ participant_id: participantId, message: input, swarm_id: swarmId })
-      });
-      const data = await response.json();
-      if (data.entry) {
-        setTape((prev) => [...prev, data.entry]);
-      }
-      setInput("");
-    } catch (error) {
-      console.error("Failed to submit message:", error);
+    const response = await fetch("https://kairoswarm-serverless-api.modal.run/speak", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ participant_id: participantId, message: input, swarm_id: swarmId })
+    });
+    const data = await response.json();
+    if (data.entry) {
+      setTape((prev) => [...prev, data.entry]);
     }
+    setInput("");
   };
 
   const handleAddAgent = async () => {
     if (!agentId.trim()) return;
-    try {
-      const response = await fetch("https://kairoswarm-serverless-api.modal.run/add-agent", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ agentId, swarm_id: swarmId })
-      });
-      const data = await response.json();
-      if (data.name) {
-        setParticipants((prev) => [...prev, { id: Date.now(), name: data.name, type: "agent" }]);
-        setTape((prev) => [...prev, { from: data.name, type: "agent", message: "Hello, I've joined the swarm." }]);
-        setAgentId("");
-      }
-    } catch (error) {
-      console.error("Failed to add agent:", error);
+    const response = await fetch("https://kairoswarm-serverless-api.modal.run/add-agent", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ agentId, swarm_id: swarmId })
+    });
+    const data = await response.json();
+    if (data.name) {
+      setParticipants((prev) => [...prev, { id: Date.now(), name: data.name, type: "agent" }]);
+      setTape((prev) => [...prev, { from: data.name, type: "agent", message: "Hello, I've joined the swarm." }]);
+      setAgentId("");
     }
   };
 
@@ -146,7 +111,7 @@ export default function KairoswarmDashboard() {
         <div className="basis-1/4 min-w-[220px] max-w-[300px] bg-gray-800 rounded-2xl p-4 shadow-md hidden md:block">
           <h2 className="text-lg font-semibold mb-4">Participants</h2>
           <ScrollArea className="space-y-3 overflow-y-auto max-h-[60vh] pr-1">
-            {(Array.isArray(participants) ? participants : []).map((p) => (
+            {participants.map((p) => (
               <Card key={p.id}>
                 <CardContent className="flex items-center space-x-2 p-3">
                   {p.type === "human" ? <User className="text-green-400" /> : <Bot className="text-blue-400" />}
@@ -161,7 +126,7 @@ export default function KairoswarmDashboard() {
 
           <div className="mt-4 flex space-x-2">
             <Input placeholder="Join as..." value={joinName} onChange={(e) => setJoinName(e.target.value)} className="text-sm" />
-            <Button variant="outline" onClick={handleJoin} className="text-sm">Join</Button>
+            <Button variant="secondary" onClick={handleJoin} className="text-sm">Join</Button>
           </div>
           <div className="mt-2 flex space-x-2">
             <Input placeholder="Add AI (agent ID)" value={agentId} onChange={(e) => setAgentId(e.target.value)} className="text-sm" />
@@ -173,7 +138,7 @@ export default function KairoswarmDashboard() {
           <div className="absolute top-0 left-0 w-full bg-gray-800 rounded-2xl p-4 shadow-md z-10 md:hidden">
             <h2 className="text-lg font-semibold mb-4">Participants</h2>
             <ScrollArea className="space-y-3 overflow-y-auto max-h-[60vh] pr-1">
-              {(Array.isArray(participants) ? participants : []).map((p) => (
+              {participants.map((p) => (
                 <Card key={p.id}>
                   <CardContent className="flex items-center space-x-2 p-3">
                     {p.type === "human" ? <User className="text-green-400" /> : <Bot className="text-blue-400" />}
@@ -191,7 +156,7 @@ export default function KairoswarmDashboard() {
         <div className="flex-1 bg-gray-850 rounded-2xl p-4 shadow-inner overflow-hidden flex flex-col">
           <h2 className="text-lg font-semibold mb-4">Tape</h2>
           <ScrollArea className="flex-1 space-y-2 overflow-auto pr-2" ref={scrollRef}>
-            {(Array.isArray(tape) ? tape : []).map((entry, i) => (
+            {tape.map((entry, i) => (
               <div key={i} className="flex items-start space-x-2">
                 {entry.type === "human" ? <User className="text-green-400" /> : <Bot className="text-blue-400" />}
                 <div>
