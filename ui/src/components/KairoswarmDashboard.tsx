@@ -52,9 +52,14 @@ export default function KairoswarmDashboard() {
         if (Array.isArray(tapeData)) setTape(tapeData);
         else console.warn("Invalid tape response", tapeData);
         if (Array.isArray(participantsData)) setParticipants(participantsData);
-        else console.warn("Invalid participants response", participantsData);
+        else {
+          console.warn("Invalid participants response", participantsData);
+          setParticipants([]);
+        }
       } catch (err) {
         console.error("Polling error:", err);
+        setParticipants([]);
+        setTape([]);
       }
     }, 3000);
     return () => clearInterval(poll);
@@ -75,30 +80,38 @@ export default function KairoswarmDashboard() {
 
   const handleSubmit = async () => {
     if (!input.trim() || !participantId) return;
-    const response = await fetch("https://kairoswarm-serverless-api.modal.run/speak", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ participant_id: participantId, message: input, swarm_id: swarmId })
-    });
-    const data = await response.json();
-    if (data.entry) {
-      setTape((prev) => [...prev, data.entry]);
+    try {
+      const response = await fetch("https://kairoswarm-serverless-api.modal.run/speak", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ participant_id: participantId, message: input, swarm_id: swarmId })
+      });
+      const data = await response.json();
+      if (data.entry) {
+        setTape((prev) => [...prev, data.entry]);
+      }
+      setInput("");
+    } catch (error) {
+      console.error("Failed to submit message:", error);
     }
-    setInput("");
   };
 
   const handleAddAgent = async () => {
     if (!agentId.trim()) return;
-    const response = await fetch("https://kairoswarm-serverless-api.modal.run/add-agent", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ agentId, swarm_id: swarmId })
-    });
-    const data = await response.json();
-    if (data.name) {
-      setParticipants((prev) => [...prev, { id: Date.now(), name: data.name, type: "agent" }]);
-      setTape((prev) => [...prev, { from: data.name, type: "agent", message: "Hello, I've joined the swarm." }]);
-      setAgentId("");
+    try {
+      const response = await fetch("https://kairoswarm-serverless-api.modal.run/add-agent", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ agentId, swarm_id: swarmId })
+      });
+      const data = await response.json();
+      if (data.name) {
+        setParticipants((prev) => [...prev, { id: Date.now(), name: data.name, type: "agent" }]);
+        setTape((prev) => [...prev, { from: data.name, type: "agent", message: "Hello, I've joined the swarm." }]);
+        setAgentId("");
+      }
+    } catch (error) {
+      console.error("Failed to add agent:", error);
     }
   };
 
