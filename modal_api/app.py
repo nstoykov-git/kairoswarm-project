@@ -42,9 +42,7 @@ def serve_api():
 async def join(request: Request):
     body = await request.json()
     pid = str(uuid.uuid4())
-    sid = body.get("swarm_id")
-    if not sid:
-        return JSONResponse(status_code=400, content={"error": "Missing swarm_id"})
+    sid = body.get("swarm_id") or "default"
 
     async with get_redis() as r:
         await r.hset(f"{sid}:participants", pid, json.dumps({
@@ -57,9 +55,7 @@ async def join(request: Request):
 
 @api.get("/participants-full")
 async def participants_full(request: Request):
-    sid = request.query_params.get("swarm_id")
-    if not sid:
-        return JSONResponse(status_code=400, content={"error": "Missing swarm_id"})
+    sid = request.query_params.get("swarm_id") or "default"
 
     async with get_redis() as r:
         raw = await r.hvals(f"{sid}:participants")
@@ -67,9 +63,7 @@ async def participants_full(request: Request):
 
 @api.get("/tape")
 async def tape(request: Request):
-    sid = request.query_params.get("swarm_id")
-    if not sid:
-        return JSONResponse(status_code=400, content={"error": "Missing swarm_id"})
+    sid = request.query_params.get("swarm_id") or "default"
 
     async with get_redis() as r:
         raw = await r.lrange(f"{sid}:conversation_tape", 0, -1)

@@ -19,12 +19,22 @@ export default function KairoswarmDashboard() {
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
   const swarmId = useMemo(() => {
-    const existing = localStorage.getItem("kairoswarm_swarm_id");
+    let existing = null;
+    try {
+      existing = localStorage.getItem("kairoswarm_swarm_id");
+    } catch (e) {
+      console.warn("Unable to access localStorage. Falling back to default swarm.");
+    }
     if (existing) return existing;
-    const newId = uuidv4();
-    localStorage.setItem("kairoswarm_swarm_id", newId);
-    return newId;
+    const fallback = "default"; // Use literal "default" as the fallback swarm
+    try {
+      localStorage.setItem("kairoswarm_swarm_id", fallback);
+    } catch (e) {
+      console.warn("Unable to write to localStorage. Using transient fallback.");
+    }
+    return fallback;
   }, []);
+  
 
   useEffect(() => {
     const storedPid = localStorage.getItem("kairoswarm_pid");
