@@ -1,5 +1,4 @@
 "use client";
-// KairoswarmDashboard.tsx
 
 import { useEffect, useState, useRef, useMemo } from "react";
 import { v4 as uuidv4 } from "uuid";
@@ -49,8 +48,13 @@ export default function KairoswarmDashboard() {
         ]);
         const tapeData = await tapeRes.json();
         const participantsData = await participantsRes.json();
+
         if (Array.isArray(tapeData)) setTape(tapeData);
-        else console.warn("Invalid tape response", tapeData);
+        else {
+          console.warn("Invalid tape response", tapeData);
+          setTape([]);
+        }
+
         if (Array.isArray(participantsData)) setParticipants(participantsData);
         else {
           console.warn("Invalid participants response", participantsData);
@@ -131,7 +135,7 @@ export default function KairoswarmDashboard() {
         <div className="basis-1/4 min-w-[220px] max-w-[300px] bg-gray-800 rounded-2xl p-4 shadow-md hidden md:block">
           <h2 className="text-lg font-semibold mb-4">Participants</h2>
           <ScrollArea className="space-y-3 overflow-y-auto max-h-[60vh] pr-1">
-            {participants.map((p) => (
+            {(Array.isArray(participants) ? participants : []).map((p) => (
               <Card key={p.id}>
                 <CardContent className="flex items-center space-x-2 p-3">
                   {p.type === "human" ? <User className="text-green-400" /> : <Bot className="text-blue-400" />}
@@ -158,7 +162,7 @@ export default function KairoswarmDashboard() {
           <div className="absolute top-0 left-0 w-full bg-gray-800 rounded-2xl p-4 shadow-md z-10 md:hidden">
             <h2 className="text-lg font-semibold mb-4">Participants</h2>
             <ScrollArea className="space-y-3 overflow-y-auto max-h-[60vh] pr-1">
-              {participants.map((p) => (
+              {(Array.isArray(participants) ? participants : []).map((p) => (
                 <Card key={p.id}>
                   <CardContent className="flex items-center space-x-2 p-3">
                     {p.type === "human" ? <User className="text-green-400" /> : <Bot className="text-blue-400" />}
