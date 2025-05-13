@@ -17,6 +17,7 @@ export default function KairoswarmDashboard() {
   const [tape, setTape] = useState<any[]>([]);
   const [showParticipants, setShowParticipants] = useState(false);
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const participantScrollRef = useRef<HTMLDivElement | null>(null);
 
   const swarmId = useMemo(() => {
     const existing = localStorage.getItem("kairoswarm_swarm_id");
@@ -40,6 +41,12 @@ export default function KairoswarmDashboard() {
   }, [tape]);
 
   useEffect(() => {
+    if (participantScrollRef.current) {
+      participantScrollRef.current.scrollTop = participantScrollRef.current.scrollHeight;
+    }
+  }, [participants]);
+
+  useEffect(() => {
     const poll = setInterval(async () => {
       const [tapeRes, participantsRes] = await Promise.all([
         fetch(`https://kairoswarm-serverless-api.modal.run/tape?swarm_id=${swarmId}`),
@@ -47,8 +54,8 @@ export default function KairoswarmDashboard() {
       ]);
       const tapeData = await tapeRes.json();
       const participantsData = await participantsRes.json();
-      setTape(Array.isArray(tapeData) ? tapeData : []);
-      setParticipants(Array.isArray(participantsData) ? participantsData : []);
+      if (Array.isArray(tapeData)) setTape(tapeData);
+      if (Array.isArray(participantsData)) setParticipants(participantsData);
     }, 3000);
     return () => clearInterval(poll);
   }, [swarmId]);
@@ -110,7 +117,7 @@ export default function KairoswarmDashboard() {
       <div className="flex flex-1 space-x-4 overflow-hidden relative">
         <div className="basis-1/4 min-w-[220px] max-w-[300px] bg-gray-800 rounded-2xl p-4 shadow-md hidden md:block">
           <h2 className="text-lg font-semibold mb-4">Participants</h2>
-          <ScrollArea className="space-y-3 overflow-y-auto max-h-[60vh] pr-1">
+          <ScrollArea className="space-y-3 overflow-y-auto max-h-[60vh] pr-1" ref={participantScrollRef}>
             {participants.map((p) => (
               <Card key={p.id}>
                 <CardContent className="flex items-center space-x-2 p-3">
