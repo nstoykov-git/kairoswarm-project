@@ -59,6 +59,7 @@ export default function KairoswarmDashboard() {
     const finalSwarmId = swarmIdInput.trim() || "default";
     localStorage.setItem("kairoswarm_swarm_id", finalSwarmId);
     localStorage.removeItem("kairoswarm_pid");
+    setSwarmId(finalSwarmId);
 
     const response = await fetch("https://kairoswarm-serverless-api.modal.run/join", {
       method: "POST",
@@ -104,92 +105,48 @@ export default function KairoswarmDashboard() {
     const newId = uuidv4();
     localStorage.setItem("kairoswarm_swarm_id", newId);
     localStorage.removeItem("kairoswarm_pid");
+    setSwarmId(newId);
     setSwarmIdInput(newId);
-    window.location.reload();
   };
 
   const handleClearSwarm = () => {
     localStorage.setItem("kairoswarm_swarm_id", "default");
     localStorage.removeItem("kairoswarm_pid");
+    setSwarmId("default");
     setSwarmIdInput("default");
-    window.location.reload();
   };
 
   return (
-    <div className="flex flex-col h-screen bg-gray-900 text-white p-4 space-y-4">
-      <div className="flex justify-between items-center border-b border-gray-700 pb-2">
-        <h1 className="text-xl font-bold">Kairoswarm Dashboard</h1>
-        <div className="flex items-center space-x-2">
-          <div className="flex items-center space-x-1">
-            <span className="text-sm text-gray-400">Swarm ID:</span>
-            <Input
-              value={swarmIdInput}
-              onChange={(e) => setSwarmIdInput(e.target.value)}
-              className="w-40 text-sm bg-gray-800 border-gray-600"
-            />
+    <div className="p-4">
+      <div className="flex items-center gap-2 mb-4">
+        <Input
+          placeholder="Join as..."
+          value={joinName}
+          onChange={(e) => setJoinName(e.target.value)}
+        />
+        <Input
+          placeholder="Swarm ID"
+          value={swarmIdInput}
+          onChange={(e) => setSwarmIdInput(e.target.value)}
+        />
+        <Button variant="secondary" onClick={handleJoin}>Join</Button>
+        <Input
+          placeholder="Add AI (agent ID)"
+          value={agentId}
+          onChange={(e) => setAgentId(e.target.value)}
+        />
+        <Button variant="secondary" onClick={handleAddAgent}>Add AI</Button>
+        <Button variant="secondary" onClick={handleStartNewSwarm}>Start New Swarm</Button>
+        <Button variant="secondary" onClick={handleClearSwarm}>Clear Swarm</Button>
+      </div>
+      <div className="text-sm text-gray-400 mb-2">Swarm ID: {swarmId}</div>
+      <ScrollArea className="h-[60vh] border rounded p-2" ref={scrollRef}>
+        {tape.map((entry, index) => (
+          <div key={index} className="mb-2">
+            <span className="font-bold text-white">{entry.from}</span>: <span className="text-gray-200">{entry.message}</span>
           </div>
-          <Button variant="ghost" onClick={() => setShowParticipants((prev) => !prev)} className="md:hidden">
-            <Users className="w-5 h-5" />
-          </Button>
-        </div>
-      </div>
-
-      <div className="flex justify-end space-x-2">
-        <Button variant="outline" size="sm" onClick={handleStartNewSwarm}>
-          <Plus className="w-4 h-4 mr-1" /> Start New Swarm
-        </Button>
-        <Button variant="outline" size="sm" onClick={handleClearSwarm}>
-          <RefreshCcw className="w-4 h-4 mr-1" /> Clear Swarm
-        </Button>
-      </div>
-
-      <div className="flex flex-1 space-x-4 overflow-hidden">
-        <div className="basis-1/4 min-w-[220px] max-w-[300px] bg-gray-800 rounded-2xl p-4 shadow-md">
-          <h2 className="text-lg font-semibold mb-4">Participants</h2>
-          <ScrollArea className="space-y-3 overflow-y-auto max-h-[60vh] pr-1">
-            {participants.map((p) => (
-              <Card key={p.id}>
-                <CardContent className="flex items-center space-x-2 p-3">
-                  {p.type === "human" ? <User className="text-green-400" /> : <Bot className="text-blue-400" />}
-                  <div>
-                    <p className="font-medium">{p.name}</p>
-                    <p className="text-xs text-gray-400">{p.type === "human" ? "Active" : "Agent"}</p>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </ScrollArea>
-
-          <div className="mt-4 flex space-x-2">
-            <Input placeholder="Join as..." value={joinName} onChange={(e) => setJoinName(e.target.value)} className="text-sm" />
-            <Button variant="secondary" onClick={handleJoin} className="text-sm">Join</Button>
-          </div>
-          <div className="mt-2 flex space-x-2">
-            <Input placeholder="Add AI (agent ID)" value={agentId} onChange={(e) => setAgentId(e.target.value)} className="text-sm" />
-            <Button variant="secondary" onClick={handleAddAgent} className="text-sm">Add AI</Button>
-          </div>
-        </div>
-
-        <div className="flex-1 bg-gray-850 rounded-2xl p-4 shadow-inner overflow-hidden flex flex-col">
-          <h2 className="text-lg font-semibold mb-4">Tape</h2>
-          <ScrollArea className="flex-1 space-y-2 overflow-auto pr-2" ref={scrollRef}>
-            {tape.map((entry, i) => (
-              <div key={i} className="flex items-start space-x-2">
-                {entry.type === "human" ? <User className="text-green-400" /> : <Bot className="text-blue-400" />}
-                <div>
-                  <p className="font-medium text-sm">{entry.from}</p>
-                  <p className="text-sm text-gray-200">{entry.message}</p>
-                </div>
-              </div>
-            ))}
-          </ScrollArea>
-        </div>
-      </div>
-
-      <div className="flex items-center space-x-2 border-t border-gray-700 pt-2">
-        <Input placeholder="Speak to the swarm..." value={input} onChange={(e) => setInput(e.target.value)} className="flex-1" />
-        <Button onClick={handleSubmit}><Send className="w-4 h-4 mr-1" /> Send</Button>
-      </div>
+        ))}
+      </ScrollArea>
     </div>
   );
 }
