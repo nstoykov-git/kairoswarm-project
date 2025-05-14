@@ -74,10 +74,11 @@ export default function KairoswarmDashboard() {
 
   const handleSubmit = async () => {
     if (!input.trim() || !participantId) return;
+    const finalSwarmId = swarmIdInput.trim() || "default";
     const response = await fetch("https://kairoswarm-serverless-api.modal.run/speak", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ participant_id: participantId, message: input, swarm_id: swarmId })
+      body: JSON.stringify({ participant_id: participantId, message: input, swarm_id: finalSwarmId })
     });
     const data = await response.json();
     if (data.entry) {
@@ -88,10 +89,11 @@ export default function KairoswarmDashboard() {
 
   const handleAddAgent = async () => {
     if (!agentId.trim()) return;
+    const finalSwarmId = swarmIdInput.trim() || "default";
     const response = await fetch("https://kairoswarm-serverless-api.modal.run/add-agent", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ agentId, swarm_id: swarmId })
+      body: JSON.stringify({ agentId, swarm_id: finalSwarmId })
     });
     const data = await response.json();
     if (data.name) {
