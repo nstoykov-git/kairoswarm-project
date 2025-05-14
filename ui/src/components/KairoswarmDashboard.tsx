@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef, useMemo } from "react";
+import { useEffect, useState, useRef } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -16,14 +16,15 @@ export default function KairoswarmDashboard() {
   const [participants, setParticipants] = useState<any[]>([]);
   const [tape, setTape] = useState<any[]>([]);
   const [showParticipants, setShowParticipants] = useState(false);
+  const [swarmId, setSwarmId] = useState("default");
   const [swarmIdInput, setSwarmIdInput] = useState("");
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
-  const swarmId = useMemo(() => {
+  useEffect(() => {
     const existing = localStorage.getItem("kairoswarm_swarm_id") || "default";
     localStorage.setItem("kairoswarm_swarm_id", existing);
+    setSwarmId(existing);
     setSwarmIdInput(existing);
-    return existing;
   }, []);
 
   useEffect(() => {
