@@ -19,11 +19,14 @@ export default function KairoswarmDashboard() {
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
   const swarmId = useMemo(() => {
-    const existing = localStorage.getItem("kairoswarm_swarm_id");
-    if (existing) return existing;
-    const newId = uuidv4();
-    localStorage.setItem("kairoswarm_swarm_id", newId);
-    return newId;
+    if (typeof window !== "undefined") {
+      const existing = localStorage.getItem("kairoswarm_swarm_id");
+      if (existing) return existing;
+      const newId = uuidv4();
+      localStorage.setItem("kairoswarm_swarm_id", newId);
+      return newId;
+    }
+    return "default"; // fallback for SSR
   }, []);
 
   useEffect(() => {
