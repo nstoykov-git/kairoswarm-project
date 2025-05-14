@@ -6,7 +6,9 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { User, Bot, Send, Users, RefreshCcw, Plus } from "lucide-react";
+import { User, Bot, Send } from "lucide-react";
+
+const API_BASE_URL = process.env.MODAL_API_URL;
 
 export default function KairoswarmDashboard() {
   const [input, setInput] = useState("");
@@ -15,10 +17,10 @@ export default function KairoswarmDashboard() {
   const [agentId, setAgentId] = useState("");
   const [participants, setParticipants] = useState<any[]>([]);
   const [tape, setTape] = useState<any[]>([]);
-  const [showParticipants, setShowParticipants] = useState(false);
   const [swarmId, setSwarmId] = useState("default");
   const [swarmIdInput, setSwarmIdInput] = useState("");
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const participantsScrollRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const existing = localStorage.getItem("kairoswarm_swarm_id") || "default";
@@ -41,10 +43,16 @@ export default function KairoswarmDashboard() {
   }, [tape]);
 
   useEffect(() => {
+    if (participantsScrollRef.current) {
+      participantsScrollRef.current.scrollTop = participantsScrollRef.current.scrollHeight;
+    }
+  }, [participants]);
+
+  useEffect(() => {
     const poll = setInterval(async () => {
       const [tapeRes, participantsRes] = await Promise.all([
-        fetch(`https://kairoswarm-serverless-api.modal.run/tape?swarm_id=${swarmId}`),
-        fetch(`https://kairoswarm-serverless-api.modal.run/participants-full?swarm_id=${swarmId}`)
+        fetch(`${API_BASE_URL}/tape?swarm_id=${swarmId}`),
+        fetch(`${API_BASE_URL}/participants-full?swarm_id=${swarmId}`)
       ]);
       const tapeData = await tapeRes.json();
       const participantsData = await participantsRes.json();
@@ -61,7 +69,7 @@ export default function KairoswarmDashboard() {
     localStorage.removeItem("kairoswarm_pid");
     setSwarmId(finalSwarmId);
 
-    const response = await fetch("https://kairoswarm-serverless-api.modal.run/join", {
+    const response = await fetch(`${API_BASE_URL}/join`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: joinName, type: "human", swarm_id: finalSwarmId })
@@ -75,7 +83,7 @@ export default function KairoswarmDashboard() {
   const handleSubmit = async () => {
     if (!input.trim() || !participantId) return;
     const finalSwarmId = swarmIdInput.trim() || "default";
-    const response = await fetch("https://kairoswarm-serverless-api.modal.run/speak", {
+    const response = await fetch(`${API_BASE_URL}/speak`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ participant_id: participantId, message: input, swarm_id: finalSwarmId })
@@ -90,7 +98,7 @@ export default function KairoswarmDashboard() {
   const handleAddAgent = async () => {
     if (!agentId.trim()) return;
     const finalSwarmId = swarmIdInput.trim() || "default";
-    const response = await fetch("https://kairoswarm-serverless-api.modal.run/add-agent", {
+    const response = await fetch(`${API_BASE_URL}/add-agent`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ agentId, swarm_id: finalSwarmId })
@@ -119,36 +127,48 @@ export default function KairoswarmDashboard() {
   };
 
   return (
-    <div className="p-4">
-      <div className="flex items-center gap-2 mb-4">
-        <Input
-          placeholder="Join as..."
-          value={joinName}
-          onChange={(e) => setJoinName(e.target.value)}
-        />
-        <Input
-          placeholder="Swarm ID"
-          value={swarmIdInput}
-          onChange={(e) => setSwarmIdInput(e.target.value)}
-        />
-        <Button variant="secondary" onClick={handleJoin}>Join</Button>
-        <Input
-          placeholder="Add AI (agent ID)"
-          value={agentId}
-          onChange={(e) => setAgentId(e.target.value)}
-        />
-        <Button variant="secondary" onClick={handleAddAgent}>Add AI</Button>
-        <Button variant="secondary" onClick={handleStartNewSwarm}>Start New Swarm</Button>
-        <Button variant="secondary" onClick={handleClearSwarm}>Clear Swarm</Button>
+    <div className="flex flex-col md:flex-row h-screen bg-gray-900 text-white">
+      <div className="w-full md:w-64 bg-gray-800 p-4 flex flex-col">
+        <h2 className="text-lg font-semibold mb-4">Participants</h2>
+        <ScrollArea className="flex-1 space-y-2 overflow-y-auto pr-1" ref={participantsScrollRef}>
+          {participants.map((p) => (
+            <Card key={p.id}>
+              <CardContent className="flex items-center space-x-2 p-3">
+                {p.type === "human" ? <User className="text-green-400" /> : <Bot className="text-blue-400" />}
+                <div>
+                  <p className="font-medium text-sm">{p.name}</p>
+                  <p className="text-xs text-gray-400">{p.type === "human" ? "Active" : "Agent"}</p>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </ScrollArea>
+        <div className="mt-4 flex flex-col space-y-2">
+          <Input placeholder="Join as..." value={joinName} onChange={(e) => setJoinName(e.target.value)} className="text-sm" />
+          <Input placeholder="Swarm ID" value={swarmIdInput} onChange={(e) => setSwarmIdInput(e.target.value)} className="text-sm" />
+          <Button variant="secondary" onClick={handleJoin} className="text-sm">Join</Button>
+          <Input placeholder="Add AI (agent ID)" value={agentId} onChange={(e) => setAgentId(e.target.value)} className="text-sm" />
+          <Button variant="secondary" onClick={handleAddAgent} className="text-sm">Add AI</Button>
+          <Button variant="secondary" onClick={handleStartNewSwarm} className="text-sm">Start New Swarm</Button>
+          <Button variant="secondary" onClick={handleClearSwarm} className="text-sm">Clear Swarm</Button>
+        </div>
+        <div className="text-xs text-gray-400 mt-2">Swarm ID: {swarmId}</div>
       </div>
-      <div className="text-sm text-gray-400 mb-2">Swarm ID: {swarmId}</div>
-      <ScrollArea className="h-[60vh] border rounded p-2" ref={scrollRef}>
-        {tape.map((entry, index) => (
-          <div key={index} className="mb-2">
-            <span className="font-bold text-white">{entry.from}</span>: <span className="text-gray-200">{entry.message}</span>
-          </div>
-        ))}
-      </ScrollArea>
+
+      <div className="flex-1 flex flex-col p-4">
+        <h2 className="text-lg font-semibold mb-4">Tape</h2>
+        <ScrollArea className="flex-1 space-y-2 overflow-auto pr-2" ref={scrollRef}>
+          {tape.map((entry, index) => (
+            <div key={index} className="mb-2">
+              <span className="font-bold text-white">{entry.from}</span>: <span className="text-gray-200">{entry.message}</span>
+            </div>
+          ))}
+        </ScrollArea>
+        <div className="mt-4 flex space-x-2">
+          <Input placeholder="Speak to the swarm..." value={input} onChange={(e) => setInput(e.target.value)} className="flex-1" />
+          <Button variant="secondary" onClick={handleSubmit}><Send className="w-4 h-4 mr-1" /> Send</Button>
+        </div>
+      </div>
     </div>
   );
 }
