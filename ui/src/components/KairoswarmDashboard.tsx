@@ -142,7 +142,53 @@ export default function KairoswarmDashboard() {
         </Button>
       </div>
 
-      {/* ... rest of layout and render logic remains the same ... */}
+      <div className="flex flex-1 space-x-4 overflow-hidden">
+        <div className="basis-1/4 min-w-[220px] max-w-[300px] bg-gray-800 rounded-2xl p-4 shadow-md">
+          <h2 className="text-lg font-semibold mb-4">Participants</h2>
+          <ScrollArea className="space-y-3 overflow-y-auto max-h-[60vh] pr-1">
+            {participants.map((p) => (
+              <Card key={p.id}>
+                <CardContent className="flex items-center space-x-2 p-3">
+                  {p.type === "human" ? <User className="text-green-400" /> : <Bot className="text-blue-400" />}
+                  <div>
+                    <p className="font-medium">{p.name}</p>
+                    <p className="text-xs text-gray-400">{p.type === "human" ? "Active" : "Agent"}</p>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </ScrollArea>
+
+          <div className="mt-4 flex space-x-2">
+            <Input placeholder="Join as..." value={joinName} onChange={(e) => setJoinName(e.target.value)} className="text-sm" />
+            <Button variant="secondary" onClick={handleJoin} className="text-sm">Join</Button>
+          </div>
+          <div className="mt-2 flex space-x-2">
+            <Input placeholder="Add AI (agent ID)" value={agentId} onChange={(e) => setAgentId(e.target.value)} className="text-sm" />
+            <Button variant="secondary" onClick={handleAddAgent} className="text-sm">Add AI</Button>
+          </div>
+        </div>
+
+        <div className="flex-1 bg-gray-850 rounded-2xl p-4 shadow-inner overflow-hidden flex flex-col">
+          <h2 className="text-lg font-semibold mb-4">Tape</h2>
+          <ScrollArea className="flex-1 space-y-2 overflow-auto pr-2" ref={scrollRef}>
+            {tape.map((entry, i) => (
+              <div key={i} className="flex items-start space-x-2">
+                {entry.type === "human" ? <User className="text-green-400" /> : <Bot className="text-blue-400" />}
+                <div>
+                  <p className="font-medium text-sm">{entry.from}</p>
+                  <p className="text-sm text-gray-200">{entry.message}</p>
+                </div>
+              </div>
+            ))}
+          </ScrollArea>
+        </div>
+      </div>
+
+      <div className="flex items-center space-x-2 border-t border-gray-700 pt-2">
+        <Input placeholder="Speak to the swarm..." value={input} onChange={(e) => setInput(e.target.value)} className="flex-1" />
+        <Button onClick={handleSubmit}><Send className="w-4 h-4 mr-1" /> Send</Button>
+      </div>
     </div>
   );
 }
