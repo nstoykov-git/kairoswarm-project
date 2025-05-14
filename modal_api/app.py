@@ -201,3 +201,28 @@ async def tape(request: Request):
     async with get_redis() as r:
         raw = await r.lrange(f"{sid}:conversation_tape", 0, -1)
     return [json.loads(x) for x in raw]
+
+@api.post("/debug/clear-ephemeral")
+async def clear_ephemeral(request: Request):
+    sid = request.query_params.get("swarm_id") or "default"
+    async with get_redis() as r:
+        await r.delete(f"{sid}:conversation_tape")
+        await r.delete(f"{sid}:participants")
+        await r.delete(f"{sid}:agents")
+        agent_ids = await r.hkeys(f"{sid}:agents")
+        for aid in agent_ids:
+            await r.delete(f"{sid}:agent:{aid}")
+    return {"status": f"{sid} swarm cleared"}
+
+
+@api.post("/debug/clear-default")
+async def clear_default():
+    sid = "default"
+    async with get_redis() as r:
+        await r.delete(f"{sid}:conversation_tape")
+        await r.delete(f"{sid}:participants")
+        await r.delete(f"{sid}:agents")
+        agent_ids = await r.hkeys(f"{sid}:agents")
+        for aid in agent_ids:
+            await r.delete(f"{sid}:agent:{aid}")
+    return {"status": f"{sid} swarm cleared"}

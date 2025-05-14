@@ -17,7 +17,6 @@ export default function KairoswarmDashboard() {
   const [tape, setTape] = useState<any[]>([]);
   const [showParticipants, setShowParticipants] = useState(false);
   const scrollRef = useRef<HTMLDivElement | null>(null);
-  const participantScrollRef = useRef<HTMLDivElement | null>(null);
 
   const swarmId = useMemo(() => {
     const existing = localStorage.getItem("kairoswarm_swarm_id");
@@ -39,12 +38,6 @@ export default function KairoswarmDashboard() {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [tape]);
-
-  useEffect(() => {
-    if (participantScrollRef.current) {
-      participantScrollRef.current.scrollTop = participantScrollRef.current.scrollHeight;
-    }
-  }, [participants]);
 
   useEffect(() => {
     const poll = setInterval(async () => {
@@ -102,6 +95,20 @@ export default function KairoswarmDashboard() {
     }
   };
 
+  const handleClearEphemeral = async () => {
+    await fetch(`https://kairoswarm-serverless-api.modal.run/debug/clear-ephemeral?swarm_id=${swarmId}`, {
+      method: "POST"
+    });
+    const [tapeRes, participantsRes] = await Promise.all([
+      fetch(`https://kairoswarm-serverless-api.modal.run/tape?swarm_id=${swarmId}`),
+      fetch(`https://kairoswarm-serverless-api.modal.run/participants-full?swarm_id=${swarmId}`)
+    ]);
+    const tapeData = await tapeRes.json();
+    const participantsData = await participantsRes.json();
+    if (Array.isArray(tapeData)) setTape(tapeData);
+    if (Array.isArray(participantsData)) setParticipants(participantsData);
+  };
+
   return (
     <div className="flex flex-col h-screen bg-gray-900 text-white p-4 space-y-4">
       <div className="flex justify-between items-center border-b border-gray-700 pb-2">
@@ -117,7 +124,7 @@ export default function KairoswarmDashboard() {
       <div className="flex flex-1 space-x-4 overflow-hidden relative">
         <div className="basis-1/4 min-w-[220px] max-w-[300px] bg-gray-800 rounded-2xl p-4 shadow-md hidden md:block">
           <h2 className="text-lg font-semibold mb-4">Participants</h2>
-          <ScrollArea className="space-y-3 overflow-y-auto max-h-[60vh] pr-1" ref={participantScrollRef}>
+          <ScrollArea className="space-y-3 overflow-y-auto max-h-[60vh] pr-1">
             {participants.map((p) => (
               <Card key={p.id}>
                 <CardContent className="flex items-center space-x-2 p-3">
@@ -139,6 +146,11 @@ export default function KairoswarmDashboard() {
             <Input placeholder="Add AI (agent ID)" value={agentId} onChange={(e) => setAgentId(e.target.value)} className="text-sm" />
             <Button variant="secondary" onClick={handleAddAgent} className="text-sm">Add AI</Button>
           </div>
+          <div className="mt-4">
+            <Button variant="destructive" onClick={handleClearEphemeral} className="w-full text-sm">
+              Clear Swarm
+            </Button>
+          </div>
         </div>
 
         {showParticipants && (
@@ -157,6 +169,19 @@ export default function KairoswarmDashboard() {
                 </Card>
               ))}
             </ScrollArea>
+            <div className="mt-4 flex space-x-2">
+              <Input placeholder="Join as..." value={joinName} onChange={(e) => setJoinName(e.target.value)} className="text-sm" />
+              <Button variant="secondary" onClick={handleJoin} className="text-sm">Join</Button>
+            </div>
+            <div className="mt-2 flex space-x-2">
+              <Input placeholder="Add AI (agent ID)" value={agentId} onChange={(e) => setAgentId(e.target.value)} className="text-sm" />
+              <Button variant="secondary" onClick={handleAddAgent} className="text-sm">Add AI</Button>
+            </div>
+            <div className="mt-4">
+              <Button variant="destructive" onClick={handleClearEphemeral} className="w-full text-sm">
+                Clear Swarm
+              </Button>
+            </div>
           </div>
         )}
 
