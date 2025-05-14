@@ -18,16 +18,15 @@ export default function KairoswarmDashboard() {
   const [showParticipants, setShowParticipants] = useState(false);
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
-  const swarmId = useMemo(() => {
-    if (typeof window !== "undefined") {
-      const existing = localStorage.getItem("kairoswarm_swarm_id");
-      if (existing) return existing;
-      const newId = uuidv4();
-      localStorage.setItem("kairoswarm_swarm_id", newId);
-      return newId;
-    }
-    return "default"; // fallback for SSR
-  }, []);
+const swarmId = useMemo(() => {
+  if (typeof window === "undefined") return "default"; // SSR-safe fallback
+  const existing = localStorage.getItem("kairoswarm_swarm_id");
+  if (existing) return existing;
+  const newId = uuidv4();
+  localStorage.setItem("kairoswarm_swarm_id", newId);
+  return newId;
+}, []);
+
 
   useEffect(() => {
     const storedPid = localStorage.getItem("kairoswarm_pid");
