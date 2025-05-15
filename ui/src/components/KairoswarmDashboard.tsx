@@ -8,7 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { User, Bot, Send } from "lucide-react";
 
-const API_BASE_URL = process.env.MODAL_API_URL;
+const API_BASE_URL = process.env.NEXT_PUBLIC_MODAL_API_URL;
 
 export default function KairoswarmDashboard() {
   const [input, setInput] = useState("");
