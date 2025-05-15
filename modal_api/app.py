@@ -65,6 +65,7 @@ async def add_agent(request: Request):
     try:
         assistant = openai.beta.assistants.retrieve(agent_id)
         thread = openai.beta.threads.create()
+        pid = str(uuid.uuid4())
 
         async with get_redis() as r:
             await r.hset(f"{sid}:agents", assistant.id, json.dumps({
@@ -77,6 +78,16 @@ async def add_agent(request: Request):
                 "thread_id": thread.id,
                 "name": assistant.name
             })
+            # ✅ Add to participants
+            await r.hset(f"{sid}:participants", pid, json.dumps({
+                "id": pid,
+                "name": assistant.name,
+                "type": "agent",
+                "metadata": {
+                    "agent_id": assistant.id,
+                    "thread_id": thread.id
+                }
+            }))
 
         return {
             "name": assistant.name,

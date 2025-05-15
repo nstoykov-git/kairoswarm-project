@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { User, Bot, Send } from "lucide-react";
+import { User, Bot, Send, Users } from "lucide-react";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_MODAL_API_URL;
 
@@ -19,6 +19,7 @@ export default function KairoswarmDashboard() {
   const [tape, setTape] = useState<any[]>([]);
   const [swarmId, setSwarmId] = useState("default");
   const [swarmIdInput, setSwarmIdInput] = useState("");
+  const [showParticipants, setShowParticipants] = useState(false);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const participantsScrollRef = useRef<HTMLDivElement | null>(null);
 
@@ -127,46 +128,57 @@ export default function KairoswarmDashboard() {
   };
 
   return (
-    <div className="flex flex-col md:flex-row h-screen bg-gray-900 text-white">
-      <div className="w-full md:w-64 bg-gray-800 p-4 flex flex-col">
-        <h2 className="text-lg font-semibold mb-4">Participants</h2>
-        <ScrollArea className="flex-1 space-y-2 overflow-y-auto pr-1" ref={participantsScrollRef}>
-          {participants.map((p) => (
-            <Card key={p.id}>
-              <CardContent className="flex items-center space-x-2 p-3">
-                {p.type === "human" ? <User className="text-green-400" /> : <Bot className="text-blue-400" />}
-                <div>
-                  <p className="font-medium text-sm">{p.name}</p>
-                  <p className="text-xs text-gray-400">{p.type === "human" ? "Active" : "Agent"}</p>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </ScrollArea>
-        <div className="mt-4 flex flex-col space-y-2">
-          <Input placeholder="Join as..." value={joinName} onChange={(e) => setJoinName(e.target.value)} className="text-sm" />
-          <Input placeholder="Swarm ID" value={swarmIdInput} onChange={(e) => setSwarmIdInput(e.target.value)} className="text-sm" />
-          <Button variant="secondary" onClick={handleJoin} className="text-sm">Join</Button>
-          <Input placeholder="Add AI (agent ID)" value={agentId} onChange={(e) => setAgentId(e.target.value)} className="text-sm" />
-          <Button variant="secondary" onClick={handleAddAgent} className="text-sm">Add AI</Button>
-          <Button variant="secondary" onClick={handleStartNewSwarm} className="text-sm">Start New Swarm</Button>
-          <Button variant="secondary" onClick={handleClearSwarm} className="text-sm">Clear Swarm</Button>
-        </div>
-        <div className="text-xs text-gray-400 mt-2">Swarm ID: {swarmId}</div>
+    <div className="flex flex-col h-screen bg-gray-900 text-white">
+      <div className="flex justify-between items-center p-4 border-b border-gray-700">
+        <h1 className="text-xl font-bold">Kairoswarm</h1>
+        <Button variant="ghost" className="md:hidden" onClick={() => setShowParticipants(!showParticipants)}>
+          <Users className="w-5 h-5" />
+        </Button>
       </div>
 
-      <div className="flex-1 flex flex-col p-4">
-        <h2 className="text-lg font-semibold mb-4">Tape</h2>
-        <ScrollArea className="flex-1 space-y-2 overflow-auto pr-2" ref={scrollRef}>
-          {tape.map((entry, index) => (
-            <div key={index} className="mb-2">
-              <span className="font-bold text-white">{entry.from}</span>: <span className="text-gray-200">{entry.message}</span>
+      <div className="flex flex-1 overflow-hidden">
+        {(showParticipants || typeof window !== "undefined" && window.innerWidth >= 768) && (
+          <div className="w-full md:w-64 bg-gray-800 p-4 flex flex-col">
+            <h2 className="text-lg font-semibold mb-4">Participants</h2>
+            <ScrollArea className="flex-1 space-y-2 overflow-y-auto pr-1" ref={participantsScrollRef}>
+              {participants.map((p) => (
+                <Card key={p.id}>
+                  <CardContent className="flex items-center space-x-2 p-3">
+                    {p.type === "human" ? <User className="text-green-400" /> : <Bot className="text-blue-400" />}
+                    <div>
+                      <p className="font-medium text-sm">{p.name}</p>
+                      <p className="text-xs text-gray-400">{p.type === "human" ? "Active" : "Agent"}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </ScrollArea>
+            <div className="mt-4 flex flex-col space-y-2">
+              <Input placeholder="Join as..." value={joinName} onChange={(e) => setJoinName(e.target.value)} className="text-sm" />
+              <Input placeholder="Swarm ID" value={swarmIdInput} onChange={(e) => setSwarmIdInput(e.target.value)} className="text-sm" />
+              <Button variant="secondary" onClick={handleJoin} className="text-sm">Join</Button>
+              <Input placeholder="Add AI (agent ID)" value={agentId} onChange={(e) => setAgentId(e.target.value)} className="text-sm" />
+              <Button variant="secondary" onClick={handleAddAgent} className="text-sm">Add AI</Button>
+              <Button variant="secondary" onClick={handleStartNewSwarm} className="text-sm">Start New Swarm</Button>
+              <Button variant="secondary" onClick={handleClearSwarm} className="text-sm">Clear Swarm</Button>
             </div>
-          ))}
-        </ScrollArea>
-        <div className="mt-4 flex space-x-2">
-          <Input placeholder="Speak to the swarm..." value={input} onChange={(e) => setInput(e.target.value)} className="flex-1" />
-          <Button variant="secondary" onClick={handleSubmit}><Send className="w-4 h-4 mr-1" /> Send</Button>
+            <div className="text-xs text-gray-400 mt-2">Swarm ID: {swarmId}</div>
+          </div>
+        )}
+
+        <div className="flex-1 flex flex-col p-4">
+          <h2 className="text-lg font-semibold mb-4">Tape</h2>
+          <ScrollArea className="flex-1 space-y-2 overflow-auto pr-2" ref={scrollRef}>
+            {tape.map((entry, index) => (
+              <div key={index} className="mb-2">
+                <span className="font-bold text-white">{entry.from}</span>: <span className="text-gray-200">{entry.message}</span>
+              </div>
+            ))}
+          </ScrollArea>
+          <div className="mt-4 flex space-x-2">
+            <Input placeholder="Speak to the swarm..." value={input} onChange={(e) => setInput(e.target.value)} className="flex-1" />
+            <Button variant="secondary" onClick={handleSubmit}><Send className="w-4 h-4 mr-1" /> Send</Button>
+          </div>
         </div>
       </div>
     </div>
