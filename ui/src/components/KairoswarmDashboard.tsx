@@ -1,3 +1,5 @@
+// Dashboard.tsx (updated to support user ID and view memories)
+
 "use client";
 
 import { useEffect, useState, useRef } from "react";
@@ -6,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { User, Bot, Send, Users } from "lucide-react";
+import { User, Bot, Send, Users, Brain } from "lucide-react";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_MODAL_API_URL;
 
@@ -15,38 +17,36 @@ export default function KairoswarmDashboard() {
   const [joinName, setJoinName] = useState("");
   const [participantId, setParticipantId] = useState<string | null>(null);
   const [agentId, setAgentId] = useState("");
+  const [userId, setUserId] = useState("");
   const [participants, setParticipants] = useState<any[]>([]);
   const [tape, setTape] = useState<any[]>([]);
   const [swarmId, setSwarmId] = useState("default");
   const [swarmIdInput, setSwarmIdInput] = useState("");
   const [showParticipants, setShowParticipants] = useState(false);
+  const [memories, setMemories] = useState<any[]>([]);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const participantsScrollRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const existing = localStorage.getItem("kairoswarm_swarm_id") || "default";
+    const uid = localStorage.getItem("kairoswarm_user_id") || "";
     localStorage.setItem("kairoswarm_swarm_id", existing);
     setSwarmId(existing);
     setSwarmIdInput(existing);
+    setUserId(uid);
   }, []);
 
   useEffect(() => {
     const storedPid = localStorage.getItem("kairoswarm_pid");
-    if (storedPid) {
-      setParticipantId(storedPid);
-    }
+    if (storedPid) setParticipantId(storedPid);
   }, []);
 
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
+    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [tape]);
 
   useEffect(() => {
-    if (participantsScrollRef.current) {
-      participantsScrollRef.current.scrollTop = participantsScrollRef.current.scrollHeight;
-    }
+    if (participantsScrollRef.current) participantsScrollRef.current.scrollTop = participantsScrollRef.current.scrollHeight;
   }, [participants]);
 
   useEffect(() => {
@@ -67,13 +67,14 @@ export default function KairoswarmDashboard() {
     if (!joinName.trim()) return;
     const finalSwarmId = swarmIdInput.trim() || "default";
     localStorage.setItem("kairoswarm_swarm_id", finalSwarmId);
+    localStorage.setItem("kairoswarm_user_id", userId);
     localStorage.removeItem("kairoswarm_pid");
     setSwarmId(finalSwarmId);
 
     const response = await fetch(`${API_BASE_URL}/join`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: joinName, type: "human", swarm_id: finalSwarmId })
+      body: JSON.stringify({ name: joinName, type: "human", swarm_id: finalSwarmId, user_id: userId })
     });
     const data = await response.json();
     setParticipantId(data.participant_id);
@@ -90,9 +91,7 @@ export default function KairoswarmDashboard() {
       body: JSON.stringify({ participant_id: participantId, message: input, swarm_id: finalSwarmId })
     });
     const data = await response.json();
-    if (data.entry) {
-      setTape((prev) => [...prev, data.entry]);
-    }
+    if (data.entry) setTape((prev) => [...prev, data.entry]);
     setInput("");
   };
 
@@ -112,19 +111,11 @@ export default function KairoswarmDashboard() {
     }
   };
 
-  const handleStartNewSwarm = () => {
-    const newId = uuidv4();
-    localStorage.setItem("kairoswarm_swarm_id", newId);
-    localStorage.removeItem("kairoswarm_pid");
-    setSwarmId(newId);
-    setSwarmIdInput(newId);
-  };
-
-  const handleClearSwarm = () => {
-    localStorage.setItem("kairoswarm_swarm_id", "default");
-    localStorage.removeItem("kairoswarm_pid");
-    setSwarmId("default");
-    setSwarmIdInput("default");
+  const handleViewMemories = async () => {
+    if (!agentId.trim()) return;
+    const response = await fetch(`${API_BASE_URL}/get-memories?agent_id=${agentId}&user_id=${userId}`);
+    const data = await response.json();
+    if (data.memories) setMemories(data.memories);
   };
 
   return (
@@ -155,12 +146,12 @@ export default function KairoswarmDashboard() {
             </ScrollArea>
             <div className="mt-4 flex flex-col space-y-2">
               <Input placeholder="Join as..." value={joinName} onChange={(e) => setJoinName(e.target.value)} className="text-sm" />
+              <Input placeholder="User ID" value={userId} onChange={(e) => setUserId(e.target.value)} className="text-sm" />
               <Input placeholder="Swarm ID" value={swarmIdInput} onChange={(e) => setSwarmIdInput(e.target.value)} className="text-sm" />
               <Button variant="secondary" onClick={handleJoin} className="text-sm">Join</Button>
               <Input placeholder="Add AI (agent ID)" value={agentId} onChange={(e) => setAgentId(e.target.value)} className="text-sm" />
               <Button variant="secondary" onClick={handleAddAgent} className="text-sm">Add AI</Button>
-              <Button variant="secondary" onClick={handleStartNewSwarm} className="text-sm">Start New Swarm</Button>
-              <Button variant="secondary" onClick={handleClearSwarm} className="text-sm">Clear Swarm</Button>
+              <Button variant="secondary" onClick={handleViewMemories} className="text-sm flex items-center gap-1"><Brain className="w-4 h-4" />View Memories</Button>
             </div>
             <div className="text-xs text-gray-400 mt-2">Swarm ID: {swarmId}</div>
           </div>
@@ -174,6 +165,17 @@ export default function KairoswarmDashboard() {
                 <span className="font-bold text-white">{entry.from}</span>: <span className="text-gray-200">{entry.message}</span>
               </div>
             ))}
+
+            {memories.length > 0 && (
+              <div className="mt-6">
+                <h2 className="text-lg font-semibold mb-2">🔍 Retrieved Memories</h2>
+                {memories.map((mem, index) => (
+                  <div key={index} className="text-sm text-gray-300 mb-1 border-b border-gray-600 pb-1">
+                    <strong>{mem.type}</strong>: {mem.content} <span className="text-xs text-gray-500">({new Date(mem.created_at).toLocaleString()})</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </ScrollArea>
           <div className="mt-4 flex space-x-2">
             <Input placeholder="Speak to the swarm..." value={input} onChange={(e) => setInput(e.target.value)} className="flex-1" />
