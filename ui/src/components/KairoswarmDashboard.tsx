@@ -121,11 +121,27 @@ export default function KairoswarmDashboard() {
   return (
     <div className="flex flex-col h-screen bg-gray-900 text-white">
       <div className="flex justify-between items-center p-4 border-b border-gray-700">
-        <h1 className="text-xl font-bold">Kairoswarm</h1>
-        <Button variant="ghost" className="md:hidden" onClick={() => setShowParticipants(!showParticipants)}>
-          <Users className="w-5 h-5" />
-        </Button>
-      </div>
+  <h1 className="text-xl font-bold">Kairoswarm</h1>
+
+  <div className="flex items-center space-x-3">
+    <Button
+      variant="secondary"
+      size="sm"
+      onClick={() => window.location.href = "/auth"}
+    >
+      🔐 Sign In
+    </Button>
+
+    <Button
+      variant="ghost"
+      className="md:hidden"
+      onClick={() => setShowParticipants(!showParticipants)}
+    >
+      <Users className="w-5 h-5" />
+    </Button>
+  </div>
+</div>
+
 
       <div className="flex flex-1 overflow-hidden">
         {(showParticipants || typeof window !== "undefined" && window.innerWidth >= 768) && (

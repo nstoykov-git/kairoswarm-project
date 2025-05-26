@@ -1,8 +1,7 @@
 # modal_api/routes/reload.py
 
 from fastapi import APIRouter, Request
-from modal_api.agents.hot_swap import reload_agent  # This assumes you stored the function here
-import json
+from kairoswarm_core.agent_updater.update_assistants import reload_agent
 
 router = APIRouter()
 
