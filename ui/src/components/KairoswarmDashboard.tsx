@@ -221,38 +221,47 @@ export default function KairoswarmDashboard() {
         <div className="flex-1 flex flex-col p-4">
           <h2 className="text-lg font-semibold mb-4">Tape</h2>
 <ScrollArea className="flex-1 space-y-2 overflow-auto pr-2" ref={scrollRef}>
-  {tape.map((entry, index) => (
-    <div key={index} className="mb-2">
-      <span className="font-bold text-white">{entry.from ?? "Unknown"}</span>:{" "}
-      <span className="text-gray-200">{entry.message ?? "[No message]"}</span>
-    </div>
-  ))}
+  {Array.isArray(tape) && tape.map((entry, index) => {
+    const from = typeof entry.from === "string" ? entry.from : "Unknown";
+    const message = typeof entry.message === "string" ? entry.message : "[No message]";
+    return (
+      <div key={index} className="mb-2">
+        <span className="font-bold text-white">{from}</span>:{" "}
+        <span className="text-gray-200">{message}</span>
+      </div>
+    );
+  })}
 
-  {memories.length > 0 && (
+  {Array.isArray(memories) && memories.length > 0 && (
     <div className="mt-6">
       <h2 className="text-lg font-semibold mb-2">🔍 Retrieved Memories</h2>
-      {memories.map((mem, index) => (
-        <div key={index} className="text-sm text-gray-300 mb-1 border-b border-gray-600 pb-1">
-          <strong>{mem.type ?? "Memory"}</strong>: {mem.content ?? "[No content]"}{" "}
-          <span className="text-xs text-gray-500">
-            ({mem.created_at ? new Date(mem.created_at).toLocaleString() : "Unknown time"})
-          </span>
-        </div>
-      ))}
+      {memories.map((mem, index) => {
+        const type = typeof mem.type === "string" ? mem.type : "Memory";
+        const content = typeof mem.content === "string" ? mem.content : "[No content]";
+        const createdAt = mem.created_at ? new Date(mem.created_at).toLocaleString() : "Unknown time";
+        return (
+          <div key={index} className="text-sm text-gray-300 mb-1 border-b border-gray-600 pb-1">
+            <strong>{type}</strong>: {content}{" "}
+            <span className="text-xs text-gray-500">({createdAt})</span>
+          </div>
+        );
+      })}
     </div>
   )}
 
-  {swarms.length > 0 && (
+  {Array.isArray(swarms) && swarms.length > 0 && (
     <div className="mt-6">
       <h2 className="text-lg font-semibold mb-2">🕸 Your Swarms</h2>
-      {swarms.map((s, i) => (
-        <div key={i} className="text-sm text-gray-300 mb-1">
-          <strong>{s.name ?? "Unnamed"}</strong>{" "}
-          <span className="text-xs text-gray-500">
-            ({s.created_at ? new Date(s.created_at).toLocaleString() : "Unknown date"})
-          </span>
-        </div>
-      ))}
+      {swarms.map((s, i) => {
+        const name = typeof s.name === "string" ? s.name : "Unnamed";
+        const createdAt = s.created_at ? new Date(s.created_at).toLocaleString() : "Unknown date";
+        return (
+          <div key={i} className="text-sm text-gray-300 mb-1">
+            <strong>{name}</strong>{" "}
+            <span className="text-xs text-gray-500">({createdAt})</span>
+          </div>
+        );
+      })}
     </div>
   )}
 </ScrollArea>
