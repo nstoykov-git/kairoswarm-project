@@ -154,10 +154,10 @@ export default function KairoswarmDashboard() {
   <h1 className="text-xl font-bold cursor-pointer" onClick={() => window.location.href = "/"}>Kairoswarm</h1>
   <div className="flex items-center space-x-3">
     <Button variant="secondary" size="sm" onClick={() => window.location.href = "/auth"}>
-      🔐 Auth Page
+      <span>🔐 Auth Page</span>
     </Button>
     <Button variant="secondary" size="sm" onClick={() => window.location.href = "/auth?demo=true"}>
-      🎟️ Demo Login
+      <span>🎟️ Demo Login</span>
     </Button>
     <Button variant="ghost" className="md:hidden" onClick={() => setShowParticipants(!showParticipants)}>
       <Users className="w-5 h-5" />
