@@ -149,7 +149,8 @@ export default function KairoswarmDashboard() {
   };
 
 return (
-  <div className="flex flex-col h-screen bg-gray-900 text-white">
+  <div className="flex flex-col min-h-screen bg-gray-900 text-white overflow-x-hidden">
+
     <div className="flex justify-between items-center p-4 border-b border-gray-700">
       <h1
         className="text-xl font-bold cursor-pointer"
