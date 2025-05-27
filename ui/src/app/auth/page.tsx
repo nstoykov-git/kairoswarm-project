@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { supabase } from "@/lib/supabase";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
@@ -12,22 +11,10 @@ export default function AuthPage() {
   const [message, setMessage] = useState("");
 
   const handleAuth = async () => {
-    setMessage("");
-    const fn = mode === "sign-in"
-      ? supabase.auth.signInWithPassword
-      : supabase.auth.signUp;
-
-    const { data, error } = await fn({ email, password });
-
-    if (error) {
-      setMessage(error.message);
-    } else if (data?.user?.id) {
-      localStorage.setItem("kairoswarm_user_id", data.user.id);
-      setMessage("✅ Success! Redirecting...");
-      setTimeout(() => {
-        window.location.href = "/";
-      }, 1000);
-    }
+    setMessage("🛠 Auth backend not yet wired up.");
+    // TODO: Replace with call to your backend: /auth/login or /auth/signup
+    // Example:
+    // const res = await fetch("/api/auth", { ... });
   };
 
   return (
