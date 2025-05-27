@@ -150,20 +150,20 @@ export default function KairoswarmDashboard() {
 
   return (
     <div className="flex flex-col h-screen bg-gray-900 text-white">
-<div className="flex justify-between items-center p-4 border-b border-gray-700">
-  <h1 className="text-xl font-bold cursor-pointer" onClick={() => window.location.href = "/"}>Kairoswarm</h1>
-  <div className="flex items-center space-x-3">
-    <Button variant="secondary" size="sm" onClick={() => window.location.href = "/auth"}>
-      <span>🔐 Auth Page</span>
-    </Button>
-    <Button variant="secondary" size="sm" onClick={() => window.location.href = "/auth?demo=true"}>
-      <span>🎟️ Demo Login</span>
-    </Button>
-    <Button variant="ghost" className="md:hidden" onClick={() => setShowParticipants(!showParticipants)}>
-      <Users className="w-5 h-5" />
-    </Button>
-  </div>
-</div>
+      <div className="flex justify-between items-center p-4 border-b border-gray-700">
+        <h1 className="text-xl font-bold cursor-pointer" onClick={() => window.location.href = "/"}>Kairoswarm</h1>
+        <div className="flex items-center space-x-3">
+          <Button variant="secondary" size="sm" onClick={() => window.location.href = "/auth"}>
+            <span>🔐 Auth Page</span>
+          </Button>
+          <Button variant="secondary" size="sm" onClick={() => window.location.href = "/auth?demo=true"}>
+            <span>🎟️ Demo Login</span>
+          </Button>
+          <Button variant="ghost" className="md:hidden" onClick={() => setShowParticipants(!showParticipants)}>
+            <Users className="w-5 h-5" />
+          </Button>
+        </div>
+      </div>
 
       <div className="flex flex-1 overflow-hidden">
         {(showParticipants || typeof window !== "undefined" && window.innerWidth >= 768) && (
@@ -220,35 +220,42 @@ export default function KairoswarmDashboard() {
 
         <div className="flex-1 flex flex-col p-4">
           <h2 className="text-lg font-semibold mb-4">Tape</h2>
-          <ScrollArea className="flex-1 space-y-2 overflow-auto pr-2" ref={scrollRef}>
-            {tape.map((entry, index) => (
-              <div key={index} className="mb-2">
-                <span className="font-bold text-white">{entry.from}</span>: <span className="text-gray-200">{entry.message}</span>
-              </div>
-            ))}
+<ScrollArea className="flex-1 space-y-2 overflow-auto pr-2" ref={scrollRef}>
+  {tape.map((entry, index) => (
+    <div key={index} className="mb-2">
+      <span className="font-bold text-white">{entry.from ?? "Unknown"}</span>:{" "}
+      <span className="text-gray-200">{entry.message ?? "[No message]"}</span>
+    </div>
+  ))}
 
-            {memories.length > 0 && (
-              <div className="mt-6">
-                <h2 className="text-lg font-semibold mb-2">🔍 Retrieved Memories</h2>
-                {memories.map((mem, index) => (
-                  <div key={index} className="text-sm text-gray-300 mb-1 border-b border-gray-600 pb-1">
-                    <strong>{mem.type}</strong>: {mem.content} <span className="text-xs text-gray-500">({new Date(mem.created_at).toLocaleString()})</span>
-                  </div>
-                ))}
-              </div>
-            )}
+  {memories.length > 0 && (
+    <div className="mt-6">
+      <h2 className="text-lg font-semibold mb-2">🔍 Retrieved Memories</h2>
+      {memories.map((mem, index) => (
+        <div key={index} className="text-sm text-gray-300 mb-1 border-b border-gray-600 pb-1">
+          <strong>{mem.type ?? "Memory"}</strong>: {mem.content ?? "[No content]"}{" "}
+          <span className="text-xs text-gray-500">
+            ({mem.created_at ? new Date(mem.created_at).toLocaleString() : "Unknown time"})
+          </span>
+        </div>
+      ))}
+    </div>
+  )}
 
-            {swarms.length > 0 && (
-              <div className="mt-6">
-                <h2 className="text-lg font-semibold mb-2">🕸 Your Swarms</h2>
-                {swarms.map((s, i) => (
-                  <div key={i} className="text-sm text-gray-300 mb-1">
-                    <strong>{s.name}</strong> <span className="text-xs text-gray-500">({new Date(s.created_at).toLocaleString()})</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </ScrollArea>
+  {swarms.length > 0 && (
+    <div className="mt-6">
+      <h2 className="text-lg font-semibold mb-2">🕸 Your Swarms</h2>
+      {swarms.map((s, i) => (
+        <div key={i} className="text-sm text-gray-300 mb-1">
+          <strong>{s.name ?? "Unnamed"}</strong>{" "}
+          <span className="text-xs text-gray-500">
+            ({s.created_at ? new Date(s.created_at).toLocaleString() : "Unknown date"})
+          </span>
+        </div>
+      ))}
+    </div>
+  )}
+</ScrollArea>
 
           <div className="mt-4 flex space-x-2">
             <Input placeholder="Speak to the swarm..." value={input} onChange={(e) => setInput(e.target.value)} className="flex-1" />
