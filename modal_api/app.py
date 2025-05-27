@@ -1,6 +1,5 @@
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
 from modal import App, asgi_app, Image, Secret
 
 from modal_api.routes.runtime import router as runtime_router
@@ -8,14 +7,8 @@ from modal_api.routes.memory import router as memory_router
 from modal_api.routes.reload import router as reload_router
 from modal_api.routes.users import router as users_router
 
-import openai
-from openai import AsyncOpenAI
 import redis.asyncio as redis
 import os
-import uuid
-import json
-import asyncpg
-import asyncio
 
 from kairoswarm_core.memory_core.memory_store import MemoryStore
 from kairoswarm_core.agent_updater.update_assistants import reload_agent
@@ -25,7 +18,7 @@ api = FastAPI()
 api.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "https://kairoswarm-project.vercel.app",
+        "https://kairoswarm-proßect.vercel.app",
         "https://kairoswarm.nextminds.network",
     ],
     allow_credentials=True,
@@ -76,10 +69,6 @@ app = App(
         Secret.from_name("supabase-url"),
     ]
 )
-
-# --- OpenAI Init ---
-openai.api_key = os.environ["OPENAI_API_KEY"]
-client = AsyncOpenAI(api_key=openai.api_key)
 
 # --- ASGI App Entry ---
 @app.function()

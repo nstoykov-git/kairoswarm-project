@@ -1,6 +1,6 @@
-// Dashboard.tsx (updated to support user ID and view memories)
-
 "use client";
+
+// Updated KairoswarmDashboard.tsx (frontend enhancements)
 
 import { useEffect, useState, useRef } from "react";
 import { v4 as uuidv4 } from "uuid";
@@ -24,6 +24,8 @@ export default function KairoswarmDashboard() {
   const [swarmIdInput, setSwarmIdInput] = useState("");
   const [showParticipants, setShowParticipants] = useState(false);
   const [memories, setMemories] = useState<any[]>([]);
+  const [agents, setAgents] = useState<any[]>([]);
+  const [swarms, setSwarms] = useState<any[]>([]);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const participantsScrollRef = useRef<HTMLDivElement | null>(null);
 
@@ -101,7 +103,7 @@ export default function KairoswarmDashboard() {
     const response = await fetch(`${API_BASE_URL}/add-agent`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ agentId, swarm_id: finalSwarmId })
+      body: JSON.stringify({ agentId, swarm_id: finalSwarmId, user_id: userId })
     });
     const data = await response.json();
     if (data.name) {
@@ -118,30 +120,43 @@ export default function KairoswarmDashboard() {
     if (data.memories) setMemories(data.memories);
   };
 
+  const handleViewAgents = async () => {
+    const res = await fetch(`${API_BASE_URL}/get-agents?user_id=${userId}`);
+    const data = await res.json();
+    if (data.agents) setAgents(data.agents);
+  };
+
+  const handleReloadAgent = async (aid: string) => {
+    const res = await fetch(`${API_BASE_URL}/reload-agent`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ swarm_id: swarmId, agent_id: aid }),
+    });
+    const data = await res.json();
+    alert(data.status === "ok" ? "Agent reloaded!" : data.message);
+  };
+
+  const handleViewSwarms = async () => {
+    const res = await fetch(`${API_BASE_URL}/get-swarms?user_id=${userId}`);
+    const data = await res.json();
+    if (data.swarms) setSwarms(data.swarms);
+  };
+
+  const handleClearSwarm = async () => {
+    await fetch(`${API_BASE_URL}/debug/clear-ephemeral?swarm_id=${swarmId}`, { method: "POST" });
+    setTape([]);
+    setParticipants([]);
+  };
+
   return (
     <div className="flex flex-col h-screen bg-gray-900 text-white">
       <div className="flex justify-between items-center p-4 border-b border-gray-700">
-  <h1 className="text-xl font-bold">Kairoswarm</h1>
-
-  <div className="flex items-center space-x-3">
-    <Button
-      variant="secondary"
-      size="sm"
-      onClick={() => window.location.href = "/auth"}
-    >
-      🔐 Sign In
-    </Button>
-
-    <Button
-      variant="ghost"
-      className="md:hidden"
-      onClick={() => setShowParticipants(!showParticipants)}
-    >
-      <Users className="w-5 h-5" />
-    </Button>
-  </div>
-</div>
-
+        <h1 className="text-xl font-bold">Kairoswarm</h1>
+        <div className="flex items-center space-x-3">
+          <Button variant="secondary" size="sm" onClick={() => window.location.href = "/auth"}>🔐 Sign In</Button>
+          <Button variant="ghost" className="md:hidden" onClick={() => setShowParticipants(!showParticipants)}><Users className="w-5 h-5" /></Button>
+        </div>
+      </div>
 
       <div className="flex flex-1 overflow-hidden">
         {(showParticipants || typeof window !== "undefined" && window.innerWidth >= 768) && (
@@ -160,16 +175,39 @@ export default function KairoswarmDashboard() {
                 </Card>
               ))}
             </ScrollArea>
+
             <div className="mt-4 flex flex-col space-y-2">
               <Input placeholder="Join as..." value={joinName} onChange={(e) => setJoinName(e.target.value)} className="text-sm" />
               <Input placeholder="User ID" value={userId} onChange={(e) => setUserId(e.target.value)} className="text-sm" />
               <Input placeholder="Swarm ID" value={swarmIdInput} onChange={(e) => setSwarmIdInput(e.target.value)} className="text-sm" />
               <Button variant="secondary" onClick={handleJoin} className="text-sm">Join</Button>
               <Input placeholder="Add AI (agent ID)" value={agentId} onChange={(e) => setAgentId(e.target.value)} className="text-sm" />
+              <p className="text-xs text-gray-400 mt-1">Tip: You can add your own or anyone else's agent ID.</p>
               <Button variant="secondary" onClick={handleAddAgent} className="text-sm">Add AI</Button>
               <Button variant="secondary" onClick={handleViewMemories} className="text-sm flex items-center gap-1"><Brain className="w-4 h-4" />View Memories</Button>
+              <Button variant="secondary" onClick={handleViewAgents} className="text-sm">📜 View Agents</Button>
+              <Button variant="secondary" onClick={handleViewSwarms} className="text-sm">🕸 View Swarms</Button>
+              <Button variant="ghost" onClick={handleClearSwarm} className="text-xs text-red-400">🧼 Clear Swarm</Button>
             </div>
-            <div className="text-xs text-gray-400 mt-2">Swarm ID: {swarmId}</div>
+
+            <h2 className="text-lg font-semibold mt-6 mb-2">Your Agents</h2>
+            <ScrollArea className="flex-1 space-y-2 overflow-y-auto pr-1 max-h-40">
+              {agents.map((a) => (
+                <Card key={a.id}>
+                  <CardContent className="flex flex-col space-y-1 p-3 text-sm">
+                    <div className="flex justify-between items-center">
+                      <span className="font-medium text-white">{a.name}</span>
+                      <code className="text-xs text-gray-400">{a.model}</code>
+                    </div>
+                    <div className="text-xs text-gray-400 break-all">{a.id}</div>
+                    <div className="flex gap-1 mt-2">
+                      <Button size="sm" variant="secondary" className="text-xs" onClick={() => setAgentId(a.id)}>Use</Button>
+                      <Button size="sm" variant="ghost" className="text-xs" onClick={() => handleReloadAgent(a.id)}>Reload</Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </ScrollArea>
           </div>
         )}
 
@@ -192,7 +230,19 @@ export default function KairoswarmDashboard() {
                 ))}
               </div>
             )}
+
+            {swarms.length > 0 && (
+              <div className="mt-6">
+                <h2 className="text-lg font-semibold mb-2">🕸 Your Swarms</h2>
+                {swarms.map((s, i) => (
+                  <div key={i} className="text-sm text-gray-300 mb-1">
+                    <strong>{s.name}</strong> <span className="text-xs text-gray-500">({new Date(s.created_at).toLocaleString()})</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </ScrollArea>
+
           <div className="mt-4 flex space-x-2">
             <Input placeholder="Speak to the swarm..." value={input} onChange={(e) => setInput(e.target.value)} className="flex-1" />
             <Button variant="secondary" onClick={handleSubmit}><Send className="w-4 h-4 mr-1" /> Send</Button>
