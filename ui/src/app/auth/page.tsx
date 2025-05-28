@@ -10,12 +10,36 @@ export default function AuthPage() {
   const [mode, setMode] = useState<"sign-in" | "sign-up">("sign-in");
   const [message, setMessage] = useState("");
 
-  const handleAuth = async () => {
-    setMessage("🛠 Auth backend not yet wired up.");
-    // TODO: Replace with call to your backend: /auth/login or /auth/signup
-    // Example:
-    // const res = await fetch("/api/auth", { ... });
-  };
+const handleAuth = async () => {
+  setMessage("");
+
+  const endpoint = mode === "sign-in" ? "/auth/signin" : "/auth/signup";
+
+  try {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_MODAL_API_URL}${endpoint}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ email, password }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      setMessage(data.detail || "Something went wrong");
+      return;
+    }
+
+    localStorage.setItem("kairoswarm_user_id", data.user_id);
+    setMessage("✅ Success! Redirecting...");
+    setTimeout(() => {
+      window.location.href = "/";
+    }, 1000);
+  } catch (err) {
+    setMessage("Network error. Please try again.");
+  }
+};
 
   return (
     <div className="flex flex-col items-center justify-center h-screen space-y-6 bg-gray-900 text-white">

@@ -1,7 +1,5 @@
 "use client";
 
-// Updated KairoswarmDashboard.tsx (frontend enhancements)
-
 import { useEffect, useState, useRef } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { Input } from "@/components/ui/input";
@@ -26,8 +24,16 @@ export default function KairoswarmDashboard() {
   const [memories, setMemories] = useState<any[]>([]);
   const [agents, setAgents] = useState<any[]>([]);
   const [swarms, setSwarms] = useState<any[]>([]);
+  const [isWideScreen, setIsWideScreen] = useState(false);
+
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const participantsScrollRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setIsWideScreen(window.innerWidth >= 768);
+    }
+  }, []);
 
   useEffect(() => {
     const existing = localStorage.getItem("kairoswarm_swarm_id") || "default";
@@ -130,7 +136,7 @@ export default function KairoswarmDashboard() {
     const res = await fetch(`${API_BASE_URL}/reload-agent`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ swarm_id: swarmId, agent_id: aid }),
+      body: JSON.stringify({ swarm_id: swarmId, agent_id: aid })
     });
     const data = await res.json();
     alert(data.status === "ok" ? "Agent reloaded!" : data.message);
@@ -148,31 +154,20 @@ export default function KairoswarmDashboard() {
     setParticipants([]);
   };
 
-return (
-  <div className="flex flex-col min-h-screen bg-gray-900 text-white overflow-x-hidden">
-
-    <div className="flex justify-between items-center p-4 border-b border-gray-700">
-      <h1
-        className="text-xl font-bold cursor-pointer"
-        onClick={() => window.location.href = "/"}
-      >
-        Kairoswarm
-      </h1>
-      <div className="flex items-center space-x-3">
-        <Button variant="secondary" size="sm" onClick={() => window.location.href = "/auth"}>
-          <span>🔐 Auth</span>
-        </Button>
-        <Button variant="secondary" size="sm" onClick={() => window.location.href = "/auth?demo=true"}>
-          <span>🎟️ Demo</span>
-        </Button>
-        <Button variant="ghost" className="md:hidden" onClick={() => setShowParticipants(!showParticipants)}>
-          <Users className="w-5 h-5" />
-        </Button>
+  return (
+    <div className="flex flex-col min-h-screen bg-gray-900 text-white overflow-x-hidden">
+      {/* All full UI restored here including buttons and scroll areas */}
+      <div className="flex justify-between items-center p-4 border-b border-gray-700">
+        <h1 className="text-xl font-bold cursor-pointer" onClick={() => window.location.href = "/"}>Kairoswarm</h1>
+        <div className="flex items-center space-x-3">
+          <Button variant="secondary" size="sm" onClick={() => window.location.href = "/auth"}>🔐 Auth</Button>
+          <Button variant="secondary" size="sm" onClick={() => window.location.href = "/auth?demo=true"}>🎟️ Demo</Button>
+          <Button variant="ghost" className="md:hidden" onClick={() => setShowParticipants(!showParticipants)}><Users className="w-5 h-5" /></Button>
+        </div>
       </div>
-    </div>
 
       <div className="flex flex-1 overflow-hidden">
-        {(showParticipants || typeof window !== "undefined" && window.innerWidth >= 768) && (
+        {(showParticipants || isWideScreen) && (
           <div className="w-full md:w-64 bg-gray-800 p-4 flex flex-col">
             <h2 className="text-lg font-semibold mb-4">Participants</h2>
             <ScrollArea className="flex-1 space-y-2 overflow-y-auto pr-1" ref={participantsScrollRef}>
@@ -189,6 +184,7 @@ return (
               ))}
             </ScrollArea>
 
+            {/* Inputs and agent management */}
             <div className="mt-4 flex flex-col space-y-2">
               <Input placeholder="Join as..." value={joinName} onChange={(e) => setJoinName(e.target.value)} className="text-sm" />
               <Input placeholder="User ID" value={userId} onChange={(e) => setUserId(e.target.value)} className="text-sm" />
@@ -203,6 +199,7 @@ return (
               <Button variant="ghost" onClick={handleClearSwarm} className="text-xs text-red-400">🧼 Clear Swarm</Button>
             </div>
 
+            {/* Agent list */}
             <h2 className="text-lg font-semibold mt-6 mb-2">Your Agents</h2>
             <ScrollArea className="flex-1 space-y-2 overflow-y-auto pr-1 max-h-40">
               {agents.map((a) => (
@@ -224,53 +221,51 @@ return (
           </div>
         )}
 
+        {/* Main view */}
         <div className="flex-1 flex flex-col p-4">
           <h2 className="text-lg font-semibold mb-4">Tape</h2>
-<ScrollArea className="flex-1 space-y-2 overflow-auto pr-2" ref={scrollRef}>
-  {Array.isArray(tape) && tape.map((entry, index) => {
-    const from = typeof entry.from === "string" ? entry.from : "Unknown";
-    const message = typeof entry.message === "string" ? entry.message : "[No message]";
-    return (
-      <div key={index} className="mb-2">
-        <span className="font-bold text-white">{from}</span>:{" "}
-        <span className="text-gray-200">{message}</span>
-      </div>
-    );
-  })}
+          <ScrollArea className="flex-1 space-y-2 overflow-auto pr-2" ref={scrollRef}>
+            {Array.isArray(tape) && tape.map((entry, index) => {
+              const from = typeof entry.from === "string" ? entry.from : "Unknown";
+              const message = typeof entry.message === "string" ? entry.message : "[No message]";
+              return (
+                <div key={index} className="mb-2">
+                  <span className="font-bold text-white">{from}</span>: <span className="text-gray-200">{message}</span>
+                </div>
+              );
+            })}
 
-  {Array.isArray(memories) && memories.length > 0 && (
-    <div className="mt-6">
-      <h2 className="text-lg font-semibold mb-2">🔍 Retrieved Memories</h2>
-      {memories.map((mem, index) => {
-        const type = typeof mem.type === "string" ? mem.type : "Memory";
-        const content = typeof mem.content === "string" ? mem.content : "[No content]";
-        const createdAt = mem.created_at ? new Date(mem.created_at).toLocaleString() : "Unknown time";
-        return (
-          <div key={index} className="text-sm text-gray-300 mb-1 border-b border-gray-600 pb-1">
-            <strong>{type}</strong>: {content}{" "}
-            <span className="text-xs text-gray-500">({createdAt})</span>
-          </div>
-        );
-      })}
-    </div>
-  )}
+            {Array.isArray(memories) && memories.length > 0 && (
+              <div className="mt-6">
+                <h2 className="text-lg font-semibold mb-2">🔍 Retrieved Memories</h2>
+                {memories.map((mem, index) => {
+                  const type = typeof mem.type === "string" ? mem.type : "Memory";
+                  const content = typeof mem.content === "string" ? mem.content : "[No content]";
+                  const createdAt = mem.created_at ? new Date(mem.created_at).toLocaleString() : "Unknown time";
+                  return (
+                    <div key={index} className="text-sm text-gray-300 mb-1 border-b border-gray-600 pb-1">
+                      <strong>{type}</strong>: {content} <span className="text-xs text-gray-500">({createdAt})</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
 
-  {Array.isArray(swarms) && swarms.length > 0 && (
-    <div className="mt-6">
-      <h2 className="text-lg font-semibold mb-2">🕸 Your Swarms</h2>
-      {swarms.map((s, i) => {
-        const name = typeof s.name === "string" ? s.name : "Unnamed";
-        const createdAt = s.created_at ? new Date(s.created_at).toLocaleString() : "Unknown date";
-        return (
-          <div key={i} className="text-sm text-gray-300 mb-1">
-            <strong>{name}</strong>{" "}
-            <span className="text-xs text-gray-500">({createdAt})</span>
-          </div>
-        );
-      })}
-    </div>
-  )}
-</ScrollArea>
+            {Array.isArray(swarms) && swarms.length > 0 && (
+              <div className="mt-6">
+                <h2 className="text-lg font-semibold mb-2">🕸 Your Swarms</h2>
+                {swarms.map((s, i) => {
+                  const name = typeof s.name === "string" ? s.name : "Unnamed";
+                  const createdAt = s.created_at ? new Date(s.created_at).toLocaleString() : "Unknown date";
+                  return (
+                    <div key={i} className="text-sm text-gray-300 mb-1">
+                      <strong>{name}</strong> <span className="text-xs text-gray-500">({createdAt})</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </ScrollArea>
 
           <div className="mt-4 flex space-x-2">
             <Input placeholder="Speak to the swarm..." value={input} onChange={(e) => setInput(e.target.value)} className="flex-1" />
