@@ -1,3 +1,5 @@
+import os
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from modal import App, asgi_app, Image, Secret
@@ -6,9 +8,7 @@ from modal_api.routes.runtime import router as runtime_router
 from modal_api.routes.memory import router as memory_router
 from modal_api.routes.reload import router as reload_router
 from modal_api.routes.users import router as users_router
-
-import redis.asyncio as redis
-import os
+from modal_api.routes.auth import router as auth_router
 
 from kairoswarm_core.memory_core.memory_store import MemoryStore
 from kairoswarm_core.agent_updater.update_assistants import reload_agent
@@ -30,11 +30,7 @@ api.include_router(runtime_router)
 api.include_router(memory_router)
 api.include_router(reload_router)
 api.include_router(users_router)
-
-# --- Redis Factory ---
-def get_redis():
-    url = os.environ["REDIS_URL"]
-    return redis.from_url(url, decode_responses=True)
+api.include_router(auth_router)
 
 # --- Modal Image Definition ---
 image = (
@@ -51,6 +47,7 @@ image = (
     )
     .run_commands(
         "pip install redis fastapi[standard] openai aiohttp asyncpg",
+        "pip install supabase",
         "pip install -e /root/kairoswarm-internal"
     )
     .env({
@@ -66,7 +63,7 @@ app = App(
     secrets=[
         Secret.from_name("upstash-redis-url"),
         Secret.from_name("openai-key"),
-        Secret.from_name("supabase-url"),
+        Secret.from_name("supabase-credentials"),
     ]
 )
 

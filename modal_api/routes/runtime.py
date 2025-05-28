@@ -7,6 +7,8 @@ import json
 import os
 import asyncpg
 from openai import AsyncOpenAI
+from modal_api.utils.services import get_redis
+
 from kairoswarm_core.memory_core.memory_store import MemoryStore
 
 router = APIRouter()
@@ -14,11 +16,6 @@ router = APIRouter()
 # --- OpenAI Init ---
 openai.api_key = os.environ["OPENAI_API_KEY"]
 client = AsyncOpenAI(api_key=openai.api_key)
-
-# --- Redis Factory ---
-def get_redis():
-    url = os.environ["REDIS_URL"]
-    return redis.from_url(url, decode_responses=True)
 
 @router.post("/join")
 async def join(request: Request):
