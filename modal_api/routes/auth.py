@@ -1,8 +1,6 @@
 # modal_api/routes/auth.py
-
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-
 from modal_api.utils.services import get_supabase
 
 router = APIRouter()
@@ -13,24 +11,38 @@ class AuthRequest(BaseModel):
 
 @router.post("/auth/signup")
 async def signup(auth: AuthRequest):
-    supabase = get_supabase()
-    response = supabase.auth.sign_up({
-        "email": auth.email,
-        "password": auth.password
-    })
-    error = response.get("error")
-    if error:
-        raise HTTPException(status_code=400, detail=error.get("message", "Authentication failed"))
-    return {"user_id": response["data"]["user"]["id"]}
+    try:
+        supabase = get_supabase()
+        result = supabase.auth.sign_up({
+            "email": auth.email,
+            "password": auth.password
+        })
 
-@router.post("/auth/signin")
-async def signin(auth: AuthRequest):
-    supabase = get_supabase()
-    response = supabase.auth.sign_in_with_password({
-        "email": auth.email,
-        "password": auth.password
-    })
-    error = response.get("error")
-    if error:
-        raise HTTPException(status_code=400, detail=error.get("message", "Authentication failed"))
-    return {"user_id": response["data"]["user"]["id"]}
+        # Access using attributes directly
+        if not result.user:
+            raise HTTPException(status_code=400, detail="Signup failed")
+
+        return {"user_id": result.user.id}
+
+    except Exception as e:
+        print("Internal signup error:", e)
+        raise HTTPException(status_code=500, detail="Unexpected error during signup")
+
+@router.post("/auth/signup")
+async def signup(auth: AuthRequest):
+    try:
+        supabase = get_supabase()
+        result = supabase.auth.sign_up({
+            "email": auth.email,
+            "password": auth.password
+        })
+
+        # Access using attributes directly
+        if not result.user:
+            raise HTTPException(status_code=400, detail="Signup failed")
+
+        return {"user_id": result.user.id}
+
+    except Exception as e:
+        print("Internal signup error:", e)
+        raise HTTPException(status_code=500, detail="Unexpected error during signup")

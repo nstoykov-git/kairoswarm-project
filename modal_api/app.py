@@ -18,7 +18,7 @@ api = FastAPI()
 api.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "https://kairoswarm-proßect.vercel.app",
+        "https://kairoswarm-project.vercel.app",
         "https://kairoswarm.nextminds.network",
     ],
     allow_credentials=True,
