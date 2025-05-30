@@ -17,12 +17,12 @@ async def signup(auth: AuthRequest):
             "password": auth.password
         })
 
-        if not result.user:
+        if not result or not result.session or not result.session.user:
             raise HTTPException(status_code=400, detail="Signup failed")
 
         return {
-            "user_id": result.user.id,
-            "email": result.user.email
+            "user_id": result.session.user.id,
+            "email": result.session.user.email
         }
 
     except Exception as e:
@@ -38,12 +38,12 @@ async def signin(auth: AuthRequest):
             "password": auth.password
         })
 
-        if not result.user:
+        if not result or not result.session or not result.session.user:
             raise HTTPException(status_code=401, detail="Invalid credentials")
 
         return {
-            "user_id": result.user.id,
-            "email": result.user.email
+            "user_id": result.session.user.id,
+            "email": result.session.user.email
         }
 
     except Exception as e:

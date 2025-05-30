@@ -77,6 +77,20 @@ const handleAuth = async () => {
           </Button>
         </div>
 
+        {/* 🧠 Google OAuth button here */}
+<Button
+  variant="secondary"
+  className="w-full"
+  onClick={async () => {
+    const { error } = await supabase.auth.signInWithOAuth({ provider: "google" });
+    if (error) {
+      setMessage("Google sign-in failed: " + error.message);
+    }
+  }}
+>
+  Sign in with Google
+</Button>
+
         <Button
           variant="ghost"
           className="w-full text-gray-400 hover:text-white"
