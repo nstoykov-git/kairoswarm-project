@@ -83,7 +83,14 @@ const handleAuth = async () => {
   variant="secondary"
   className="w-full"
   onClick={async () => {
-    const { error } = await supabase.auth.signInWithOAuth({ provider: "google" });
+    const redirectTo =
+      typeof window !== "undefined" && window.location.origin
+        ? window.location.origin
+        : "https://kairoswarm.nextminds.network";
+    const { error } = await supabase.auth.signInWithOAuth({
+  provider: "google",
+  options: { redirectTo }
+});
     if (error) {
       setMessage("Google sign-in failed: " + error.message);
     }
