@@ -32,6 +32,7 @@ const handleAuth = async () => {
     }
 
     localStorage.setItem("kairoswarm_user_id", data.user_id);
+    localStorage.setItem("kairoswarm_user_email", data.email);
     setMessage("✅ Success! Redirecting...");
     setTimeout(() => {
       window.location.href = "/";
