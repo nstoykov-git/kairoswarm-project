@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { User, Bot, Send, Users, Brain } from "lucide-react";
+import { supabase } from "@/lib/supabase";
+
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_MODAL_API_URL;
 
@@ -35,6 +37,20 @@ export default function KairoswarmDashboard() {
       setIsWideScreen(window.innerWidth >= 768);
     }
   }, []);
+
+  useEffect(() => {
+  const fetchSession = async () => {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    if (session?.user?.email) {
+      setUserEmail(session.user.email);
+    }
+  };
+
+  fetchSession();
+}, []);
 
   useEffect(() => {
     const existing = localStorage.getItem("kairoswarm_swarm_id") || "default";
