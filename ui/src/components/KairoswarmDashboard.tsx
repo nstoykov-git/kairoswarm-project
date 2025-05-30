@@ -216,7 +216,8 @@ return (
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => {
+              onClick={async () => {
+                await supabase.auth.signOut();
                 localStorage.removeItem("kairoswarm_user_id");
                 localStorage.removeItem("kairoswarm_user_email");
                 window.location.reload();
