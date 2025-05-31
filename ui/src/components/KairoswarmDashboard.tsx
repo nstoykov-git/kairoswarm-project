@@ -8,11 +8,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { User, Bot, Send, Users, Brain } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-
+import { useUser } from "@/lib/useUser";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_MODAL_API_URL;
 
 export default function KairoswarmDashboard() {
+  const [swarmName, setSwarmName] = useState("");
   const [input, setInput] = useState("");
   const [joinName, setJoinName] = useState("");
   const [participantId, setParticipantId] = useState<string | null>(null);
@@ -32,44 +33,55 @@ export default function KairoswarmDashboard() {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const participantsScrollRef = useRef<HTMLDivElement | null>(null);
 
+  const user = useUser();
+  
   useEffect(() => {
     if (typeof window !== "undefined") {
       setIsWideScreen(window.innerWidth >= 768);
     }
   }, []);
 
-  useEffect(() => {
-  const fetchSession = async () => {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
+useEffect(() => {
+  if (user) {
+    setUserEmail(user.email);
+    setUserId(user.id);
+  }
+}, [user]);
 
-    if (session?.user?.email) {
-      setUserEmail(session.user.email);
+useEffect(() => {
+  const storedSwarmId = localStorage.getItem("kairoswarm_swarm_id") || "default";
+  setSwarmId(storedSwarmId);
+  setSwarmIdInput(storedSwarmId);
+
+  // If useUser() didn't populate userId (e.g. unauthenticated session), try fallback
+  if (!userId) {
+    const storedUserId = localStorage.getItem("kairoswarm_user_id");
+    if (storedUserId) setUserId(storedUserId);
+  }
+}, []);
+
+useEffect(() => {
+  const storedPid = localStorage.getItem("kairoswarm_pid");
+  if (storedPid) setParticipantId(storedPid);
+}, []);
+
+useEffect(() => {
+  if (!swarmId || swarmId === "default") return;
+
+  const fetchSwarmName = async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/swarm/user-swarms?user_id=${userId}`);
+      const data = await res.json();
+      const match = data.swarms?.find((s: any) => s.id === swarmId);
+      if (match) setSwarmName(match.name);
+    } catch (err) {
+      console.error("Failed to fetch swarm name:", err);
     }
   };
 
-  fetchSession();
-}, []);
+  fetchSwarmName();
+}, [swarmId, userId]);
 
-  useEffect(() => {
-    const existing = localStorage.getItem("kairoswarm_swarm_id") || "default";
-    const uid = localStorage.getItem("kairoswarm_user_id") || "";
-    localStorage.setItem("kairoswarm_swarm_id", existing);
-    setSwarmId(existing);
-    setSwarmIdInput(existing);
-    setUserId(uid);
-  }, []);
-
-  useEffect(() => {
-    const storedPid = localStorage.getItem("kairoswarm_pid");
-    if (storedPid) setParticipantId(storedPid);
-  }, []);
-
-  useEffect(() => {
-  const storedEmail = localStorage.getItem("kairoswarm_user_email") || "";
-  setUserEmail(storedEmail);
-}, []);
 
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -93,7 +105,7 @@ export default function KairoswarmDashboard() {
     return () => clearInterval(poll);
   }, [swarmId]);
 
-const handleCreateSwarm = async () => {
+  const handleCreateSwarm = async () => {
   const name = prompt("Enter swarm name:");
   if (!name || !userId) {
     alert("Missing swarm name or user ID.");
@@ -145,8 +157,24 @@ const handleCreateSwarm = async () => {
     localStorage.setItem("kairoswarm_user_id", userId);
     setParticipantId(data.participant_id); // You may optionally return this from backend
     localStorage.setItem("kairoswarm_pid", data.participant_id);
+    localStorage.setItem("kairoswarm_join_name", joinName);
   }
   setJoinName("");
+};
+
+const handleLeaveSwarm = async () => {
+  // Optionally confirm
+  const confirmLeave = confirm("Are you sure you want to leave the swarm?");
+  if (!confirmLeave) return;
+
+  localStorage.removeItem("kairoswarm_swarm_id");
+  localStorage.removeItem("kairoswarm_pid");
+
+  setSwarmId("default");
+  setSwarmIdInput("default");
+  setParticipantId(null);
+  setTape([]);
+  setParticipants([]);
 };
 
   const handleSubmit = async () => {
@@ -223,6 +251,21 @@ return (
       >
         Kairoswarm
       </h1>
+
+      <p className="text-sm text-gray-400 hidden md:inline">
+        Swarm: <span className="text-white">{swarmName || swarmId}</span>
+      </p>
+
+      <Button
+        variant="ghost"
+        size="sm"
+        className="text-xs text-red-400"
+        onClick={handleLeaveSwarm}
+      >
+        🏃‍♂️ Leave Swarm
+      </Button>
+
+
       <div className="flex items-center space-x-3">
         <Button
           variant="secondary"

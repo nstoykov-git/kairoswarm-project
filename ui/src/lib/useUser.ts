@@ -1,8 +1,9 @@
+// lib/useUser.ts
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
 export function useUser() {
-  const [user, setUser] = useState<{ email: string } | null>(null);
+  const [user, setUser] = useState<{ id: string; email: string } | null>(null);
 
   useEffect(() => {
     const fetchSession = async () => {
@@ -11,18 +12,27 @@ export function useUser() {
         console.error("Session fetch error:", error.message);
         return;
       }
-      if (data.session?.user?.email) {
-        setUser({ email: data.session.user.email });
+      const sessionUser = data.session?.user;
+      if (sessionUser?.email && sessionUser.id) {
+        const userData = { id: sessionUser.id, email: sessionUser.email };
+        setUser(userData);
+        localStorage.setItem("kairoswarm_user_id", sessionUser.id);
+        localStorage.setItem("kairoswarm_user_email", sessionUser.email);
       }
     };
 
     fetchSession();
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session?.user?.email) {
-        setUser({ email: session.user.email });
+      if (session?.user?.email && session.user.id) {
+        const userData = { id: session.user.id, email: session.user.email };
+        setUser(userData);
+        localStorage.setItem("kairoswarm_user_id", session.user.id);
+        localStorage.setItem("kairoswarm_user_email", session.user.email);
       } else {
         setUser(null);
+        localStorage.removeItem("kairoswarm_user_id");
+        localStorage.removeItem("kairoswarm_user_email");
       }
     });
 
@@ -31,4 +41,3 @@ export function useUser() {
 
   return user;
 }
-
