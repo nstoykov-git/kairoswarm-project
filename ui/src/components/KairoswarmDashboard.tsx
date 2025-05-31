@@ -97,7 +97,7 @@ const handleJoin = async () => {
   if (!joinName.trim() || !userId) return;
   const finalSwarmId = swarmIdInput.trim() || "default";
 
-  const res = await fetch(`${API_BASE_URL}/swarms/join`, {
+  const res = await fetch(`${API_BASE_URL}/swarm/join`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -170,7 +170,7 @@ const handleJoin = async () => {
   };
 
 const handleViewSwarms = async () => {
-  const res = await fetch(`${API_BASE_URL}/swarms/user-swarms?user_id=${userId}`);
+  const res = await fetch(`${API_BASE_URL}/swarm/user-swarms?user_id=${userId}`);
   const data = await res.json();
   if (data.swarms) setSwarms(data.swarms);
 };
