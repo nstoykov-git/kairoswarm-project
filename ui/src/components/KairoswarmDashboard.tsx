@@ -95,22 +95,33 @@ export default function KairoswarmDashboard() {
 
 const handleCreateSwarm = async () => {
   const name = prompt("Enter swarm name:");
-  if (!name || !userId) return;
+  if (!name || !userId) {
+    alert("Missing swarm name or user ID.");
+    return;
+  }
 
-  const res = await fetch(`${API_BASE_URL}/swarm/create`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name, creator_id: userId })
-  });
+  console.log("Creating swarm with name:", name, "and userId:", userId);
+  try {
+    const res = await fetch(`${API_BASE_URL}/swarm/create`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, creator_id: userId }),
+    });
 
-  const data = await res.json();
-  if (data.status === "created") {
-    alert(`Swarm "${name}" created!`);
-    setSwarmId(data.id);
-    setSwarmIdInput(data.id);
-    localStorage.setItem("kairoswarm_swarm_id", data.id);
-  } else {
-    alert(`Failed to create swarm: ${data.message}`);
+    const data = await res.json();
+    console.log("Swarm creation response:", data);
+
+    if (data.status === "created") {
+      alert(`Swarm "${name}" created!`);
+      setSwarmId(data.id);
+      setSwarmIdInput(data.id);
+      localStorage.setItem("kairoswarm_swarm_id", data.id);
+    } else {
+      alert(`Failed to create swarm: ${data.message || "Unknown error"}`);
+    }
+  } catch (error) {
+    console.error("Error creating swarm:", error);
+    alert("Unexpected error occurred while creating swarm.");
   }
 };
 
