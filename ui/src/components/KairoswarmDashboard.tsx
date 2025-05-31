@@ -93,7 +93,28 @@ export default function KairoswarmDashboard() {
     return () => clearInterval(poll);
   }, [swarmId]);
 
-const handleJoin = async () => {
+const handleCreateSwarm = async () => {
+  const name = prompt("Enter swarm name:");
+  if (!name || !userId) return;
+
+  const res = await fetch(`${API_BASE_URL}/swarm/create`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name, creator_id: userId })
+  });
+
+  const data = await res.json();
+  if (data.status === "created") {
+    alert(`Swarm "${name}" created!`);
+    setSwarmId(data.id);
+    setSwarmIdInput(data.id);
+    localStorage.setItem("kairoswarm_swarm_id", data.id);
+  } else {
+    alert(`Failed to create swarm: ${data.message}`);
+  }
+};
+
+  const handleJoin = async () => {
   if (!joinName.trim() || !userId) return;
   const finalSwarmId = swarmIdInput.trim() || "default";
 
@@ -291,25 +312,7 @@ return (
             <Button
               variant="secondary"
               className="text-sm"
-              onClick={async () => {
-                const name = prompt("Enter swarm name:");
-                if (!name || !userId) return;
-
-                const res = await fetch(`${API_BASE_URL}/swarm/create`, {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ name, creator_id: userId })
-                });
-
-                const data = await res.json();
-                if (data.status === "created") {
-                  alert(`Swarm "${name}" created!`);
-                  setSwarmId(data.id);
-                  localStorage.setItem("kairoswarm_swarm_id", data.id);
-                } else {
-                  alert(`Failed to create swarm: ${data.message}`);
-                }
-              }}
+              onClick={handleCreateSwarm}
             >
               ➕ Create Swarm
             </Button>
