@@ -287,6 +287,33 @@ return (
             <Button variant="secondary" onClick={handleJoin} className="text-sm">
               Join
             </Button>
+            
+            <Button
+              variant="secondary"
+              className="text-sm"
+              onClick={async () => {
+                const name = prompt("Enter swarm name:");
+                if (!name || !userId) return;
+
+                const res = await fetch(`${API_BASE_URL}/create`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ name, creator_id: userId })
+                });
+
+                const data = await res.json();
+                if (data.status === "created") {
+                  alert(`Swarm "${name}" created!`);
+                  setSwarmId(data.id);
+                  localStorage.setItem("kairoswarm_swarm_id", data.id);
+                } else {
+                  alert(`Failed to create swarm: ${data.message}`);
+                }
+              }}
+            >
+              ➕ Create Swarm
+            </Button>
+
             <Input
               placeholder="Add AI (agent ID)"
               value={agentId}
