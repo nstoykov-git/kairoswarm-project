@@ -17,35 +17,6 @@ router = APIRouter()
 openai.api_key = os.environ["OPENAI_API_KEY"]
 client = AsyncOpenAI(api_key=openai.api_key)
 
-@router.post("/join")
-async def join(request: Request):
-    body = await request.json()
-    pid = str(uuid.uuid4())
-    sid = body.get("swarm_id") or "default"
-    user_id = body.get("user_id") or "default"
-
-    async with get_redis() as r:
-        await r.hset(f"{sid}:participants", pid, json.dumps({
-            "id": pid,
-            "name": body.get("name", "Unknown"),
-            "type": body.get("type", "human"),
-            "metadata": {}
-        }))
-
-    if user_id != "default":
-        try:
-            pool = await asyncpg.create_pool(dsn=os.getenv("POSTGRES_URL"))
-            async with pool.acquire() as conn:
-                await conn.execute("""
-                    INSERT INTO swarms (id, user_id, name)
-                    VALUES ($1, $2, $3)
-                    ON CONFLICT (id) DO NOTHING
-                """, sid, user_id, f"Swarm {sid[:8]}")
-        except Exception as e:
-            return {"status": "error", "message": str(e)}
-
-    return {"participant_id": pid}
-
 @router.post("/add-agent")
 async def add_agent(request: Request):
     body = await request.json()
@@ -113,24 +84,6 @@ async def get_agents(request: Request):
             """, user_id)
             agents = [dict(row) for row in rows]
             return {"status": "ok", "agents": agents}
-    except Exception as e:
-        return {"status": "error", "message": str(e)}
-
-@router.get("/get-swarms")
-async def get_swarms(request: Request):
-    user_id = request.query_params.get("user_id", "default")
-
-    try:
-        pool = await asyncpg.create_pool(dsn=os.getenv("POSTGRES_URL"))
-        async with pool.acquire() as conn:
-            rows = await conn.fetch("""
-                SELECT id, name, created_at
-                FROM swarms
-                WHERE user_id = $1
-                ORDER BY created_at DESC
-            """, user_id)
-            swarms = [dict(row) for row in rows]
-            return {"status": "ok", "swarms": swarms}
     except Exception as e:
         return {"status": "error", "message": str(e)}
 

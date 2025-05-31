@@ -93,24 +93,29 @@ export default function KairoswarmDashboard() {
     return () => clearInterval(poll);
   }, [swarmId]);
 
-  const handleJoin = async () => {
-    if (!joinName.trim()) return;
-    const finalSwarmId = swarmIdInput.trim() || "default";
+const handleJoin = async () => {
+  if (!joinName.trim() || !userId) return;
+  const finalSwarmId = swarmIdInput.trim() || "default";
+
+  const res = await fetch(`${API_BASE_URL}/swarms/join`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      name: joinName,
+      swarm_id: finalSwarmId,
+      user_id: userId,
+    }),
+  });
+  const data = await res.json();
+  if (data.status === "joined") {
+    setSwarmId(finalSwarmId);
     localStorage.setItem("kairoswarm_swarm_id", finalSwarmId);
     localStorage.setItem("kairoswarm_user_id", userId);
-    localStorage.removeItem("kairoswarm_pid");
-    setSwarmId(finalSwarmId);
-
-    const response = await fetch(`${API_BASE_URL}/join`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: joinName, type: "human", swarm_id: finalSwarmId, user_id: userId })
-    });
-    const data = await response.json();
-    setParticipantId(data.participant_id);
+    setParticipantId(data.participant_id); // You may optionally return this from backend
     localStorage.setItem("kairoswarm_pid", data.participant_id);
-    setJoinName("");
-  };
+  }
+  setJoinName("");
+};
 
   const handleSubmit = async () => {
     if (!input.trim() || !participantId) return;
@@ -164,11 +169,11 @@ export default function KairoswarmDashboard() {
     alert(data.status === "ok" ? "Agent reloaded!" : data.message);
   };
 
-  const handleViewSwarms = async () => {
-    const res = await fetch(`${API_BASE_URL}/get-swarms?user_id=${userId}`);
-    const data = await res.json();
-    if (data.swarms) setSwarms(data.swarms);
-  };
+const handleViewSwarms = async () => {
+  const res = await fetch(`${API_BASE_URL}/swarms/user-swarms?user_id=${userId}`);
+  const data = await res.json();
+  if (data.swarms) setSwarms(data.swarms);
+};
 
   const handleClearSwarm = async () => {
     await fetch(`${API_BASE_URL}/debug/clear-ephemeral?swarm_id=${swarmId}`, { method: "POST" });
