@@ -287,7 +287,7 @@ return (
             <Button variant="secondary" onClick={handleJoin} className="text-sm">
               Join
             </Button>
-            
+
             <Button
               variant="secondary"
               className="text-sm"
@@ -295,7 +295,7 @@ return (
                 const name = prompt("Enter swarm name:");
                 if (!name || !userId) return;
 
-                const res = await fetch(`${API_BASE_URL}/create`, {
+                const res = await fetch(`${API_BASE_URL}/swarm/create`, {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify({ name, creator_id: userId })
