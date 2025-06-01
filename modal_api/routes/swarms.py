@@ -8,6 +8,11 @@ import os
 
 router = APIRouter()
 
+@router.get("/ping")
+async def ping():
+    return {"status": "alive"}
+
+
 # --- Create Swarm ---
 
 class CreateSwarmRequest(BaseModel):
@@ -20,21 +25,18 @@ async def create_swarm(payload: CreateSwarmRequest):
         supabase = get_supabase()
         swarm_id = str(uuid.uuid4())
 
-        result = supabase.from_("swarms").insert({
+        # Insert will raise an exception if it fails
+        supabase.from_("swarms").insert({
             "id": swarm_id,
             "name": payload.name,
-            "creator_id": payload.creator_id,
+            "user_id": payload.creator_id,
             "created_at": datetime.utcnow().isoformat()
         }).execute()
-
-        if result.error:
-            raise HTTPException(status_code=400, detail=result.error.message)
 
         return {"id": swarm_id, "status": "created"}
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
 
 # --- Get Swarms by User ---
 

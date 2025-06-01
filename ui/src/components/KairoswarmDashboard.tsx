@@ -112,7 +112,7 @@ useEffect(() => {
     return;
   }
 
-  console.log("Creating swarm with name:", name, "and userId:", userId);
+  //console.log("Creating swarm with name:", name, "and userId:", userId);
   try {
     const res = await fetch(`${API_BASE_URL}/swarm/create`, {
       method: "POST",
@@ -121,7 +121,7 @@ useEffect(() => {
     });
 
     const data = await res.json();
-    console.log("Swarm creation response:", data);
+    //console.log("Swarm creation response:", data);
 
     if (data.status === "created") {
       alert(`Swarm "${name}" created!`);

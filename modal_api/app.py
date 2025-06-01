@@ -33,7 +33,7 @@ api.include_router(runtime_router)
 api.include_router(memory_router)
 api.include_router(reload_router)
 api.include_router(users_router)
-api.include_router(auth_router)
+api.include_router(auth_router, prefix="/auth", tags=["auth"])
 api.include_router(autoregister_router)
 api.include_router(swarms_router, prefix="/swarm", tags=["swarms"])
 

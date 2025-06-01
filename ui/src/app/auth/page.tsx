@@ -8,6 +8,7 @@ import { supabase } from "@/lib/supabase";
 export default function AuthPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [displayName, setDisplayName] = useState("");
   const [mode, setMode] = useState<"sign-in" | "sign-up">("sign-in");
   const [message, setMessage] = useState("");
 
@@ -16,13 +17,18 @@ const handleAuth = async () => {
 
   const endpoint = mode === "sign-in" ? "/auth/signin" : "/auth/signup";
 
+  const payload =
+    mode === "sign-in"
+      ? { email, password }
+      : { email, password, display_name: displayName };
+
   try {
     const res = await fetch(`${process.env.NEXT_PUBLIC_MODAL_API_URL}${endpoint}`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify(payload),
     });
 
     const data = await res.json();
@@ -51,6 +57,13 @@ const handleAuth = async () => {
       </p>
 
       <div className="space-y-3 w-80">
+        {mode === "sign-up" && (
+          <Input
+            placeholder="Display Name"
+            value={displayName}
+            onChange={(e) => setDisplayName(e.target.value)}
+          />
+        )}
         <Input
           placeholder="Email"
           type="email"
