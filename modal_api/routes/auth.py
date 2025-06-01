@@ -57,8 +57,11 @@ async def signin(auth: AuthRequest):
 
         return {
             "user_id": result.session.user.id,
-            "email": result.session.user.email
+            "email": result.session.user.email,
+            "access_token": result.session.access_token,
+            "refresh_token": result.session.refresh_token
         }
+
 
     except Exception as e:
         print("Internal signin error:", e)
