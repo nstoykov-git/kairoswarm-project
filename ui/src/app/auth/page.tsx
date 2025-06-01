@@ -17,18 +17,13 @@ const handleAuth = async () => {
 
   const endpoint = mode === "sign-in" ? "/auth/signin" : "/auth/signup";
 
-  const payload =
-    mode === "sign-in"
-      ? { email, password }
-      : { email, password, display_name: displayName };
-
   try {
     const res = await fetch(`${process.env.NEXT_PUBLIC_MODAL_API_URL}${endpoint}`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({ email, password, display_name: displayName }),
     });
 
     const data = await res.json();
@@ -38,12 +33,16 @@ const handleAuth = async () => {
       return;
     }
 
-    localStorage.setItem("kairoswarm_user_id", data.user_id);
-    localStorage.setItem("kairoswarm_user_email", data.email);
-    setMessage("✅ Success! Redirecting...");
-    setTimeout(() => {
-      window.location.href = "/";
-    }, 1000);
+    if (data.status === "pending") {
+      setMessage("✅ Confirmation email sent. Please verify to complete signup.");
+    } else {
+      localStorage.setItem("kairoswarm_user_id", data.user_id);
+      localStorage.setItem("kairoswarm_user_email", data.email);
+      setMessage("✅ Success! Redirecting...");
+      setTimeout(() => {
+        window.location.href = "/";
+      }, 1000);
+    }
   } catch (err) {
     setMessage("Network error. Please try again.");
   }

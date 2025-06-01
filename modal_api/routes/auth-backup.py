@@ -7,9 +7,8 @@ router = APIRouter()
 class AuthRequest(BaseModel):
     email: str
     password: str
-    display_name: str
 
-@router.post("/signup")
+@router.post("/auth/signup")
 async def signup(auth: AuthRequest):
     try:
         supabase = get_supabase()
@@ -18,32 +17,19 @@ async def signup(auth: AuthRequest):
             "password": auth.password
         })
 
-        # Handle successful user creation
-        if result.user:
-            user_id = result.user.id
-            email = result.user.email
+        if not result or not result.session or not result.session.user:
+            raise HTTPException(status_code=400, detail="Signup failed")
 
-            # Insert user into our own users table
-            supabase.from_("users").insert({
-                "id": user_id,
-                "email": email,
-                "display_name": auth.display_name
-            }).execute()
-
-            return {
-                "status": "pending",
-                "message": "Confirmation email sent. Please verify to complete signup.",
-                "user_id": user_id,
-                "email": email
-            }
-
-        raise HTTPException(status_code=400, detail="Signup failed")
+        return {
+            "user_id": result.session.user.id,
+            "email": result.session.user.email
+        }
 
     except Exception as e:
         print("Internal signup error:", e)
         raise HTTPException(status_code=500, detail="Unexpected error during signup")
 
-@router.post("/signin")
+@router.post("/auth/signin")
 async def signin(auth: AuthRequest):
     try:
         supabase = get_supabase()
