@@ -458,7 +458,7 @@ return (
       <div className="flex-1 flex flex-col p-4">
         <h2 className="text-lg font-semibold mb-4">Tape</h2>
         <ScrollArea
-          className="space-y-2 overflow-y-auto pr-2 max-h-[60vh]"
+          className="space-y-2 overflow-y-auto pr-2 max-h-[100vh]"
           ref={scrollRef}
         >
           {Array.isArray(tape) &&
