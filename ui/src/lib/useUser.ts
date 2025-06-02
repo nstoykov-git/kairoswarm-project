@@ -2,10 +2,34 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
+type UserProfile = {
+  id: string;
+  email: string;
+  display_name?: string;
+};
+
 export function useUser() {
-  const [user, setUser] = useState<{ id: string; email: string } | null>(null);
+  const [user, setUser] = useState<UserProfile | null>(null);
 
   useEffect(() => {
+    const loadUserProfile = async (userId: string, email: string) => {
+      const { data, error } = await supabase
+        .from("users")
+        .select("display_name")
+        .eq("id", userId)
+        .single();
+
+      const profile: UserProfile = {
+        id: userId,
+        email,
+        display_name: data?.display_name ?? undefined,
+      };
+
+      setUser(profile);
+      localStorage.setItem("kairoswarm_user_id", userId);
+      localStorage.setItem("kairoswarm_user_email", email);
+    };
+
     const fetchSession = async () => {
       const { data, error } = await supabase.auth.getSession();
       if (error) {
@@ -13,22 +37,17 @@ export function useUser() {
         return;
       }
       const sessionUser = data.session?.user;
-      if (sessionUser?.email && sessionUser.id) {
-        const userData = { id: sessionUser.id, email: sessionUser.email };
-        setUser(userData);
-        localStorage.setItem("kairoswarm_user_id", sessionUser.id);
-        localStorage.setItem("kairoswarm_user_email", sessionUser.email);
+      if (sessionUser?.id && sessionUser?.email) {
+        await loadUserProfile(sessionUser.id, sessionUser.email);
       }
     };
 
     fetchSession();
 
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session?.user?.email && session.user.id) {
-        const userData = { id: session.user.id, email: session.user.email };
-        setUser(userData);
-        localStorage.setItem("kairoswarm_user_id", session.user.id);
-        localStorage.setItem("kairoswarm_user_email", session.user.email);
+    const { data: listener } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      const sessionUser = session?.user;
+      if (sessionUser?.id && sessionUser?.email) {
+        await loadUserProfile(sessionUser.id, sessionUser.email);
       } else {
         setUser(null);
         localStorage.removeItem("kairoswarm_user_id");

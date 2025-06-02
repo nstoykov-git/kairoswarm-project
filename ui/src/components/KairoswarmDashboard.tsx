@@ -291,7 +291,7 @@ return (
         {userEmail && (
           <>
             <p className="text-sm text-gray-400 hidden md:inline">
-              Signed in as <span className="text-white">{userEmail}</span>
+              Signed in as <span className="text-white">{user?.display_name || user?.email}</span>
             </p>
             <Button
               variant="ghost"

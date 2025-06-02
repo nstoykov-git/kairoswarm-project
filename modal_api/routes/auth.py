@@ -24,11 +24,12 @@ async def signup(auth: AuthRequest):
             email = result.user.email
 
             # Insert user into our own users table
-            supabase.from_("users").insert({
+            supabase.from_("users").upsert({
                 "id": user_id,
                 "email": email,
                 "display_name": auth.display_name
-            }).execute()
+            }, on_conflict="id").execute()
+
 
             return {
                 "status": "pending",

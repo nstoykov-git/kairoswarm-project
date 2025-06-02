@@ -1,12 +1,19 @@
-from fastapi import APIRouter, HTTPException, Request
-from pydantic import BaseModel
-from modal_api.utils.services import get_supabase
-from datetime import datetime
-import uuid
-import asyncpg
 import os
+import logging
+import json
+import uuid
+from uuid import uuid4
+from datetime import datetime
+
+from pydantic import BaseModel
+from fastapi import APIRouter, HTTPException, Request
+
+import asyncpg
+
+from modal_api.utils.services import get_redis, get_supabase
 
 router = APIRouter()
+
 
 @router.get("/ping")
 async def ping():
@@ -21,22 +28,35 @@ class CreateSwarmRequest(BaseModel):
 
 @router.post("/create")
 async def create_swarm(payload: CreateSwarmRequest):
-    try:
-        supabase = get_supabase()
-        swarm_id = str(uuid.uuid4())
+    supabase = get_supabase()
+    redis = get_redis()
+    swarm_id = str(uuid4())
 
-        # Insert will raise an exception if it fails
-        supabase.from_("swarms").insert({
+    try:
+        result = supabase.from_("swarms").insert({
             "id": swarm_id,
             "name": payload.name,
             "user_id": payload.creator_id,
             "created_at": datetime.utcnow().isoformat()
         }).execute()
 
+        logging.info("Supabase insert result: %s", result.data)
+
+        tape_key = f"{swarm_id}:conversation_tape"
+        initial_entry = {
+            "from": "system",
+            "type": "system",
+            "message": f"Swarm '{payload.name}' created.",
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        await redis.rpush(tape_key, json.dumps(initial_entry))
+
         return {"id": swarm_id, "status": "created"}
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logging.exception("Failed to create swarm")
+        raise HTTPException(status_code=500, detail=f"Swarm creation failed: {str(e)}")
+
 
 # --- Get Swarms by User ---
 
@@ -61,7 +81,9 @@ async def get_swarms(request: Request):
             return {"status": "ok", "swarms": swarms}
 
     except Exception as e:
+        logging.exception("Failed to fetch swarms")
         return {"status": "error", "message": str(e)}
+
 
 # --- DELETE Swarm ---
 
@@ -71,13 +93,12 @@ async def delete_swarm(swarm_id: str):
         supabase = get_supabase()
         result = supabase.from_("swarms").delete().eq("id", swarm_id).execute()
 
-        if result.error:
-            raise HTTPException(status_code=400, detail=result.error.message)
-
+        logging.info("Swarm delete result: %s", result.data)
         return {"status": "deleted", "id": swarm_id}
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logging.exception("Failed to delete swarm")
+        raise HTTPException(status_code=500, detail=f"Swarm deletion failed: {str(e)}")
 
 
 # --- JOIN Swarm ---
@@ -101,8 +122,7 @@ async def join_swarm(payload: JoinSwarmRequest):
             "joined_at": datetime.utcnow().isoformat()
         }).execute()
 
-        if result.error:
-            raise HTTPException(status_code=400, detail=result.error.message)
+        logging.info("Participant join result: %s", result.data)
 
         return {
             "status": "joined",
@@ -111,7 +131,9 @@ async def join_swarm(payload: JoinSwarmRequest):
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logging.exception("Failed to join swarm")
+        raise HTTPException(status_code=500, detail=f"Swarm join failed: {str(e)}")
+
 
 # --- GET Participants of a Swarm ---
 
@@ -121,11 +143,10 @@ async def get_participants(swarm_id: str):
         supabase = get_supabase()
         result = supabase.from_("participants").select("*").eq("swarm_id", swarm_id).execute()
 
-        if result.error:
-            raise HTTPException(status_code=400, detail=result.error.message)
+        logging.info("Fetch participants result: %s", result.data)
 
         return {"participants": result.data}
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-    
+        logging.exception("Failed to fetch participants")
+        raise HTTPException(status_code=500, detail=f"Fetch participants failed: {str(e)}")
