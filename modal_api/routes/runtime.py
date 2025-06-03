@@ -214,6 +214,9 @@ async def create_ephemeral_swarm(payload: dict = Body(...)):
                 "timestamp": datetime.utcnow().isoformat()
             }
             await r.rpush(tape_key, json.dumps(entry))
+            await r.expire(tape_key, 86400)  # 24 hours
+            await r.expire(f"{swarm_id}:participants", 86400)
+            await r.expire(f"{swarm_id}:agents", 86400)
 
         return {
             "swarm_id": swarm_id,

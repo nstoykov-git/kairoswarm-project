@@ -23,6 +23,7 @@ export default function KairoswarmDashboard() {
   const [participants, setParticipants] = useState<any[]>([]);
   const [tape, setTape] = useState<any[]>([]);
   const [swarmId, setSwarmId] = useState("default");
+  const [isEphemeral, setIsEphemeral] = useState(false);
   const [swarmIdInput, setSwarmIdInput] = useState("");
   const [showParticipants, setShowParticipants] = useState(false);
   const [memories, setMemories] = useState<any[]>([]);
@@ -41,47 +42,49 @@ export default function KairoswarmDashboard() {
     }
   }, []);
 
-useEffect(() => {
-  if (user) {
-    setUserEmail(user.email);
-    setUserId(user.id);
-  }
-}, [user]);
-
-useEffect(() => {
-  const storedSwarmId = localStorage.getItem("kairoswarm_swarm_id") || "default";
-  setSwarmId(storedSwarmId);
-  setSwarmIdInput(storedSwarmId);
-
-  // If useUser() didn't populate userId (e.g. unauthenticated session), try fallback
-  if (!userId) {
-    const storedUserId = localStorage.getItem("kairoswarm_user_id");
-    if (storedUserId) setUserId(storedUserId);
-  }
-}, []);
-
-useEffect(() => {
-  const storedPid = localStorage.getItem("kairoswarm_pid");
-  if (storedPid) setParticipantId(storedPid);
-}, []);
-
-useEffect(() => {
-  if (!swarmId || swarmId === "default") return;
-
-  const fetchSwarmName = async () => {
-    try {
-      const res = await fetch(`${API_BASE_URL}/swarm/user-swarms?user_id=${userId}`);
-      const data = await res.json();
-      const match = data.swarms?.find((s: any) => s.id === swarmId);
-      if (match) setSwarmName(match.name);
-    } catch (err) {
-      console.error("Failed to fetch swarm name:", err);
+  useEffect(() => {
+    if (user) {
+      setUserEmail(user.email);
+      setUserId(user.id);
     }
-  };
+  }, [user]);
 
-  fetchSwarmName();
-}, [swarmId, userId]);
+  useEffect(() => {
+    const storedSwarmId = localStorage.getItem("kairoswarm_swarm_id") || "default";
+    setSwarmId(storedSwarmId);
+    setSwarmIdInput(storedSwarmId);
+    const storedIsEphemeral = localStorage.getItem("kairoswarm_is_ephemeral") === "true";
+    setIsEphemeral(storedIsEphemeral);
 
+
+    // If useUser() didn't populate userId (e.g. unauthenticated session), try fallback
+    if (!userId) {
+      const storedUserId = localStorage.getItem("kairoswarm_user_id");
+      if (storedUserId) setUserId(storedUserId);
+    }
+  }, []);
+
+  useEffect(() => {
+    const storedPid = localStorage.getItem("kairoswarm_pid");
+    if (storedPid) setParticipantId(storedPid);
+  }, []);
+
+  useEffect(() => {
+    if (!swarmId || swarmId === "default") return;
+
+    const fetchSwarmName = async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/swarm/user-swarms?user_id=${userId}`);
+        const data = await res.json();
+        const match = data.swarms?.find((s: any) => s.id === swarmId);
+        if (match) setSwarmName(match.name);
+      } catch (err) {
+        console.error("Failed to fetch swarm name:", err);
+      }
+    };
+
+    fetchSwarmName();
+  }, [swarmId, userId]);
 
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -127,6 +130,9 @@ useEffect(() => {
           setSwarmId(data.id);
           setSwarmIdInput(data.id);
           localStorage.setItem("kairoswarm_swarm_id", data.id);
+          // After persistent swarm creation
+          setIsEphemeral(false);
+          localStorage.setItem("kairoswarm_is_ephemeral", "false");
         } else {
           alert(`Failed to create swarm: ${data.message || "Unknown error"}`);
         }
@@ -145,6 +151,9 @@ useEffect(() => {
           setSwarmId(data.swarm_id);
           setSwarmIdInput(data.swarm_id);
           localStorage.setItem("kairoswarm_swarm_id", data.swarm_id);
+          // After ephemeral swarm creation
+          setIsEphemeral(true);
+          localStorage.setItem("kairoswarm_is_ephemeral", "true");
         } else {
           alert(`Failed to create ephemeral swarm: ${data.error || "Unknown error"}`);
         }
@@ -271,9 +280,16 @@ return (
         Kairoswarm
       </h1>
 
-      <p className="text-sm text-gray-400 hidden md:inline">
-        Swarm: <span className="text-white">{swarmName || swarmId}</span>
-      </p>
+      <div className="text-sm text-gray-400 hidden md:flex flex-col">
+        <span>
+          Swarm: <span className="text-white">{swarmName || swarmId}</span>
+        </span>
+        {isEphemeral && (
+          <span className="text-xs text-yellow-400">
+            ⏳ Ephemeral — expires in 24h
+          </span>
+        )}
+      </div>
 
       <Button
         variant="ghost"
