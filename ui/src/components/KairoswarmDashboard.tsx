@@ -106,36 +106,55 @@ useEffect(() => {
   }, [swarmId]);
 
   const handleCreateSwarm = async () => {
-  const name = prompt("Enter swarm name:");
-  if (!name || !userId) {
-    alert("Missing swarm name or user ID.");
-    return;
-  }
+    const name = prompt("Enter swarm name:");
+    if (!name) return;
 
-  //console.log("Creating swarm with name:", name, "and userId:", userId);
-  try {
-    const res = await fetch(`${API_BASE_URL}/swarm/create`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, creator_id: userId }),
-    });
+    const isAuthenticated = !!userId;
 
-    const data = await res.json();
-    //console.log("Swarm creation response:", data);
+    try {
+      if (isAuthenticated) {
+        // Persistent Swarm for signed-in user
+        const res = await fetch(`${API_BASE_URL}/swarm/create`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name, creator_id: userId }),
+        });
 
-    if (data.status === "created") {
-      alert(`Swarm "${name}" created!`);
-      setSwarmId(data.id);
-      setSwarmIdInput(data.id);
-      localStorage.setItem("kairoswarm_swarm_id", data.id);
-    } else {
-      alert(`Failed to create swarm: ${data.message || "Unknown error"}`);
+        const data = await res.json();
+
+        if (data.status === "created") {
+          alert(`Swarm "${name}" created!`);
+          setSwarmId(data.id);
+          setSwarmIdInput(data.id);
+          localStorage.setItem("kairoswarm_swarm_id", data.id);
+        } else {
+          alert(`Failed to create swarm: ${data.message || "Unknown error"}`);
+        }
+      } else {
+        // Ephemeral Swarm for anonymous user
+        const res = await fetch(`${API_BASE_URL}/create-ephemeral`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name }),
+        });
+
+        const data = await res.json();
+
+        if (data.status === "ephemeral_created") {
+          alert(`Ephemeral swarm "${name}" created!`);
+          setSwarmId(data.swarm_id);
+          setSwarmIdInput(data.swarm_id);
+          localStorage.setItem("kairoswarm_swarm_id", data.swarm_id);
+        } else {
+          alert(`Failed to create ephemeral swarm: ${data.error || "Unknown error"}`);
+        }
+      }
+    } catch (error) {
+      console.error("Error creating swarm:", error);
+      alert("Unexpected error occurred while creating swarm.");
     }
-  } catch (error) {
-    console.error("Error creating swarm:", error);
-    alert("Unexpected error occurred while creating swarm.");
-  }
-};
+  };
+
 
   const handleJoin = async () => {
   if (!joinName.trim() || !userId) return;

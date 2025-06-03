@@ -1,10 +1,11 @@
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
-import redis.asyncio as redis
+from fastapi import Body
 import openai
 import uuid
 import json
 import os
+from datetime import datetime
 import asyncpg
 from openai import AsyncOpenAI
 from modal_api.utils.services import get_redis
@@ -196,6 +197,31 @@ async def tape(request: Request):
     async with get_redis() as r:
         raw = await r.lrange(f"{sid}:conversation_tape", 0, -1)
     return [json.loads(x) for x in raw]
+
+@router.post("/create-ephemeral")
+async def create_ephemeral_swarm(payload: dict = Body(...)):
+    name = payload.get("name") or "Anonymous Swarm"
+    swarm_id = str(uuid.uuid4())
+
+    try:
+        async with get_redis() as r:
+            # Initialize conversation tape
+            tape_key = f"{swarm_id}:conversation_tape"
+            entry = {
+                "from": "system",
+                "type": "system",
+                "message": f"Ephemeral swarm '{name}' created.",
+                "timestamp": datetime.utcnow().isoformat()
+            }
+            await r.rpush(tape_key, json.dumps(entry))
+
+        return {
+            "swarm_id": swarm_id,
+            "status": "ephemeral_created"
+        }
+
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
 
 @router.post("/debug/clear-ephemeral")
 async def clear_ephemeral(request: Request):
