@@ -54,14 +54,6 @@ async def add_agent(request: Request):
                 }
             }))
 
-        pool = await asyncpg.create_pool(dsn=os.getenv("POSTGRES_URL"))
-        async with pool.acquire() as conn:
-            await conn.execute("""
-                INSERT INTO agents (id, user_id, swarm_id, name, model)
-                VALUES ($1, $2, $3, $4, $5)
-                ON CONFLICT (id) DO NOTHING
-            """, assistant.id, user_id, sid, assistant.name, assistant.model)
-
         return {
             "name": assistant.name,
             "thread_id": thread.id
@@ -69,24 +61,50 @@ async def add_agent(request: Request):
 
     except Exception as e:
         return {"error": str(e)}
+    
+@router.post("/reload-agent")
+async def reload_agent(request: Request):
+    body = await request.json()
+    swarm_id = body.get("swarm_id", "default")
+    agent_id = body.get("agent_id")
 
-@router.get("/get-agents")
-async def get_agents(request: Request):
-    user_id = request.query_params.get("user_id", "default")
+    if not agent_id:
+        return {"status": "error", "message": "Missing agent_id"}
 
     try:
-        pool = await asyncpg.create_pool(dsn=os.getenv("POSTGRES_URL"))
-        async with pool.acquire() as conn:
-            rows = await conn.fetch("""
-                SELECT id, name, model, swarm_id, created_at
-                FROM agents
-                WHERE user_id = $1
-                ORDER BY created_at DESC
-            """, user_id)
-            agents = [dict(row) for row in rows]
-            return {"status": "ok", "agents": agents}
+        assistant = openai.beta.assistants.retrieve(agent_id)
+        thread = openai.beta.threads.create()
+        pid = str(uuid.uuid4())
+
+        async with get_redis() as r:
+            await r.hset(f"{swarm_id}:agents", assistant.id, json.dumps({
+                "agent_id": assistant.id,
+                "thread_id": thread.id,
+                "name": assistant.name
+            }))
+            await r.hset(f"{swarm_id}:agent:{assistant.id}", mapping={
+                "agent_id": assistant.id,
+                "thread_id": thread.id,
+                "name": assistant.name
+            })
+            await r.hset(f"{swarm_id}:participants", pid, json.dumps({
+                "id": pid,
+                "name": assistant.name,
+                "type": "agent",
+                "metadata": {
+                    "agent_id": assistant.id,
+                    "thread_id": thread.id
+                }
+            }))
+
+        return {"status": "ok", "message": "Agent reloaded"}
+
     except Exception as e:
         return {"status": "error", "message": str(e)}
+
+@router.get("/get-agents")
+async def get_agents():
+    pass  # Ephemeral only — agents stored in memory
 
 @router.post("/speak")
 async def speak(request: Request):
@@ -228,7 +246,11 @@ async def create_ephemeral_swarm(payload: dict = Body(...)):
 
 @router.post("/debug/clear-ephemeral")
 async def clear_ephemeral(request: Request):
-    sid = request.query_params.get("swarm_id") or "default"
+    sid = request.query_params.get("swarm_id")
+    
+    if not sid or sid == "default":
+        return {"status": "skipped", "reason": "No valid ephemeral swarm_id provided."}
+
     async with get_redis() as r:
         await r.delete(f"{sid}:conversation_tape")
         await r.delete(f"{sid}:participants")
@@ -236,7 +258,9 @@ async def clear_ephemeral(request: Request):
         agent_ids = await r.hkeys(f"{sid}:agents")
         for aid in agent_ids:
             await r.delete(f"{sid}:agent:{aid}")
+
     return {"status": f"{sid} swarm cleared"}
+
 
 @router.post("/debug/clear-default")
 async def clear_default():

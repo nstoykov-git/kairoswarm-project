@@ -1,72 +1,91 @@
-# modal_api/routes/memory.py
-
 from fastapi import APIRouter, Request
 from kairoswarm_core.memory_core.memory_store import MemoryStore
 from openai import AsyncOpenAI
-import asyncpg
+from typing import Optional
 import os
 
 router = APIRouter()
 
 @router.post("/log-memory")
 async def log_memory(request: Request):
-    store = MemoryStore()
-    await store.init()
-
     body = await request.json()
-    user_id = body.get("user_id", "default")
+    user_id = body.get("user_id", "00000000-0000-0000-0000-000000000000")
     agent_id = body.get("agent_id")
-    message = body.get("message")
+    content = body.get("message")  # "message" for backward compatibility
     type = body.get("type", "experience")
+    tags = body.get("tags")
+    relevance = body.get("relevance", 1.0)
+    expires_at = body.get("expires_at")
 
-    if not agent_id or not message:
-        return {"status": "error", "message": "Missing agent_id or message"}
+    if not agent_id or not content:
+        return {"status": "error", "message": "Missing 'agent_id' or 'message'"}
 
     try:
         client = AsyncOpenAI()
-        response = await client.embeddings.create(
+        embedding_response = await client.embeddings.create(
             model="text-embedding-3-small",
-            input=message
+            input=content
         )
-        embedding = response.data[0].embedding
-        await store.log_memory(agent_id, type, message, user_id, embedding)
-        return {"status": "ok", "message": "Memory logged with embedding"}
+        embedding = embedding_response.data[0].embedding
+
+        store = MemoryStore()
+        await store.init()
+
+        await store.log_memory(
+            agent_id=agent_id,
+            type=type,
+            content=content,
+            user_id=user_id,
+            embedding=embedding,
+            tags=tags,
+            relevance=relevance,
+            expires_at=expires_at
+        )
+
+        return {"status": "ok", "message": "Memory logged"}
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
+
 @router.get("/get-memories")
 async def get_memories(request: Request):
-    store = MemoryStore()
-    await store.init()
-
     agent_id = request.query_params.get("agent_id")
-    user_id = request.query_params.get("user_id", "default")
+    user_id = request.query_params.get("user_id", "00000000-0000-0000-0000-000000000000")
     query = request.query_params.get("query")
+    type = request.query_params.get("type")
+    tags = request.query_params.get("tags")  # comma-separated
+    limit = int(request.query_params.get("limit", 10))
 
     if not agent_id:
-        return {"status": "error", "message": "Missing agent_id"}
+        return {"status": "error", "message": "Missing 'agent_id'"}
 
     try:
+        store = MemoryStore()
+        await store.init()
+
         if query:
             client = AsyncOpenAI()
-            response = await client.embeddings.create(
+            embedding_response = await client.embeddings.create(
                 model="text-embedding-3-small",
                 input=query
             )
-            query_embedding = response.data[0].embedding
+            query_embedding = embedding_response.data[0].embedding
 
-            pool = await asyncpg.create_pool(dsn=os.getenv("POSTGRES_URL"))
-            async with pool.acquire() as conn:
-                rows = await conn.fetch("""
-                    SELECT id, type, content, created_at
-                    FROM memories
-                    WHERE agent_id = $1 AND user_id = $2
-                    ORDER BY embedding <#> $3
-                    LIMIT 10
-                """, agent_id, user_id, query_embedding)
-                memories = [dict(row) for row in rows]
+            memories = await store.search_memories(
+                agent_id=agent_id,
+                user_id=user_id,
+                embedding=query_embedding,
+                limit=limit
+            )
         else:
-            memories = await store.get_memories(agent_id, user_id)
+            parsed_tags = tags.split(",") if tags else None
+            memories = await store.get_memories(
+                agent_id=agent_id,
+                user_id=user_id,
+                type=type,
+                tags=parsed_tags,
+                limit=limit
+            )
 
         return {"status": "ok", "memories": memories}
     except Exception as e:

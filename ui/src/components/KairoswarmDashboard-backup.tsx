@@ -30,8 +30,6 @@ export default function KairoswarmDashboard() {
   const [agents, setAgents] = useState<any[]>([]);
   const [swarms, setSwarms] = useState<any[]>([]);
   const [isWideScreen, setIsWideScreen] = useState(false);
-  
-  const isPersistentMode = !!userId && swarmId !== "default";
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const participantsScrollRef = useRef<HTMLDivElement | null>(null);
@@ -243,44 +241,25 @@ const handleLeaveSwarm = async () => {
     if (data.memories) setMemories(data.memories);
   };
 
-const handleViewAgents = async () => {
-  const persistent = !!userId && swarmId !== "default";
-  const endpoint = persistent ? "/persistent/get-agents" : "/get-agents";
+  const handleViewAgents = async () => {
+    const res = await fetch(`${API_BASE_URL}/get-agents?user_id=${userId}`);
+    const data = await res.json();
+    if (data.agents) setAgents(data.agents);
+  };
 
-  const res = await fetch(`${API_BASE_URL}${endpoint}${persistent ? `?user_id=${userId}&swarm_id=${swarmId}` : ""}`);
-  const data = await res.json();
-
-  if (data.agents) setAgents(data.agents);
-};
-
-
-const handleReloadAgent = async (aid: string) => {
-  const persistent = !!userId && swarmId !== "default";
-  const url = `${API_BASE_URL}${persistent ? "/persistent/reload-agent" : "/reload-agent"}`;
-
-  const body = persistent
-    ? { swarm_id: swarmId, agent_id: aid, user_id: userId }
-    : { swarm_id: swarmId, agent_id: aid };
-
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body)
-  });
-
-  const data = await res.json();
-  alert(data.status === "ok" ? "Agent reloaded!" : data.message);
-};
+  const handleReloadAgent = async (aid: string) => {
+    const res = await fetch(`${API_BASE_URL}/reload-agent`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ swarm_id: swarmId, agent_id: aid })
+    });
+    const data = await res.json();
+    alert(data.status === "ok" ? "Agent reloaded!" : data.message);
+  };
 
 const handleViewSwarms = async () => {
-  if (!userId) {
-  alert("Sign in to view your persistent swarms.");
-  return;
-}
-
   const res = await fetch(`${API_BASE_URL}/swarm/user-swarms?user_id=${userId}`);
   const data = await res.json();
-
   if (data.swarms) setSwarms(data.swarms);
 };
 

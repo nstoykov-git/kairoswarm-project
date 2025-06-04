@@ -11,6 +11,7 @@ from modal_api.routes.users import router as users_router
 from modal_api.routes.auth import router as auth_router
 from modal_api.routes.autoregister import router as autoregister_router
 from modal_api.routes.swarms import router as swarms_router
+from kairoswarm_core.routes.persistent_runtime import router as persistent_runtime_router
 
 
 from kairoswarm_core.memory_core.memory_store import MemoryStore
@@ -36,6 +37,8 @@ api.include_router(users_router)
 api.include_router(auth_router, prefix="/auth", tags=["auth"])
 api.include_router(autoregister_router)
 api.include_router(swarms_router, prefix="/swarm", tags=["swarms"])
+api.include_router(persistent_runtime_router, prefix="/persistent", tags=["persistent"])
+
 
 # --- Modal Image Definition ---
 image = (
