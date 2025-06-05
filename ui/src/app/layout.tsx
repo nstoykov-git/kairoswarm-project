@@ -4,9 +4,9 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "react-hot-toast";
-import { ReactNode } from "react";
+import { ReactNode, useState } from "react";
 import { SessionContextProvider } from "@supabase/auth-helpers-react";
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import { createBrowserSupabaseClient } from "@supabase/auth-helpers-nextjs";
 
 // Font setup
 const geistSans = Geist({
@@ -25,7 +25,7 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
-  const supabase = createClientComponentClient();
+  const [supabase] = useState(() => createBrowserSupabaseClient());
 
   return (
     <html lang="en">
