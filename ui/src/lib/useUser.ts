@@ -28,21 +28,7 @@ export function useUser() {
       setUser(profile);
     };
 
-    const fetchSession = async () => {
-      const { data, error } = await supabase.auth.getSession();
-      if (error) {
-        console.error("Session fetch error:", error.message);
-        return;
-      }
-      const sessionUser = data.session?.user;
-      if (sessionUser?.id && sessionUser?.email) {
-        await loadUserProfile(sessionUser.id, sessionUser.email);
-      }
-    };
-
-    fetchSession();
-
-    const { data: listener } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    const syncSessionToProfile = async (session: any) => {
       const sessionUser = session?.user;
       if (sessionUser?.id && sessionUser?.email) {
         await loadUserProfile(sessionUser.id, sessionUser.email);
@@ -51,9 +37,32 @@ export function useUser() {
         localStorage.removeItem("kairoswarm_user_id");
         localStorage.removeItem("kairoswarm_user_email");
       }
+    };
+
+    // ✅ Load initial session
+    supabase.auth.getSession().then(({ data, error }) => {
+      if (error) {
+        console.error("Session fetch error:", error.message);
+        return;
+      }
+      syncSessionToProfile(data.session);
     });
 
-    return () => listener.subscription.unsubscribe();
+    // ✅ Listen to all auth changes (including tab sync)
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      async (_event, session) => {
+        // session can be null (sign-out), so we always handle both cases
+        if (!session) {
+          const { data } = await supabase.auth.getSession();
+          session = data.session ?? null;
+        }
+        await syncSessionToProfile(session);
+      }
+    );
+
+    return () => {
+      listener.subscription.unsubscribe();
+    };
   }, []);
 
   return user;
