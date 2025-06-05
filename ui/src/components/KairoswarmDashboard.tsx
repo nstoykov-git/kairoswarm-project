@@ -137,11 +137,11 @@ export default function KairoswarmDashboard() {
         </div>
 
         <div className="flex gap-2">
-          <Button variant="outline" onClick={handleAddAgent}>
+          <Button variant="secondary" onClick={handleAddAgent}>
             <Bot className="w-4 h-4 mr-2" />
             Add AI Agent
           </Button>
-          <Button variant="outline" onClick={handleCreateSwarm}>
+          <Button variant="secondary" onClick={handleCreateSwarm}>
             <PlusCircle className="w-4 h-4 mr-2" />
             New Swarm
           </Button>
