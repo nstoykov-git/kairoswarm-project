@@ -17,8 +17,7 @@ export default function KairoswarmDashboard() {
   const [joinName, setJoinName] = useState("");
   const [participantId, setParticipantId] = useState<string | null>(null);
   const [agentId, setAgentId] = useState("");
-  const [userId, setUserId] = useState("");
-  const [userEmail, setUserEmail] = useState("");
+ 
   const [participants, setParticipants] = useState<any[]>([]);
   const [tape, setTape] = useState<any[]>([]);
   const [swarmId, setSwarmId] = useState("default");
@@ -29,13 +28,16 @@ export default function KairoswarmDashboard() {
   const [agents, setAgents] = useState<any[]>([]);
   const [swarms, setSwarms] = useState<any[]>([]);
   const [isWideScreen, setIsWideScreen] = useState(false);
-  
-  const isPersistentMode = !!userId && swarmId !== "default";
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const participantsScrollRef = useRef<HTMLDivElement | null>(null);
 
   const user = useUser();
+  const userId: string = user?.id ?? "";
+  const userEmail: string = user?.email ?? "";
+
+  const isPersistentMode = !!userId && swarmId !== "default";
+
   
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -44,25 +46,11 @@ export default function KairoswarmDashboard() {
   }, []);
 
   useEffect(() => {
-    if (user) {
-      setUserEmail(user.email);
-      setUserId(user.id);
-    }
-  }, [user]);
-
-  useEffect(() => {
     const storedSwarmId = localStorage.getItem("kairoswarm_swarm_id") || "default";
     setSwarmId(storedSwarmId);
     setSwarmIdInput(storedSwarmId);
     const storedIsEphemeral = localStorage.getItem("kairoswarm_is_ephemeral") === "true";
     setIsEphemeral(storedIsEphemeral);
-
-
-    // If useUser() didn't populate userId (e.g. unauthenticated session), try fallback
-    if (!userId) {
-      const storedUserId = localStorage.getItem("kairoswarm_user_id");
-      if (storedUserId) setUserId(storedUserId);
-    }
   }, []);
 
   useEffect(() => {
@@ -195,9 +183,6 @@ const handleLeaveSwarm = async () => {
   // Optionally confirm
   const confirmLeave = confirm("Are you sure you want to leave the swarm?");
   if (!confirmLeave) return;
-
-  localStorage.removeItem("kairoswarm_swarm_id");
-  localStorage.removeItem("kairoswarm_pid");
 
   setSwarmId("default");
   setSwarmIdInput("default");
@@ -353,6 +338,8 @@ return (
               size="sm"
               onClick={async () => {
                 await supabase.auth.signOut();
+                localStorage.removeItem("kairoswarm_user_id");
+                localStorage.removeItem("kairoswarm_user_email");
                 window.location.reload();
               }}
             >
@@ -403,7 +390,7 @@ return (
             <Input
               placeholder="User ID"
               value={userId}
-              onChange={(e) => setUserId(e.target.value)}
+              readOnly
               className="text-sm"
             />
             <Input
