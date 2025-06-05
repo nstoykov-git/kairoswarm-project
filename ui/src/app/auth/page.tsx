@@ -52,10 +52,10 @@ export default function AuthPage() {
         }
       }
 
-      setMessage("✅ Success! Redirecting...");
-      setTimeout(() => {
-        window.location.href = "/";
-      }, 800);
+      setMessage("✅ Signed in! Reloading...");
+        setTimeout(() => {
+  window.location.reload();
+      }, 1000);
 
     } catch (err) {
       console.error("Auth error:", err);
