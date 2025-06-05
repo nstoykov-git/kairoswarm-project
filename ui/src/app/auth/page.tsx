@@ -12,53 +12,62 @@ export default function AuthPage() {
   const [mode, setMode] = useState<"sign-in" | "sign-up">("sign-in");
   const [message, setMessage] = useState("");
 
-  const handleAuth = async () => {
-    setMessage("");
+const handleAuth = async () => {
+  setMessage("");
+  console.log("➡️ Starting auth", { mode, email });
 
-    const endpoint = mode === "sign-in" ? "/auth/signin" : "/auth/signup";
+  const endpoint = mode === "sign-in" ? "/auth/signin" : "/auth/signup";
 
-    try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_MODAL_API_URL}${endpoint}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ email, password, display_name: displayName }),
-      });
+  try {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_MODAL_API_URL}${endpoint}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ email, password, display_name: displayName }),
+    });
 
-      const data = await res.json();
+    const data = await res.json();
+    console.log("✅ Auth response:", data);
 
-      if (!res.ok) {
-        setMessage(data.detail || "Something went wrong");
+    if (!res.ok) {
+      setMessage(data.detail || "❌ Something went wrong");
+      return;
+    }
+
+    if (mode === "sign-in") {
+      if (!data.access_token || !data.refresh_token) {
+        setMessage("❌ Missing tokens in response");
+        console.error("Missing tokens in sign-in response:", data);
         return;
       }
 
-      // ✅ For sign-in: manually set the Supabase session
-      if (mode === "sign-in" && data.access_token && data.refresh_token) {
-        const { error: sessionError } = await supabase.auth.setSession({
-          access_token: data.access_token,
-          refresh_token: data.refresh_token,
-        });
+      const { error: sessionError } = await supabase.auth.setSession({
+        access_token: data.access_token,
+        refresh_token: data.refresh_token,
+      });
 
-        if (sessionError) {
-          console.error("Supabase session error:", sessionError.message);
-          setMessage("Failed to persist session.");
-          return;
-        }
+      if (sessionError) {
+        console.error("❌ Supabase session error:", sessionError.message);
+        setMessage("❌ Failed to persist session.");
+        return;
       }
 
-      localStorage.setItem("kairoswarm_user_id", data.user_id);
-      localStorage.setItem("kairoswarm_user_email", data.email);
-
-      setMessage("✅ Success! Redirecting...");
-      setTimeout(() => {
-        window.location.href = "/";
-      }, 1000);
-    } catch (err) {
-      console.error("Auth error:", err);
-      setMessage("Network error. Please try again.");
+      console.log("✅ Supabase session successfully set.");
     }
-  };
+
+    localStorage.setItem("kairoswarm_user_id", data.user_id);
+    localStorage.setItem("kairoswarm_user_email", data.email);
+
+    setMessage("✅ Success! Redirecting...");
+    setTimeout(() => {
+      window.location.href = "/";
+    }, 1000);
+  } catch (err) {
+    console.error("❌ Auth exception:", err);
+    setMessage("❌ Network error. Please try again.");
+  }
+};
 
   return (
     <div className="flex flex-col items-center justify-center h-screen space-y-6 bg-gray-900 text-white">
