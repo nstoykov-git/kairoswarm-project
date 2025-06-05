@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { v4 as uuidv4 } from "uuid";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -18,8 +17,7 @@ export default function KairoswarmDashboard() {
   const [joinName, setJoinName] = useState("");
   const [participantId, setParticipantId] = useState<string | null>(null);
   const [agentId, setAgentId] = useState("");
-  const [userId, setUserId] = useState("");
-  const [userEmail, setUserEmail] = useState("");
+ 
   const [participants, setParticipants] = useState<any[]>([]);
   const [tape, setTape] = useState<any[]>([]);
   const [swarmId, setSwarmId] = useState("default");
@@ -35,6 +33,11 @@ export default function KairoswarmDashboard() {
   const participantsScrollRef = useRef<HTMLDivElement | null>(null);
 
   const user = useUser();
+  const userId: string = user?.id ?? "";
+  const userEmail: string = user?.email ?? "";
+
+  const isPersistentMode = !!userId && swarmId !== "default";
+
   
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -43,25 +46,11 @@ export default function KairoswarmDashboard() {
   }, []);
 
   useEffect(() => {
-    if (user) {
-      setUserEmail(user.email);
-      setUserId(user.id);
-    }
-  }, [user]);
-
-  useEffect(() => {
     const storedSwarmId = localStorage.getItem("kairoswarm_swarm_id") || "default";
     setSwarmId(storedSwarmId);
     setSwarmIdInput(storedSwarmId);
     const storedIsEphemeral = localStorage.getItem("kairoswarm_is_ephemeral") === "true";
     setIsEphemeral(storedIsEphemeral);
-
-
-    // If useUser() didn't populate userId (e.g. unauthenticated session), try fallback
-    if (!userId) {
-      const storedUserId = localStorage.getItem("kairoswarm_user_id");
-      if (storedUserId) setUserId(storedUserId);
-    }
   }, []);
 
   useEffect(() => {
@@ -195,9 +184,6 @@ const handleLeaveSwarm = async () => {
   const confirmLeave = confirm("Are you sure you want to leave the swarm?");
   if (!confirmLeave) return;
 
-  localStorage.removeItem("kairoswarm_swarm_id");
-  localStorage.removeItem("kairoswarm_pid");
-
   setSwarmId("default");
   setSwarmIdInput("default");
   setParticipantId(null);
@@ -241,25 +227,44 @@ const handleLeaveSwarm = async () => {
     if (data.memories) setMemories(data.memories);
   };
 
-  const handleViewAgents = async () => {
-    const res = await fetch(`${API_BASE_URL}/get-agents?user_id=${userId}`);
-    const data = await res.json();
-    if (data.agents) setAgents(data.agents);
-  };
+const handleViewAgents = async () => {
+  const persistent = !!userId && swarmId !== "default";
+  const endpoint = persistent ? "/persistent/get-agents" : "/get-agents";
 
-  const handleReloadAgent = async (aid: string) => {
-    const res = await fetch(`${API_BASE_URL}/reload-agent`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ swarm_id: swarmId, agent_id: aid })
-    });
-    const data = await res.json();
-    alert(data.status === "ok" ? "Agent reloaded!" : data.message);
-  };
+  const res = await fetch(`${API_BASE_URL}${endpoint}${persistent ? `?user_id=${userId}&swarm_id=${swarmId}` : ""}`);
+  const data = await res.json();
+
+  if (data.agents) setAgents(data.agents);
+};
+
+
+const handleReloadAgent = async (aid: string) => {
+  const persistent = !!userId && swarmId !== "default";
+  const url = `${API_BASE_URL}${persistent ? "/persistent/reload-agent" : "/reload-agent"}`;
+
+  const body = persistent
+    ? { swarm_id: swarmId, agent_id: aid, user_id: userId }
+    : { swarm_id: swarmId, agent_id: aid };
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  });
+
+  const data = await res.json();
+  alert(data.status === "ok" ? "Agent reloaded!" : data.message);
+};
 
 const handleViewSwarms = async () => {
+  if (!userId) {
+  alert("Sign in to view your persistent swarms.");
+  return;
+}
+
   const res = await fetch(`${API_BASE_URL}/swarm/user-swarms?user_id=${userId}`);
   const data = await res.json();
+
   if (data.swarms) setSwarms(data.swarms);
 };
 
@@ -333,6 +338,8 @@ return (
               size="sm"
               onClick={async () => {
                 await supabase.auth.signOut();
+                localStorage.removeItem("kairoswarm_user_id");
+                localStorage.removeItem("kairoswarm_user_email");
                 window.location.reload();
               }}
             >
@@ -383,7 +390,7 @@ return (
             <Input
               placeholder="User ID"
               value={userId}
-              onChange={(e) => setUserId(e.target.value)}
+              readOnly
               className="text-sm"
             />
             <Input
