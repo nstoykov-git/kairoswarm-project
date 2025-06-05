@@ -171,7 +171,7 @@ export default function KairoswarmDashboard() {
   if (!joinName.trim() || !userId) return;
   const finalSwarmId = swarmIdInput.trim() || "default";
 
-  const res = await fetch(`${API_BASE_URL}/join`, {
+  const res = await fetch(`${API_BASE_URL}/swarm/join`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
