@@ -6,7 +6,7 @@ import uuid
 import json
 import os
 from datetime import datetime
-import asyncpg
+import logging
 from openai import AsyncOpenAI
 from modal_api.utils.services import get_redis
 
@@ -17,6 +17,49 @@ router = APIRouter()
 # --- OpenAI Init ---
 openai.api_key = os.environ["OPENAI_API_KEY"]
 client = AsyncOpenAI(api_key=openai.api_key)
+
+router = APIRouter()
+
+@router.post("/join")
+async def join_ephemeral_swarm(request: Request):
+    try:
+        body = await request.json()
+        swarm_id = body.get("swarm_id", "default")
+        user_id = body.get("user_id", "default")
+        name = body.get("name", "Anonymous")
+
+        participant_id = str(uuid.uuid4())
+
+        async with get_redis() as r:
+            await r.hset(f"{swarm_id}:participants", participant_id, json.dumps({
+                "id": participant_id,
+                "user_id": user_id,
+                "name": name,
+                "type": "human",
+                "joined_at": datetime.utcnow().isoformat()
+            }))
+            await r.hset(f"{swarm_id}:participant:{participant_id}", mapping={
+                "id": participant_id,
+                "user_id": user_id,
+                "name": name,
+                "type": "human",
+                "joined_at": datetime.utcnow().isoformat()
+            })
+
+        logging.info("✅ Ephemeral participant joined: %s", participant_id)
+
+        return JSONResponse({
+            "status": "joined",
+            "swarm_id": swarm_id,
+            "participant_id": participant_id
+        })
+
+    except Exception as e:
+        logging.exception("❌ Failed to join ephemeral swarm")
+        return JSONResponse(
+            status_code=500,
+            content={"error": f"Ephemeral swarm join failed: {str(e)}"}
+        )
 
 @router.post("/add-agent")
 async def add_agent(request: Request):
