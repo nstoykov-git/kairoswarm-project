@@ -25,7 +25,7 @@ class CreateEphemeralRequest(BaseModel):
 @router.post("/create")
 async def create_ephemeral_swarm(payload: CreateEphemeralRequest):
     swarm_id = str(uuid.uuid4())
-    ttl_seconds = 120 #86400  # 24 hours
+    ttl_seconds = 86400  # 24 hours
 
     try:
         async with get_redis() as redis:
