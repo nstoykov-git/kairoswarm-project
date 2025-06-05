@@ -4,7 +4,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ReactNode } from "react";
-import ToasterWrapper from "./toaster-wrapper"; // ✅ new client component
+import ToasterWrapper from "@/components/ToasterWrapper";
 
 const geistSans = Geist({
   subsets: ["latin"],
