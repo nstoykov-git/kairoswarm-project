@@ -54,9 +54,9 @@ export default function AuthPage() {
 
       setMessage("✅ Success! Redirecting...");
       setTimeout(() => {
-        router.refresh(); // forces context (UserProvider) to re-evaluate
-        router.push("/"); // also navigate just in case
+        window.location.href = "/";
       }, 800);
+
     } catch (err) {
       console.error("Auth error:", err);
       setMessage("❌ Network error. Please try again.");
