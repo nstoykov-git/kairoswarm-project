@@ -35,27 +35,33 @@ export default function AuthPage() {
         return;
       }
 
-      if (mode === "sign-in") {
-        if (!data.access_token || !data.refresh_token) {
-          setMessage("❌ Missing tokens in response");
-          return;
-        }
+if (mode === "sign-in") {
+  if (!data.access_token || !data.refresh_token) {
+    console.error("Missing tokens in response:", data);
+    setMessage("❌ Missing tokens in response");
+    return;
+  }
 
-        const { error: sessionError } = await supabase.auth.setSession({
-          access_token: data.access_token,
-          refresh_token: data.refresh_token,
-        });
+  const { error: sessionError } = await supabase.auth.setSession({
+    access_token: data.access_token,
+    refresh_token: data.refresh_token,
+  });
 
-        if (sessionError) {
-          setMessage("❌ Failed to persist session.");
-          return;
-        }
-      }
+  if (sessionError) {
+    console.error("❌ Supabase session error:", sessionError.message);
+    setMessage("❌ Failed to persist session.");
+    return;
+  }
 
-      setMessage("✅ Signed in! Reloading...");
-        setTimeout(() => {
-  window.location.reload();
-      }, 1000);
+  // ✅ Immediately go to dashboard
+  const { data: sessionData } = await supabase.auth.getSession();
+  if (sessionData?.session?.user) {
+    window.location.href = "/";
+  } else {
+    console.warn("⚠️ Session not ready yet, forcing reload");
+    window.location.reload();
+  }
+}
 
     } catch (err) {
       console.error("Auth error:", err);
