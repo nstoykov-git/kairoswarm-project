@@ -73,7 +73,7 @@ export default function KairoswarmDashboard() {
     const agentId = prompt("Enter OpenAI Assistant ID:");
     if (!agentId) return;
 
-    const res = await fetch(`${API_BASE_URL}/add-agent`, {
+    const res = await fetch(`${API_BASE_URL}/swarm/add-agent`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ agentId, swarm_id: swarmId }),
