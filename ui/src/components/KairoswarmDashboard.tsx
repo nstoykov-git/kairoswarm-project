@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Send, Users, Bot, PlusCircle } from "lucide-react";
+import { Send, Users, Bot, PlusCircle, Eye, PanelRightClose, PanelRightOpen } from "lucide-react";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_MODAL_API_URL;
 
@@ -16,6 +16,7 @@ export default function KairoswarmDashboard() {
   const [swarmId, setSwarmId] = useState("default");
   const [participants, setParticipants] = useState<any[]>([]);
   const [tape, setTape] = useState<any[]>([]);
+  const [showParticipants, setShowParticipants] = useState(true);
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const participantsScrollRef = useRef<HTMLDivElement | null>(null);
@@ -102,9 +103,18 @@ export default function KairoswarmDashboard() {
     }
   };
 
+  const handleViewSwarm = async () => {
+    const newSwarmId = prompt("Enter Swarm ID to view:");
+    if (newSwarmId) {
+      setSwarmId(newSwarmId);
+      setParticipantId(null);
+      setTape([]);
+      setParticipants([]);
+    }
+  };
+
   return (
     <div className="p-4 grid grid-cols-1 md:grid-cols-5 gap-4 h-screen bg-gray-900 text-white">
-      {/* Chat + Input */}
       <div className="col-span-3 flex flex-col space-y-2">
         {swarmId !== "default" && (
           <div className="text-xs text-gray-300 mb-1">
@@ -130,8 +140,9 @@ export default function KairoswarmDashboard() {
             placeholder="Say something..."
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSpeak()}
+            disabled={!participantId}
           />
-          <Button onClick={handleSpeak}>
+          <Button onClick={handleSpeak} disabled={!participantId}>
             <Send className="w-4 h-4" />
           </Button>
         </div>
@@ -145,39 +156,47 @@ export default function KairoswarmDashboard() {
             <PlusCircle className="w-4 h-4 mr-2" />
             New Swarm
           </Button>
+          <Button variant="secondary" onClick={handleViewSwarm}>
+            <Eye className="w-4 h-4 mr-2" />
+            View Swarm
+          </Button>
+          <Button variant="ghost" className="ml-auto md:hidden" onClick={() => setShowParticipants((prev) => !prev)}>
+            {showParticipants ? <PanelRightClose className="w-4 h-4" /> : <PanelRightOpen className="w-4 h-4" />}
+          </Button>
         </div>
       </div>
 
-      {/* Participants + Join */}
-      <div className="col-span-2 flex flex-col space-y-2">
-        <Card>
-          <CardContent className="p-4">
-            <div className="text-sm font-bold mb-2">Participants</div>
-            <ScrollArea className="h-64" ref={participantsScrollRef}>
-              {participants.map((p) => (
-                <div key={p.id} className="mb-1">
-                  {p.name} {p.type === "agent" ? "🤖" : "🧑"}
-                </div>
-              ))}
-            </ScrollArea>
-          </CardContent>
-        </Card>
+      {showParticipants && (
+        <div className="col-span-2 flex flex-col space-y-2">
+          <Card>
+            <CardContent className="p-4">
+              <div className="text-sm font-bold mb-2">Participants</div>
+              <ScrollArea className="h-64" ref={participantsScrollRef}>
+                {participants.map((p) => (
+                  <div key={p.id} className="mb-1">
+                    {p.name} {p.type === "agent" ? "🤖" : "🧑"}
+                  </div>
+                ))}
+              </ScrollArea>
+            </CardContent>
+          </Card>
 
-        {!participantId && (
-          <>
-            <Input
-              className="text-white placeholder-gray-400"
-              value={joinName}
-              placeholder="Your Name"
-              onChange={(e) => setJoinName(e.target.value)}
-            />
-            <Button variant="secondary" onClick={handleJoin}>
-              <Users className="w-4 h-4 mr-2" />
-              Join Swarm
-            </Button>
-          </>
-        )}
-      </div>
+          {!participantId && (
+            <>
+              <Input
+                className="text-white placeholder-gray-400"
+                value={joinName}
+                placeholder="Your Name"
+                onChange={(e) => setJoinName(e.target.value)}
+              />
+              <Button variant="secondary" onClick={handleJoin}>
+                <Users className="w-4 h-4 mr-2" />
+                Join Swarm
+              </Button>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }
