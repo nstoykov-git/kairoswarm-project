@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/lib/supabase";
@@ -13,46 +12,21 @@ export default function AuthPage() {
   const [mode, setMode] = useState<"sign-in" | "sign-up">("sign-in");
   const [message, setMessage] = useState("");
 
-  const router = useRouter();
-
-  // ✅ Auto-redirect when user becomes authenticated
-  useEffect(() => {
-    const checkSession = async () => {
-      const { data } = await supabase.auth.getSession();
-      const user = data.session?.user;
-      if (user) {
-        router.push("/");
-      }
-    };
-
-    checkSession();
-
-    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session?.user) {
-        router.push("/");
-      }
-    });
-
-    return () => {
-      authListener.subscription.unsubscribe();
-    };
-  }, [router]);
-
   const handleAuth = async () => {
     setMessage("");
+    console.log("➡️ Starting auth", { mode, email });
 
     const endpoint = mode === "sign-in" ? "/auth/signin" : "/auth/signup";
 
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_MODAL_API_URL}${endpoint}`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password, display_name: displayName }),
       });
 
       const data = await res.json();
+      console.log("✅ Auth response:", data);
 
       if (!res.ok) {
         setMessage(data.detail || "❌ Something went wrong");
@@ -62,6 +36,7 @@ export default function AuthPage() {
       if (mode === "sign-in") {
         if (!data.access_token || !data.refresh_token) {
           setMessage("❌ Missing tokens in response");
+          console.error("Missing tokens in sign-in response:", data);
           return;
         }
 
@@ -71,19 +46,30 @@ export default function AuthPage() {
         });
 
         if (sessionError) {
+          console.error("❌ Supabase session error:", sessionError.message);
           setMessage("❌ Failed to persist session.");
           return;
         }
+
+        console.log("✅ Supabase session set.");
       }
 
-      // Optional: for custom profile fallback
-      localStorage.setItem("kairoswarm_user_id", data.user_id);
-      localStorage.setItem("kairoswarm_user_email", data.email);
+      // ✅ Double check session has propagated
+      const { data: freshSession } = await supabase.auth.getSession();
+      const sessionUser = freshSession.session?.user;
 
-      setMessage("✅ Signed in!");
-      // Redirect happens via session listener
+      if (sessionUser?.id && sessionUser?.email) {
+        console.log("✅ Fresh session confirmed");
+        setMessage("✅ Signed in! Redirecting...");
+        setTimeout(() => {
+          window.location.href = "/";
+        }, 800);
+      } else {
+        setMessage("⚠️ Session not ready. Please reload manually.");
+        console.warn("Session not yet ready:", freshSession);
+      }
     } catch (err) {
-      console.error("❌ Auth error:", err);
+      console.error("❌ Auth exception:", err);
       setMessage("❌ Network error. Please try again.");
     }
   };
@@ -115,7 +101,6 @@ export default function AuthPage() {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
         />
-
         <div className="flex gap-2">
           <Button className="flex-1" variant="secondary" onClick={handleAuth}>
             {mode === "sign-in" ? "Sign In" : "Sign Up"}
@@ -131,7 +116,6 @@ export default function AuthPage() {
           </Button>
         </div>
 
-        {/* 🧠 Google Sign-In */}
         <Button
           variant="secondary"
           className="w-full"
@@ -155,7 +139,7 @@ export default function AuthPage() {
         <Button
           variant="ghost"
           className="w-full text-gray-400 hover:text-white"
-          onClick={() => router.push("/")}
+          onClick={() => (window.location.href = "/")}
         >
           Continue without an account
         </Button>
