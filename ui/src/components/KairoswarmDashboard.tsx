@@ -54,7 +54,7 @@ export default function KairoswarmDashboard() {
       setParticipantId(data.participant_id);
     }
   };
-
+  
   const handleSpeak = async () => {
     if (!participantId || !input.trim()) return;
     await fetch(`${API_BASE_URL}/speak`, {
@@ -98,8 +98,7 @@ export default function KairoswarmDashboard() {
     if (data.id) {
       setSwarmId(data.id);
       setParticipantId(null);
-      setTape([]);
-      setParticipants([]);
+      await fetchSwarmData(data.id); // 👈 fetch content immediately
     }
   };
 
@@ -110,7 +109,19 @@ export default function KairoswarmDashboard() {
       setParticipantId(null);
       setTape([]);
       setParticipants([]);
+      await fetchSwarmData(newSwarmId); // immediate update
     }
+  };
+
+  const fetchSwarmData = async (id: string) => {
+    const [tapeRes, participantsRes] = await Promise.all([
+      fetch(`${API_BASE_URL}/tape?swarm_id=${id}`),
+      fetch(`${API_BASE_URL}/participants-full?swarm_id=${id}`),
+    ]);
+    const tapeData = await tapeRes.json();
+    const participantsData = await participantsRes.json();
+    if (Array.isArray(tapeData)) setTape(tapeData);
+    if (Array.isArray(participantsData)) setParticipants(participantsData);
   };
 
   return (
