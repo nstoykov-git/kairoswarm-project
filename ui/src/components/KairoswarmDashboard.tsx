@@ -107,23 +107,25 @@ export default function KairoswarmDashboard() {
       {/* Chat + Input */}
       <div className="col-span-3 flex flex-col space-y-2">
         {swarmId !== "default" && (
-          <div className="text-xs text-gray-400 mb-1">
+          <div className="text-xs text-gray-300 mb-1">
             Swarm ID: <span className="text-white font-mono">{swarmId}</span><br />
-            ⏳ Ephemeral swarm expires 24h after creation
+            ⏳ Ephemeral swarm expires in 24 hours
           </div>
         )}
 
         <ScrollArea className="flex-1 bg-black rounded-xl p-4 max-h-[65vh] overflow-y-scroll" ref={scrollRef}>
-          {tape.map((msg, idx) => (
-            <div key={idx} className="mb-2">
-              <span className="font-bold">{msg.from}:</span> {msg.message}
-            </div>
-          ))}
+          <div className="space-y-2">
+            {tape.map((msg, idx) => (
+              <div key={idx}>
+                <span className="font-bold text-white">{msg.from}:</span> {msg.message}
+              </div>
+            ))}
+          </div>
         </ScrollArea>
 
         <div className="flex gap-2">
           <Input
-            className="text-black"
+            className="text-white placeholder-gray-400"
             value={input}
             placeholder="Say something..."
             onChange={(e) => setInput(e.target.value)}
@@ -135,11 +137,11 @@ export default function KairoswarmDashboard() {
         </div>
 
         <div className="flex gap-2">
-          <Button variant="secondary" onClick={handleAddAgent}>
+          <Button variant="outline" onClick={handleAddAgent}>
             <Bot className="w-4 h-4 mr-2" />
             Add AI Agent
           </Button>
-          <Button variant="secondary" onClick={handleCreateSwarm}>
+          <Button variant="outline" onClick={handleCreateSwarm}>
             <PlusCircle className="w-4 h-4 mr-2" />
             New Swarm
           </Button>
@@ -164,7 +166,7 @@ export default function KairoswarmDashboard() {
         {!participantId && (
           <>
             <Input
-              className="text-black"
+              className="text-white placeholder-gray-400"
               value={joinName}
               placeholder="Your Name"
               onChange={(e) => setJoinName(e.target.value)}
