@@ -4,6 +4,8 @@ import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/lib/supabase";
+import { useRouter } from "next/navigation";
+import { useUser } from "@/context/UserContext";
 
 export default function AuthPage() {
   const [email, setEmail] = useState("");
@@ -12,62 +14,70 @@ export default function AuthPage() {
   const [mode, setMode] = useState<"sign-in" | "sign-up">("sign-in");
   const [message, setMessage] = useState("");
 
-const handleAuth = async () => {
-  setMessage("");
-  console.log("➡️ Starting auth", { mode, email });
+  const router = useRouter();
+  const { user } = useUser();
 
-  const endpoint = mode === "sign-in" ? "/auth/signin" : "/auth/signup";
+  const handleAuth = async () => {
+    setMessage("");
+    const endpoint = mode === "sign-in" ? "/auth/signin" : "/auth/signup";
 
-  try {
-    const res = await fetch(`${process.env.NEXT_PUBLIC_MODAL_API_URL}${endpoint}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ email, password, display_name: displayName }),
-    });
-
-    const data = await res.json();
-    console.log("✅ Auth response:", data);
-
-    if (!res.ok) {
-      setMessage(data.detail || "❌ Something went wrong");
-      return;
-    }
-
-    if (mode === "sign-in") {
-      if (!data.access_token || !data.refresh_token) {
-        setMessage("❌ Missing tokens in response");
-        console.error("Missing tokens in sign-in response:", data);
-        return;
-      }
-
-      const { error: sessionError } = await supabase.auth.setSession({
-        access_token: data.access_token,
-        refresh_token: data.refresh_token,
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_MODAL_API_URL}${endpoint}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password, display_name: displayName }),
       });
 
-      if (sessionError) {
-        console.error("❌ Supabase session error:", sessionError.message);
-        setMessage("❌ Failed to persist session.");
+      const data = await res.json();
+
+      if (!res.ok) {
+        setMessage(data.detail || "❌ Something went wrong");
         return;
       }
 
-      console.log("✅ Supabase session successfully set.");
+      if (mode === "sign-in") {
+        if (!data.access_token || !data.refresh_token) {
+          setMessage("❌ Missing tokens in response");
+          return;
+        }
+
+        const { error: sessionError } = await supabase.auth.setSession({
+          access_token: data.access_token,
+          refresh_token: data.refresh_token,
+        });
+
+        if (sessionError) {
+          setMessage("❌ Failed to persist session.");
+          return;
+        }
+      }
+
+      setMessage("✅ Success! Redirecting...");
+      setTimeout(() => router.push("/"), 800);
+    } catch (err) {
+      console.error("Auth error:", err);
+      setMessage("❌ Network error. Please try again.");
     }
+  };
 
-    localStorage.setItem("kairoswarm_user_id", data.user_id);
-    localStorage.setItem("kairoswarm_user_email", data.email);
+  const handleGoogleSignIn = async () => {
+    const redirectTo = typeof window !== "undefined" ? window.location.origin : "https://kairoswarm.nextminds.network";
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo },
+    });
+    if (error) setMessage("Google sign-in failed: " + error.message);
+  };
 
-    setMessage("✅ Success! Redirecting...");
-    setTimeout(() => {
-      window.location.href = "/";
-    }, 1000);
-  } catch (err) {
-    console.error("❌ Auth exception:", err);
-    setMessage("❌ Network error. Please try again.");
-  }
-};
+  const handleSignOut = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      console.error("Sign out failed:", error.message);
+      setMessage("❌ Sign-out failed");
+    } else {
+      router.refresh();
+    }
+  };
 
   return (
     <div className="flex flex-col items-center justify-center h-screen space-y-6 bg-gray-900 text-white">
@@ -77,74 +87,72 @@ const handleAuth = async () => {
       </p>
 
       <div className="space-y-3 w-80">
-        {mode === "sign-up" && (
-          <Input
-            placeholder="Display Name"
-            value={displayName}
-            onChange={(e) => setDisplayName(e.target.value)}
-          />
+        {user ? (
+          <>
+            <p className="text-sm text-center text-gray-300">
+              ✅ Signed in as <span className="font-medium">{user.email}</span>
+            </p>
+            <Button variant="secondary" className="w-full" onClick={handleSignOut}>
+              🚪 Sign Out
+            </Button>
+            <Button
+              variant="ghost"
+              className="w-full text-gray-400 hover:text-white"
+              onClick={() => router.push("/")}
+            >
+              Go to Dashboard
+            </Button>
+          </>
+        ) : (
+          <>
+            {mode === "sign-up" && (
+              <Input
+                placeholder="Display Name"
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+              />
+            )}
+            <Input
+              placeholder="Email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+            <Input
+              placeholder="Password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+            <div className="flex gap-2">
+              <Button className="flex-1" variant="secondary" onClick={handleAuth}>
+                {mode === "sign-in" ? "Sign In" : "Sign Up"}
+              </Button>
+              <Button
+                className="text-xs"
+                variant="ghost"
+                onClick={() => setMode(mode === "sign-in" ? "sign-up" : "sign-in")}
+              >
+                Switch to {mode === "sign-in" ? "Sign Up" : "Sign In"}
+              </Button>
+            </div>
+
+            <Button variant="secondary" className="w-full" onClick={handleGoogleSignIn}>
+              Sign in with Google
+            </Button>
+
+            <Button
+              variant="ghost"
+              className="w-full text-gray-400 hover:text-white"
+              onClick={() => router.push("/")}
+            >
+              Continue without an account
+            </Button>
+          </>
         )}
-        <Input
-          placeholder="Email"
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
-        <Input
-          placeholder="Password"
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
-        <div className="flex gap-2">
-          <Button className="flex-1" variant="secondary" onClick={handleAuth}>
-            {mode === "sign-in" ? "Sign In" : "Sign Up"}
-          </Button>
-          <Button
-            className="text-xs"
-            variant="ghost"
-            onClick={() =>
-              setMode((m) => (m === "sign-in" ? "sign-up" : "sign-in"))
-            }
-          >
-            Switch to {mode === "sign-in" ? "Sign Up" : "Sign In"}
-          </Button>
-        </div>
 
-        {/* 🧠 Google OAuth button here */}
-<Button
-  variant="secondary"
-  className="w-full"
-  onClick={async () => {
-    const redirectTo =
-      typeof window !== "undefined" && window.location.origin
-        ? window.location.origin
-        : "https://kairoswarm.nextminds.network";
-    const { error } = await supabase.auth.signInWithOAuth({
-  provider: "google",
-  options: { redirectTo }
-});
-    if (error) {
-      setMessage("Google sign-in failed: " + error.message);
-    }
-  }}
->
-  Sign in with Google
-</Button>
-
-        <Button
-          variant="ghost"
-          className="w-full text-gray-400 hover:text-white"
-          onClick={() => (window.location.href = "/")}
-        >
-          Continue without an account
-        </Button>
-
-        {message && (
-          <p className="text-sm text-yellow-400 text-center">{message}</p>
-        )}
+        {message && <p className="text-sm text-yellow-400 text-center">{message}</p>}
       </div>
     </div>
   );
 }
-
