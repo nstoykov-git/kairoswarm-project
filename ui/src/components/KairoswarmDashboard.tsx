@@ -106,6 +106,13 @@ export default function KairoswarmDashboard() {
     <div className="p-4 grid grid-cols-1 md:grid-cols-5 gap-4 h-screen bg-gray-900 text-white">
       {/* Chat + Input */}
       <div className="col-span-3 flex flex-col space-y-2">
+        {swarmId !== "default" && (
+          <div className="text-xs text-gray-400 mb-1">
+            Swarm ID: <span className="text-white font-mono">{swarmId}</span><br />
+            ⏳ Ephemeral swarm expires 24h after creation
+          </div>
+        )}
+
         <ScrollArea className="flex-1 bg-black rounded-xl p-4 max-h-[65vh] overflow-y-scroll" ref={scrollRef}>
           {tape.map((msg, idx) => (
             <div key={idx} className="mb-2">
@@ -128,11 +135,11 @@ export default function KairoswarmDashboard() {
         </div>
 
         <div className="flex gap-2">
-          <Button variant="outline" onClick={handleAddAgent}>
+          <Button variant="secondary" onClick={handleAddAgent}>
             <Bot className="w-4 h-4 mr-2" />
             Add AI Agent
           </Button>
-          <Button variant="outline" onClick={handleCreateSwarm}>
+          <Button variant="secondary" onClick={handleCreateSwarm}>
             <PlusCircle className="w-4 h-4 mr-2" />
             New Swarm
           </Button>
