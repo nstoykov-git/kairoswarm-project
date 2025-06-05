@@ -26,8 +26,6 @@ export function useUser() {
       };
 
       setUser(profile);
-      localStorage.setItem("kairoswarm_user_id", userId);
-      localStorage.setItem("kairoswarm_user_email", email);
     };
 
     const fetchSession = async () => {
