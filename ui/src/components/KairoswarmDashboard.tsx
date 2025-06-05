@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Send, Users, Bot } from "lucide-react";
+import { Send, Users, Bot, PlusCircle } from "lucide-react";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_MODAL_API_URL;
 
@@ -86,11 +86,27 @@ export default function KairoswarmDashboard() {
     }
   };
 
+  const handleCreateSwarm = async () => {
+    const name = prompt("Enter a name for your new swarm:") || "Untitled Swarm";
+    const res = await fetch(`${API_BASE_URL}/swarm/create`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    });
+    const data = await res.json();
+    if (data.id) {
+      setSwarmId(data.id);
+      setParticipantId(null);
+      setTape([]);
+      setParticipants([]);
+    }
+  };
+
   return (
     <div className="p-4 grid grid-cols-1 md:grid-cols-5 gap-4 h-screen bg-gray-900 text-white">
       {/* Chat + Input */}
       <div className="col-span-3 flex flex-col space-y-2">
-        <ScrollArea className="flex-1 bg-black rounded-xl p-4" ref={scrollRef}>
+        <ScrollArea className="flex-1 bg-black rounded-xl p-4 max-h-[65vh] overflow-y-scroll" ref={scrollRef}>
           {tape.map((msg, idx) => (
             <div key={idx} className="mb-2">
               <span className="font-bold">{msg.from}:</span> {msg.message}
@@ -111,10 +127,16 @@ export default function KairoswarmDashboard() {
           </Button>
         </div>
 
-        <Button variant="outline" onClick={handleAddAgent}>
-          <Bot className="w-4 h-4 mr-2" />
-          Add AI Agent
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={handleAddAgent}>
+            <Bot className="w-4 h-4 mr-2" />
+            Add AI Agent
+          </Button>
+          <Button variant="outline" onClick={handleCreateSwarm}>
+            <PlusCircle className="w-4 h-4 mr-2" />
+            New Swarm
+          </Button>
+        </div>
       </div>
 
       {/* Participants + Join */}
