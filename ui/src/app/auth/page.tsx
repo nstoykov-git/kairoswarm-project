@@ -1,11 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/lib/supabase";
-import { useRouter } from "next/navigation";
-import { useUser } from "@/context/UserContext";
 
 export default function AuthPage() {
   const [email, setEmail] = useState("");
@@ -15,16 +14,41 @@ export default function AuthPage() {
   const [message, setMessage] = useState("");
 
   const router = useRouter();
-  const { user } = useUser();
+
+  // ✅ Auto-redirect when user becomes authenticated
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data } = await supabase.auth.getSession();
+      const user = data.session?.user;
+      if (user) {
+        router.push("/");
+      }
+    };
+
+    checkSession();
+
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        router.push("/");
+      }
+    });
+
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
+  }, [router]);
 
   const handleAuth = async () => {
     setMessage("");
+
     const endpoint = mode === "sign-in" ? "/auth/signin" : "/auth/signup";
 
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_MODAL_API_URL}${endpoint}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({ email, password, display_name: displayName }),
       });
 
@@ -35,56 +59,32 @@ export default function AuthPage() {
         return;
       }
 
-if (mode === "sign-in") {
-  if (!data.access_token || !data.refresh_token) {
-    console.error("Missing tokens in response:", data);
-    setMessage("❌ Missing tokens in response");
-    return;
-  }
+      if (mode === "sign-in") {
+        if (!data.access_token || !data.refresh_token) {
+          setMessage("❌ Missing tokens in response");
+          return;
+        }
 
-  const { error: sessionError } = await supabase.auth.setSession({
-    access_token: data.access_token,
-    refresh_token: data.refresh_token,
-  });
+        const { error: sessionError } = await supabase.auth.setSession({
+          access_token: data.access_token,
+          refresh_token: data.refresh_token,
+        });
 
-  if (sessionError) {
-    console.error("❌ Supabase session error:", sessionError.message);
-    setMessage("❌ Failed to persist session.");
-    return;
-  }
+        if (sessionError) {
+          setMessage("❌ Failed to persist session.");
+          return;
+        }
+      }
 
-  // ✅ Immediately go to dashboard
-  const { data: sessionData } = await supabase.auth.getSession();
-  if (sessionData?.session?.user) {
-    window.location.href = "/";
-  } else {
-    console.warn("⚠️ Session not ready yet, forcing reload");
-    window.location.reload();
-  }
-}
+      // Optional: for custom profile fallback
+      localStorage.setItem("kairoswarm_user_id", data.user_id);
+      localStorage.setItem("kairoswarm_user_email", data.email);
 
+      setMessage("✅ Signed in!");
+      // Redirect happens via session listener
     } catch (err) {
-      console.error("Auth error:", err);
+      console.error("❌ Auth error:", err);
       setMessage("❌ Network error. Please try again.");
-    }
-  };
-
-  const handleGoogleSignIn = async () => {
-    const redirectTo = typeof window !== "undefined" ? window.location.origin : "https://kairoswarm.nextminds.network";
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: { redirectTo },
-    });
-    if (error) setMessage("Google sign-in failed: " + error.message);
-  };
-
-  const handleSignOut = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      console.error("Sign out failed:", error.message);
-      setMessage("❌ Sign-out failed");
-    } else {
-      router.refresh();
     }
   };
 
@@ -96,71 +96,73 @@ if (mode === "sign-in") {
       </p>
 
       <div className="space-y-3 w-80">
-        {user ? (
-          <>
-            <p className="text-sm text-center text-gray-300">
-              ✅ Signed in as <span className="font-medium">{user.email}</span>
-            </p>
-            <Button variant="secondary" className="w-full" onClick={handleSignOut}>
-              🚪 Sign Out
-            </Button>
-            <Button
-              variant="ghost"
-              className="w-full text-gray-400 hover:text-white"
-              onClick={() => router.push("/")}
-            >
-              Go to Dashboard
-            </Button>
-          </>
-        ) : (
-          <>
-            {mode === "sign-up" && (
-              <Input
-                placeholder="Display Name"
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-              />
-            )}
-            <Input
-              placeholder="Email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-            <Input
-              placeholder="Password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-            <div className="flex gap-2">
-              <Button className="flex-1" variant="secondary" onClick={handleAuth}>
-                {mode === "sign-in" ? "Sign In" : "Sign Up"}
-              </Button>
-              <Button
-                className="text-xs"
-                variant="ghost"
-                onClick={() => setMode(mode === "sign-in" ? "sign-up" : "sign-in")}
-              >
-                Switch to {mode === "sign-in" ? "Sign Up" : "Sign In"}
-              </Button>
-            </div>
-
-            <Button variant="secondary" className="w-full" onClick={handleGoogleSignIn}>
-              Sign in with Google
-            </Button>
-
-            <Button
-              variant="ghost"
-              className="w-full text-gray-400 hover:text-white"
-              onClick={() => router.push("/")}
-            >
-              Continue without an account
-            </Button>
-          </>
+        {mode === "sign-up" && (
+          <Input
+            placeholder="Display Name"
+            value={displayName}
+            onChange={(e) => setDisplayName(e.target.value)}
+          />
         )}
+        <Input
+          placeholder="Email"
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+        />
+        <Input
+          placeholder="Password"
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
 
-        {message && <p className="text-sm text-yellow-400 text-center">{message}</p>}
+        <div className="flex gap-2">
+          <Button className="flex-1" variant="secondary" onClick={handleAuth}>
+            {mode === "sign-in" ? "Sign In" : "Sign Up"}
+          </Button>
+          <Button
+            className="text-xs"
+            variant="ghost"
+            onClick={() =>
+              setMode((m) => (m === "sign-in" ? "sign-up" : "sign-in"))
+            }
+          >
+            Switch to {mode === "sign-in" ? "Sign Up" : "Sign In"}
+          </Button>
+        </div>
+
+        {/* 🧠 Google Sign-In */}
+        <Button
+          variant="secondary"
+          className="w-full"
+          onClick={async () => {
+            const redirectTo =
+              typeof window !== "undefined" && window.location.origin
+                ? window.location.origin
+                : "https://kairoswarm.nextminds.network";
+            const { error } = await supabase.auth.signInWithOAuth({
+              provider: "google",
+              options: { redirectTo },
+            });
+            if (error) {
+              setMessage("Google sign-in failed: " + error.message);
+            }
+          }}
+        >
+          Sign in with Google
+        </Button>
+
+        <Button
+          variant="ghost"
+          className="w-full text-gray-400 hover:text-white"
+          onClick={() => router.push("/")}
+        >
+          Continue without an account
+        </Button>
+
+        {message && (
+          <p className="text-sm text-yellow-400 text-center">{message}</p>
+        )}
       </div>
     </div>
   );
