@@ -6,9 +6,13 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { supabase } from "@/lib/supabase";
+import { useUser } from "@/lib/useUser";
 
 export default function PublishAgentPage() {
   const router = useRouter();
+  const user = useUser();
+
   const [form, setForm] = useState({
     agentId: "",
     name: "",
@@ -16,10 +20,29 @@ export default function PublishAgentPage() {
     skills: "",
     price: "",
     isNegotiable: false,
-    hasFreeTier: true,
+    userId: "",
   });
   const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
   const [errorMessage, setErrorMessage] = useState("");
+  const [showToast, setShowToast] = useState(false);
+
+  // ✅ Set user ID reactively
+  useEffect(() => {
+    if (user === null) {
+      setErrorMessage("You must be logged in to publish an agent.");
+      setStatus("error");
+      router.push("/auth");
+    } else {
+      setForm((prev) => ({ ...prev, userId: user.id }));
+    }
+  }, [user, router]);
+
+  useEffect(() => {
+    if (showToast) {
+      const timeout = setTimeout(() => setShowToast(false), 3000);
+      return () => clearTimeout(timeout);
+    }
+  }, [showToast]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
@@ -34,27 +57,8 @@ export default function PublishAgentPage() {
     e.preventDefault();
     setStatus("idle");
     setErrorMessage("");
-    const userId = localStorage.getItem("kairoswarm_user_id");
 
     try {
-      console.log("name:", typeof form.name, form.name);
-      console.log("description:", typeof form.description, form.description);
-      console.log("skills:", form.skills.split(",").map((s) => s.trim()));
-
-      const payload = {
-        assistant_id: form.agentId,
-        name: form.name,
-        description: form.description,
-        skills: form.skills.split(",").map((s) => s.trim()),
-        has_free_tier: true,
-        price: parseFloat(form.price),
-        is_negotiable: form.isNegotiable,
-        user_id: localStorage.getItem("kairoswarm_user_id"), // critical
-      };
-
-      console.log("🚀 Submitting payload:", payload);
-
-
       const response = await fetch(`${process.env.NEXT_PUBLIC_MODAL_API_URL}/swarm/publish-agent`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -65,23 +69,20 @@ export default function PublishAgentPage() {
           skills: form.skills.split(",").map((s) => s.trim()),
           price: parseFloat(form.price),
           is_negotiable: form.isNegotiable,
-          has_free_tier: form.hasFreeTier,
-          user_id: userId,
+          has_free_tier: true,
+          user_id: form.userId,
         }),
       });
 
       if (!response.ok) {
         const error = await response.json();
-        if (Array.isArray(error.detail)) {
-          setErrorMessage(error.detail.map((e: any) => e.msg).join("; "));
-        } else {
-          setErrorMessage(error.detail || "Something went wrong");
-        }
+        setErrorMessage(error.detail || "Something went wrong");
         setStatus("error");
         return;
       }
 
       setStatus("success");
+      setShowToast(true);
     } catch (error) {
       setErrorMessage("Network error. Please try again.");
       setStatus("error");
@@ -96,14 +97,16 @@ export default function PublishAgentPage() {
       skills: "",
       price: "",
       isNegotiable: false,
-      hasFreeTier: true,
+      userId: form.userId,
     });
     setStatus("idle");
+    setShowToast(false);
   };
 
   const handleLogout = async () => {
     localStorage.removeItem("kairoswarm_user_id");
     localStorage.removeItem("kairoswarm_user_email");
+    await supabase.auth.signOut();
     router.push("/");
   };
 
@@ -111,9 +114,15 @@ export default function PublishAgentPage() {
     <div className="max-w-xl mx-auto py-10 px-4 bg-white dark:bg-gray-900 text-gray-900 dark:text-white shadow-xl rounded-2xl border border-gray-200 dark:border-gray-700">
       <h1 className="text-3xl font-bold mb-6 text-center">Publish Your AI Agent</h1>
 
+      {showToast && (
+        <div className="mb-4 px-4 py-2 bg-green-100 text-green-800 border border-green-300 rounded-lg text-sm">
+          ✅ Agent published successfully.
+        </div>
+      )}
+
       {status === "success" ? (
         <div className="space-y-4 text-center">
-          <p className="text-lg">✅ Agent published successfully.<br />Would you like to publish another agent?</p>
+          <p className="text-lg">Would you like to publish another agent?</p>
           <div className="flex justify-center gap-4">
             <Button onClick={handleNewAgent}>Yes</Button>
             <Button variant="ghost" onClick={handleLogout}>No, I’m done</Button>
@@ -144,10 +153,6 @@ export default function PublishAgentPage() {
           <div className="flex items-center gap-2">
             <input type="checkbox" name="isNegotiable" checked={form.isNegotiable} onChange={handleChange} />
             <Label htmlFor="isNegotiable">Negotiable</Label>
-          </div>
-          <div className="flex items-center gap-2">
-            <input type="checkbox" name="hasFreeTier" checked={form.hasFreeTier} onChange={handleChange} />
-            <Label htmlFor="hasFreeTier">Free Tier Available</Label>
           </div>
 
           <Button type="submit" className="w-full">Publish Agent</Button>
