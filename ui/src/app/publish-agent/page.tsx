@@ -34,6 +34,7 @@ export default function PublishAgentPage() {
     e.preventDefault();
     setStatus("idle");
     setErrorMessage("");
+    const userId = localStorage.getItem("kairoswarm_user_id");
 
     try {
       const response = await fetch(`${process.env.NEXT_PUBLIC_MODAL_API_URL}/swarm/publish-agent`, {
@@ -47,6 +48,7 @@ export default function PublishAgentPage() {
           price: parseFloat(form.price),
           is_negotiable: form.isNegotiable,
           has_free_tier: form.hasFreeTier,
+          user_id: userId,
         }),
       });
 
