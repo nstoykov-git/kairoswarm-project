@@ -60,15 +60,23 @@ export default function PublishAgentPage() {
 
       if (!response.ok) {
         const error = await response.json();
-        setErrorMessage(error.detail || "Something went wrong");
+        const errorText =
+          typeof error === "string"
+            ? error
+            : error?.detail || JSON.stringify(error) || "Something went wrong";
+        setErrorMessage(errorText);
         setStatus("error");
         return;
       }
 
       setStatus("success");
       setShowToast(true);
-    } catch (error) {
-      setErrorMessage("Network error. Please try again.");
+    } catch (error: any) {
+      const errorText =
+        typeof error === "string"
+          ? error
+          : error?.detail || JSON.stringify(error) || "Something went wrong";
+      setErrorMessage(errorText);
       setStatus("error");
     }
   };
@@ -126,12 +134,12 @@ export default function PublishAgentPage() {
             <Input name="price" type="number" value={form.price} onChange={handleChange} required />
           </div>
           <div className="flex items-center gap-2">
-            <input type="checkbox" name="hasFreeTier" checked={form.hasFreeTier} onChange={handleChange} />
-            <Label htmlFor="hasFreeTier">Free tier available</Label>
-          </div>
-          <div className="flex items-center gap-2">
             <input type="checkbox" name="isNegotiable" checked={form.isNegotiable} onChange={handleChange} />
             <Label htmlFor="isNegotiable">Negotiable</Label>
+          </div>
+          <div className="flex items-center gap-2">
+            <input type="checkbox" name="hasFreeTier" checked={form.hasFreeTier} onChange={handleChange} />
+            <Label htmlFor="hasFreeTier">Free Tier Available</Label>
           </div>
 
           <Button type="submit" className="w-full">Publish Agent</Button>
