@@ -23,7 +23,7 @@ export default function PublishAgentPage() {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
-    const checked = type === "checkbox" ? (e.target as HTMLInputElement).checked : undefined;
+    const checked = (e.target as HTMLInputElement).checked;
     setForm((prev) => ({
       ...prev,
       [name]: type === "checkbox" ? checked : value,
@@ -65,11 +65,19 @@ export default function PublishAgentPage() {
   };
 
   const handleNewAgent = () => {
-    setForm({ agentId: "", name: "", description: "", skills: "", price: "", isNegotiable: false, hasFreeTier: true });
+    setForm({
+      agentId: "",
+      name: "",
+      description: "",
+      skills: "",
+      price: "",
+      isNegotiable: false,
+      hasFreeTier: true,
+    });
     setStatus("idle");
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     localStorage.removeItem("kairoswarm_user_id");
     localStorage.removeItem("kairoswarm_user_email");
     router.push("/");
@@ -81,6 +89,7 @@ export default function PublishAgentPage() {
 
       {status === "success" ? (
         <div className="space-y-4 text-center">
+          <p className="text-lg">✅ Agent published successfully.</p>
           <p className="text-lg">Would you like to publish another agent?</p>
           <div className="flex justify-center gap-4">
             <Button onClick={handleNewAgent}>Yes</Button>
