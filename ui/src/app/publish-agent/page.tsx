@@ -41,6 +41,20 @@ export default function PublishAgentPage() {
       console.log("description:", typeof form.description, form.description);
       console.log("skills:", form.skills.split(",").map((s) => s.trim()));
 
+      const payload = {
+        assistant_id: form.agentId,
+        name: form.name,
+        description: form.description,
+        skills: form.skills.split(",").map((s) => s.trim()),
+        has_free_tier: true,
+        price: parseFloat(form.price),
+        is_negotiable: form.isNegotiable,
+        user_id: localStorage.getItem("kairoswarm_user_id"), // critical
+      };
+
+      console.log("🚀 Submitting payload:", payload);
+
+
       const response = await fetch(`${process.env.NEXT_PUBLIC_MODAL_API_URL}/swarm/publish-agent`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
