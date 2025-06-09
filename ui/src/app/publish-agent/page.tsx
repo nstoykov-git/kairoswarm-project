@@ -16,6 +16,7 @@ export default function PublishAgentPage() {
     skills: "",
     price: "",
     isNegotiable: false,
+    hasFreeTier: true,
   });
   const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
   const [errorMessage, setErrorMessage] = useState("");
@@ -29,9 +30,8 @@ export default function PublishAgentPage() {
   }, [showToast]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const target = e.target as HTMLInputElement;
-    const { name, value, type } = target;
-    const checked = (target as HTMLInputElement).checked;
+    const { name, value, type } = e.target;
+    const checked = (e.target as HTMLInputElement).checked;
     setForm((prev) => ({
       ...prev,
       [name]: type === "checkbox" ? checked : value,
@@ -54,6 +54,7 @@ export default function PublishAgentPage() {
           skills: form.skills.split(",").map((s) => s.trim()),
           price: parseFloat(form.price),
           is_negotiable: form.isNegotiable,
+          has_free_tier: form.hasFreeTier,
         }),
       });
 
@@ -73,7 +74,15 @@ export default function PublishAgentPage() {
   };
 
   const handleNewAgent = () => {
-    setForm({ agentId: "", name: "", description: "", skills: "", price: "", isNegotiable: false });
+    setForm({
+      agentId: "",
+      name: "",
+      description: "",
+      skills: "",
+      price: "",
+      isNegotiable: false,
+      hasFreeTier: true,
+    });
     setStatus("idle");
     setShowToast(false);
   };
@@ -127,6 +136,10 @@ export default function PublishAgentPage() {
           <div className="flex items-center gap-2">
             <input type="checkbox" name="isNegotiable" checked={form.isNegotiable} onChange={handleChange} />
             <Label htmlFor="isNegotiable">Negotiable</Label>
+          </div>
+          <div className="flex items-center gap-2">
+            <input type="checkbox" name="hasFreeTier" checked={form.hasFreeTier} onChange={handleChange} />
+            <Label htmlFor="hasFreeTier">Free tier available</Label>
           </div>
 
           <Button type="submit" className="w-full">Publish Agent</Button>
