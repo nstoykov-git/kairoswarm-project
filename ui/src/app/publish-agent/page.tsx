@@ -1,108 +1,139 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { supabase } from "@/lib/supabase";
 
-export default function PublishAgentForm() {
+export default function PublishAgentPage() {
   const router = useRouter();
-  const [userId, setUserId] = useState<string | null>(null);
-
-  const [assistantId, setAssistantId] = useState("");
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-  const [skills, setSkills] = useState("");
-  const [hasFreeTier, setHasFreeTier] = useState(true);
-  const [price, setPrice] = useState(0);
-  const [isNegotiable, setIsNegotiable] = useState(false);
-
-  const [message, setMessage] = useState("");
+  const [form, setForm] = useState({
+    agentId: "",
+    name: "",
+    description: "",
+    skills: "",
+    price: "",
+    isNegotiable: false,
+  });
+  const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
+  const [errorMessage, setErrorMessage] = useState("");
+  const [showToast, setShowToast] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      const user = data?.session?.user;
-      if (user) setUserId(user.id);
-      else router.push("/auth");
-    });
-  }, [router]);
+    if (showToast) {
+      const timeout = setTimeout(() => setShowToast(false), 3000);
+      return () => clearTimeout(timeout);
+    }
+  }, [showToast]);
 
-  const handleSubmit = async () => {
-    setMessage("");
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value, type, checked } = e.target;
+    setForm((prev) => ({
+      ...prev,
+      [name]: type === "checkbox" ? checked : value,
+    }));
+  };
 
-    const response = await fetch(
-      `${process.env.NEXT_PUBLIC_MODAL_API_URL}/swarm/publish-agent`,
-      {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setStatus("idle");
+    setErrorMessage("");
+
+    try {
+      const response = await fetch("/swarm/publish-agent", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          assistant_id: assistantId,
-          name,
-          description,
-          skills: skills.split(",").map((s) => s.trim()),
-          has_free_tier: hasFreeTier,
-          price,
-          is_negotiable: isNegotiable,
-          user_id: userId,
+          assistant_id: form.agentId,
+          name: form.name,
+          description: form.description,
+          skills: form.skills.split(",").map((s) => s.trim()),
+          price: parseFloat(form.price),
+          is_negotiable: form.isNegotiable,
         }),
-      }
-    );
+      });
 
-    const data = await response.json();
-    if (!response.ok) {
-      setMessage("❌ " + data.detail || "Error publishing agent");
-    } else {
-      setMessage("✅ Agent published!");
-      setTimeout(() => router.push("/"), 2000);
+      if (!response.ok) {
+        const error = await response.json();
+        setErrorMessage(error.detail || "Something went wrong");
+        setStatus("error");
+        return;
+      }
+
+      setStatus("success");
+      setShowToast(true);
+    } catch (error) {
+      setErrorMessage("Network error. Please try again.");
+      setStatus("error");
     }
   };
 
+  const handleNewAgent = () => {
+    setForm({ agentId: "", name: "", description: "", skills: "", price: "", isNegotiable: false });
+    setStatus("idle");
+    setShowToast(false);
+  };
+
+  const handleLogout = async () => {
+    localStorage.removeItem("kairoswarm_user_id");
+    localStorage.removeItem("kairoswarm_user_email");
+    router.push("/");
+  };
+
   return (
-    <div className="max-w-xl mx-auto p-6 space-y-4 bg-gray-900 text-white">
-      <h2 className="text-xl font-bold">Publish Your AI Assistant</h2>
+    <div className="max-w-xl mx-auto py-10 px-4 bg-white dark:bg-gray-900 text-gray-900 dark:text-white shadow-xl rounded-2xl border border-gray-200 dark:border-gray-700">
+      <h1 className="text-3xl font-bold mb-6 text-center">Publish Your AI Agent</h1>
 
-      <div className="space-y-2">
-        <Label>Assistant ID (from OpenAI)</Label>
-        <Input value={assistantId} onChange={(e) => setAssistantId(e.target.value)} />
-      </div>
+      {showToast && (
+        <div className="mb-4 px-4 py-2 bg-green-100 text-green-800 border border-green-300 rounded-lg text-sm">
+          ✅ Agent published successfully.
+        </div>
+      )}
 
-      <div className="space-y-2">
-        <Label>Assistant Name</Label>
-        <Input value={name} onChange={(e) => setName(e.target.value)} />
-      </div>
+      {status === "success" ? (
+        <div className="space-y-4 text-center">
+          <p className="text-lg">Would you like to publish another agent?</p>
+          <div className="flex justify-center gap-4">
+            <Button onClick={handleNewAgent}>Yes</Button>
+            <Button variant="ghost" onClick={handleLogout}>No, I’m done</Button>
+          </div>
+        </div>
+      ) : (
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <div>
+            <Label htmlFor="agentId">Assistant ID</Label>
+            <Input name="agentId" value={form.agentId} onChange={handleChange} required />
+          </div>
+          <div>
+            <Label htmlFor="name">Name</Label>
+            <Input name="name" value={form.name} onChange={handleChange} required />
+          </div>
+          <div>
+            <Label htmlFor="description">Description</Label>
+            <Textarea name="description" value={form.description} onChange={handleChange} required />
+          </div>
+          <div>
+            <Label htmlFor="skills">Skills (comma-separated)</Label>
+            <Input name="skills" value={form.skills} onChange={handleChange} required />
+          </div>
+          <div>
+            <Label htmlFor="price">Daily Rate ($)</Label>
+            <Input name="price" type="number" value={form.price} onChange={handleChange} required />
+          </div>
+          <div className="flex items-center gap-2">
+            <input type="checkbox" name="isNegotiable" checked={form.isNegotiable} onChange={handleChange} />
+            <Label htmlFor="isNegotiable">Negotiable</Label>
+          </div>
 
-      <div className="space-y-2">
-        <Label>Description</Label>
-        <Textarea value={description} onChange={(e) => setDescription(e.target.value)} />
-      </div>
+          <Button type="submit" className="w-full">Publish Agent</Button>
 
-      <div className="space-y-2">
-        <Label>Skills (comma-separated)</Label>
-        <Input value={skills} onChange={(e) => setSkills(e.target.value)} />
-      </div>
-
-      <div className="flex items-center space-x-2">
-        <input type="checkbox" checked={hasFreeTier} onChange={() => setHasFreeTier(!hasFreeTier)} />
-        <Label>Offers a free tier</Label>
-      </div>
-
-      <div className="space-y-2">
-        <Label>Daily Rate (USD)</Label>
-        <Input type="number" value={price} onChange={(e) => setPrice(parseFloat(e.target.value))} />
-      </div>
-
-      <div className="flex items-center space-x-2">
-        <input type="checkbox" checked={isNegotiable} onChange={() => setIsNegotiable(!isNegotiable)} />
-        <Label>Rate is negotiable</Label>
-      </div>
-
-      <Button onClick={handleSubmit}>Publish</Button>
-
-      {message && <p className="text-yellow-400 text-sm mt-2">{message}</p>}
+          {status === "error" && (
+            <p className="text-red-600 mt-2 text-sm">❌ {errorMessage}</p>
+          )}
+        </form>
+      )}
     </div>
   );
 }
-
