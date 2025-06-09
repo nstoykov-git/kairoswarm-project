@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -16,22 +16,14 @@ export default function PublishAgentPage() {
     skills: "",
     price: "",
     isNegotiable: false,
-    hasFreeTier: false,
+    hasFreeTier: true,
   });
   const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
   const [errorMessage, setErrorMessage] = useState("");
-  const [showToast, setShowToast] = useState(false);
-
-  useEffect(() => {
-    if (showToast) {
-      const timeout = setTimeout(() => setShowToast(false), 3000);
-      return () => clearTimeout(timeout);
-    }
-  }, [showToast]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
-    const checked = (e.target as HTMLInputElement).checked;
+    const checked = type === "checkbox" ? (e.target as HTMLInputElement).checked : undefined;
     setForm((prev) => ({
       ...prev,
       [name]: type === "checkbox" ? checked : value,
@@ -60,34 +52,24 @@ export default function PublishAgentPage() {
 
       if (!response.ok) {
         const error = await response.json();
-        const errorText =
-          typeof error === "string"
-            ? error
-            : error?.detail || JSON.stringify(error) || "Something went wrong";
-        setErrorMessage(errorText);
+        setErrorMessage(error.detail || "Something went wrong");
         setStatus("error");
         return;
       }
 
       setStatus("success");
-      setShowToast(true);
-    } catch (error: any) {
-      const errorText =
-        typeof error === "string"
-          ? error
-          : error?.detail || JSON.stringify(error) || "Something went wrong";
-      setErrorMessage(errorText);
+    } catch (error) {
+      setErrorMessage("Network error. Please try again.");
       setStatus("error");
     }
   };
 
   const handleNewAgent = () => {
-    setForm({ agentId: "", name: "", description: "", skills: "", price: "", isNegotiable: false, hasFreeTier: false });
+    setForm({ agentId: "", name: "", description: "", skills: "", price: "", isNegotiable: false, hasFreeTier: true });
     setStatus("idle");
-    setShowToast(false);
   };
 
-  const handleLogout = async () => {
+  const handleLogout = () => {
     localStorage.removeItem("kairoswarm_user_id");
     localStorage.removeItem("kairoswarm_user_email");
     router.push("/");
@@ -96,12 +78,6 @@ export default function PublishAgentPage() {
   return (
     <div className="max-w-xl mx-auto py-10 px-4 bg-white dark:bg-gray-900 text-gray-900 dark:text-white shadow-xl rounded-2xl border border-gray-200 dark:border-gray-700">
       <h1 className="text-3xl font-bold mb-6 text-center">Publish Your AI Agent</h1>
-
-      {showToast && (
-        <div className="mb-4 px-4 py-2 bg-green-100 text-green-800 border border-green-300 rounded-lg text-sm">
-          ✅ Agent published successfully.
-        </div>
-      )}
 
       {status === "success" ? (
         <div className="space-y-4 text-center">
