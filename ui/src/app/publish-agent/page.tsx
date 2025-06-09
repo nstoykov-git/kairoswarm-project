@@ -37,6 +37,10 @@ export default function PublishAgentPage() {
     const userId = localStorage.getItem("kairoswarm_user_id");
 
     try {
+      console.log("name:", typeof form.name, form.name);
+      console.log("description:", typeof form.description, form.description);
+      console.log("skills:", form.skills.split(",").map((s) => s.trim()));
+
       const response = await fetch(`${process.env.NEXT_PUBLIC_MODAL_API_URL}/swarm/publish-agent`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
