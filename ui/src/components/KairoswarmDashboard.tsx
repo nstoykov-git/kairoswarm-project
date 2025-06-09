@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useEffect, useState, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -10,6 +11,7 @@ import { Send, Users, Bot, PlusCircle, Eye, PanelRightClose, PanelRightOpen } fr
 const API_BASE_URL = process.env.NEXT_PUBLIC_MODAL_API_URL;
 
 export default function KairoswarmDashboard() {
+  const router = useRouter();
   const [input, setInput] = useState("");
   const [joinName, setJoinName] = useState("");
   const [participantId, setParticipantId] = useState<string | null>(null);
@@ -170,6 +172,10 @@ export default function KairoswarmDashboard() {
           <Button variant="secondary" onClick={handleViewSwarm}>
             <Eye className="w-4 h-4 mr-2" />
             View Swarm
+          </Button>
+          <Button variant="secondary" onClick={() => router.push("/publish-agent")}>
+            <PlusCircle className="w-4 h-4 mr-2" />
+            Publish AI Assistant
           </Button>
           <Button variant="ghost" className="ml-auto md:hidden" onClick={() => setShowParticipants((prev) => !prev)}>
             {showParticipants ? <PanelRightClose className="w-4 h-4" /> : <PanelRightOpen className="w-4 h-4" />}

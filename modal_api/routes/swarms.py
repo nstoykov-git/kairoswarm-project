@@ -147,3 +147,78 @@ async def add_agent(request: Request):
     except Exception as e:
         logging.exception("Failed to add agent")
         return {"error": str(e)}
+    
+    
+# --- Generate Embedding for Agent Publishing ---
+
+class EmbeddingRequest(BaseModel):
+    text: str
+
+@router.post("/generate-embedding")
+async def generate_embedding(payload: EmbeddingRequest):
+    try:
+        if not payload.text.strip():
+            raise HTTPException(status_code=400, detail="Input text cannot be empty.")
+
+        response = openai.embeddings.create(
+            input=payload.text.strip(),
+            model="text-embedding-3-small"
+        )
+
+        embedding = response.data[0].embedding
+        return {"embedding": embedding}
+
+    except Exception as e:
+        logging.exception("❌ Failed to generate embedding")
+        raise HTTPException(status_code=500, detail=f"Embedding generation failed: {str(e)}")
+
+
+from modal_api.utils.services import get_supabase
+import openai
+
+class PublishAgentRequest(BaseModel):
+    assistant_id: str
+    name: str
+    description: str
+    skills: list[str]
+    has_free_tier: bool = True
+    price: float = 0.0
+    is_negotiable: bool = False
+    user_id: str
+
+
+# --- Publish Agent ---
+
+@router.post("/publish-agent")
+async def publish_agent(payload: PublishAgentRequest):
+    try:
+        # Generate embedding from agent data
+        text_for_embedding = f"{payload.name} {payload.description} {' '.join(payload.skills)}"
+        response = openai.embeddings.create(
+            input=text_for_embedding.strip(),
+            model="text-embedding-3-small"
+        )
+        embedding = response.data[0].embedding
+
+        # Insert into Supabase
+        sb = get_supabase()
+        result = sb.table("agents").insert({
+            "id": payload.assistant_id,
+            "name": payload.name,
+            "user_id": payload.user_id,
+            "model": "gpt-4o-mini",
+            "has_free_tier": payload.has_free_tier,
+            "price": payload.price,
+            "is_negotiable": payload.is_negotiable,
+            "description": payload.description,
+            "skills": payload.skills,
+            "vector_embedding": embedding,
+            "personality": None,
+            "system_prompt": None
+        }).execute()
+
+        return {"status": "ok", "id": payload.assistant_id}
+
+    except Exception as e:
+        logging.exception("❌ Failed to publish agent")
+        raise HTTPException(status_code=500, detail=f"Agent publish failed: {str(e)}")
