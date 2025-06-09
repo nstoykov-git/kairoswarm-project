@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -52,7 +52,11 @@ export default function PublishAgentPage() {
 
       if (!response.ok) {
         const error = await response.json();
-        setErrorMessage(error.detail || "Something went wrong");
+        if (Array.isArray(error.detail)) {
+          setErrorMessage(error.detail.map((e: any) => e.msg).join("; "));
+        } else {
+          setErrorMessage(error.detail || "Something went wrong");
+        }
         setStatus("error");
         return;
       }
@@ -89,8 +93,7 @@ export default function PublishAgentPage() {
 
       {status === "success" ? (
         <div className="space-y-4 text-center">
-          <p className="text-lg">✅ Agent published successfully.</p>
-          <p className="text-lg">Would you like to publish another agent?</p>
+          <p className="text-lg">✅ Agent published successfully.<br />Would you like to publish another agent?</p>
           <div className="flex justify-center gap-4">
             <Button onClick={handleNewAgent}>Yes</Button>
             <Button variant="ghost" onClick={handleLogout}>No, I’m done</Button>
