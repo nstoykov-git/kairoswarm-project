@@ -24,7 +24,8 @@ const ConciergePage = () => {
         q: query,
         min_price: priceRange[0].toString(),
         max_price: priceRange[1].toString(),
-        has_free_tier: hasFreeTier.toString()
+        has_free_tier: hasFreeTier.toString(),
+        skills: skills.join(',')
       });
 
       const res = await fetch(`/swarm/agents/search?${params.toString()}`, {
