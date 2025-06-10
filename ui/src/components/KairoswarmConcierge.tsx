@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -17,26 +17,28 @@ const ConciergePage = () => {
   const [selectedAgents, setSelectedAgents] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    const fetchAgents = async () => {
-      setLoading(true);
-      try {
-        const res = await fetch(`/swarm/agents/search?q=${encodeURIComponent(query)}`, {
-          method: 'GET',
-        });
-        const data = await res.json();
-        setAgents(data.agents);
-        if (data.agents.length === 0) toast('No agents found');
-      } catch (err) {
-        toast.error('Search failed');
-      } finally {
-        setLoading(false);
-      }
-    };
+  const handleSearch = async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({
+        q: query,
+        min_price: priceRange[0].toString(),
+        max_price: priceRange[1].toString(),
+        has_free_tier: hasFreeTier.toString()
+      });
 
-    const debounce = setTimeout(fetchAgents, 300);
-    return () => clearTimeout(debounce);
-  }, [query, skills, priceRange, hasFreeTier]);
+      const res = await fetch(`/swarm/agents/search?${params.toString()}`, {
+        method: 'GET'
+      });
+      const data = await res.json();
+      setAgents(data.agents);
+      if (data.agents.length === 0) toast('No agents found');
+    } catch (err) {
+      toast.error('Search failed');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const toggleSelect = (id: string) => {
     setSelectedAgents((prev) => {
@@ -70,7 +72,7 @@ const ConciergePage = () => {
 
   return (
     <div className="p-6 space-y-4 bg-gray-900 text-white min-h-screen">
-      <div className="flex flex-col md:flex-row md:items-center md:space-x-4 space-y-4 md:space-y-0">
+      <div className="flex flex-col md:flex-row md:items-end md:space-x-4 space-y-4 md:space-y-0">
         <Input
           placeholder="Search agents..."
           value={query}
@@ -109,6 +111,9 @@ const ConciergePage = () => {
             </Badge>
           ))}
         </div>
+        <Button onClick={handleSearch} className="bg-blue-600 hover:bg-blue-700 text-white">
+          Search
+        </Button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

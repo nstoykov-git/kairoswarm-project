@@ -8,7 +8,9 @@ from pydantic import BaseModel
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
 
-from modal_api.utils.services import get_redis
+from modal_api.utils.services import get_redis, get_supabase
+from modal_api.utils.services import EmbeddingRequest, generate_embedding
+
 
 router = APIRouter()
 
@@ -151,30 +153,12 @@ async def add_agent(request: Request):
     
 # --- Generate Embedding for Agent Publishing ---
 
-class EmbeddingRequest(BaseModel):
-    text: str
-
 @router.post("/generate-embedding")
-async def generate_embedding(payload: EmbeddingRequest):
-    try:
-        if not payload.text.strip():
-            raise HTTPException(status_code=400, detail="Input text cannot be empty.")
-
-        response = openai.embeddings.create(
-            input=payload.text.strip(),
-            model="text-embedding-3-small"
-        )
-
-        embedding = response.data[0].embedding
-        return {"embedding": embedding}
-
-    except Exception as e:
-        logging.exception("❌ Failed to generate embedding")
-        raise HTTPException(status_code=500, detail=f"Embedding generation failed: {str(e)}")
+async def generate_embedding_route(payload: EmbeddingRequest):
+    return await generate_embedding(payload)
 
 
-from modal_api.utils.services import get_supabase
-import openai
+# --- Publish Agent ---
 
 class PublishAgentRequest(BaseModel):
     assistant_id: str
@@ -185,9 +169,6 @@ class PublishAgentRequest(BaseModel):
     price: float = 0.0
     is_negotiable: bool = False
     user_id: str
-
-
-# --- Publish Agent ---
 
 @router.post("/publish-agent")
 async def publish_agent(payload: PublishAgentRequest):
