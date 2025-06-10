@@ -6,7 +6,9 @@ import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'react-hot-toast';
 
-const ConciergePage = () => {
+const availableSkills = ['copywriting', 'python', 'design', 'strategy', 'marketing', 'llm-tuning'];
+
+const KairoswarmConcierge = () => {
   const [query, setQuery] = useState('');
   const [skills, setSkills] = useState<string[]>([]);
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 100]);
@@ -42,6 +44,12 @@ const ConciergePage = () => {
       next.has(id) ? next.delete(id) : next.add(id);
       return next;
     });
+  };
+
+  const toggleSkill = (skill: string) => {
+    setSkills((prev) =>
+      prev.includes(skill) ? prev.filter((s) => s !== skill) : [...prev, skill]
+    );
   };
 
   const handleHire = async () => {
@@ -82,7 +90,18 @@ const ConciergePage = () => {
           />
           <span>Free Tier</span>
         </label>
-        {/* TODO: Add skill tag selector */}
+        <div className="flex flex-wrap gap-1">
+          {availableSkills.map((skill) => (
+            <Badge
+              key={skill}
+              variant={skills.includes(skill) ? 'default' : 'outline'}
+              className="cursor-pointer"
+              onClick={() => toggleSkill(skill)}
+            >
+              {skill}
+            </Badge>
+          ))}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -123,4 +142,4 @@ const ConciergePage = () => {
   );
 };
 
-export default ConciergePage;
+export default KairoswarmConcierge;
