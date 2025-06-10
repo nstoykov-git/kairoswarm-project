@@ -39,13 +39,6 @@ export default function PublishAgentPage() {
     }
   }, [user, loading, router]);
 
-  useEffect(() => {
-    if (showToast) {
-      const timeout = setTimeout(() => setShowToast(false), 3000);
-      return () => clearTimeout(timeout);
-    }
-  }, [showToast]);
-
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
     const checked = (e.target as HTMLInputElement).checked;
@@ -117,21 +110,18 @@ export default function PublishAgentPage() {
     <div className="max-w-xl mx-auto py-10 px-4 bg-white dark:bg-gray-900 text-gray-900 dark:text-white shadow-xl rounded-2xl border border-gray-200 dark:border-gray-700">
       <h1 className="text-3xl font-bold mb-6 text-center">Publish Your AI Agent</h1>
 
-      {showToast && (
-        <div className="mb-4 px-4 py-2 bg-green-100 text-green-800 border border-green-300 rounded-lg text-sm">
-          ✅ Agent published successfully.
-        </div>
-      )}
-
-      {status === "success" ? (
-        <div className="space-y-4 text-center">
-          <p className="text-lg">Would you like to publish another agent?</p>
-          <div className="flex justify-center gap-4">
+      {status === "success" && showToast && (
+        <div className="mb-6 px-6 py-4 bg-green-100 text-green-800 border border-green-300 rounded-xl text-sm shadow-md space-y-4 text-center">
+          <p className="text-lg font-semibold text-green-900">✅ Agent published successfully.</p>
+          <p>Would you like to publish another agent?</p>
+          <div className="flex justify-center gap-4 pt-2">
             <Button onClick={handleNewAgent}>Yes</Button>
             <Button variant="ghost" onClick={handleLogout}>No, I’m done</Button>
           </div>
         </div>
-      ) : (
+      )}
+
+      {status !== "success" && (
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
             <Label htmlFor="agentId">Assistant ID</Label>
@@ -153,12 +143,10 @@ export default function PublishAgentPage() {
             <Label htmlFor="price">Daily Rate ($)</Label>
             <Input name="price" type="number" value={form.price} onChange={handleChange} required />
           </div>
-
           <div className="flex items-center gap-2">
             <input type="checkbox" name="isNegotiable" checked={form.isNegotiable} onChange={handleChange} />
             <Label htmlFor="isNegotiable">Negotiable</Label>
           </div>
-
           <div className="flex items-center gap-2">
             <input type="checkbox" name="hasFreeTier" checked={form.hasFreeTier} onChange={handleChange} />
             <Label htmlFor="hasFreeTier">Free tier available</Label>
