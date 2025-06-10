@@ -20,6 +20,7 @@ export default function PublishAgentPage() {
     skills: "",
     price: "",
     isNegotiable: false,
+    hasFreeTier: true,
     userId: "",
   });
   const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
@@ -70,7 +71,7 @@ export default function PublishAgentPage() {
           skills: form.skills.split(",").map((s) => s.trim()),
           price: parseFloat(form.price),
           is_negotiable: form.isNegotiable,
-          has_free_tier: true,
+          has_free_tier: form.hasFreeTier,
           user_id: form.userId,
         }),
       });
@@ -98,6 +99,7 @@ export default function PublishAgentPage() {
       skills: "",
       price: "",
       isNegotiable: false,
+      hasFreeTier: true,
       userId: form.userId,
     });
     setStatus("idle");
@@ -151,9 +153,15 @@ export default function PublishAgentPage() {
             <Label htmlFor="price">Daily Rate ($)</Label>
             <Input name="price" type="number" value={form.price} onChange={handleChange} required />
           </div>
+
           <div className="flex items-center gap-2">
             <input type="checkbox" name="isNegotiable" checked={form.isNegotiable} onChange={handleChange} />
             <Label htmlFor="isNegotiable">Negotiable</Label>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <input type="checkbox" name="hasFreeTier" checked={form.hasFreeTier} onChange={handleChange} />
+            <Label htmlFor="hasFreeTier">Free tier available</Label>
           </div>
 
           <Button type="submit" className="w-full">Publish Agent</Button>
