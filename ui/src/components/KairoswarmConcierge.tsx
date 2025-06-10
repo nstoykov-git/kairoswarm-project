@@ -122,9 +122,9 @@ const ConciergePage = () => {
         ) : (
           agents.map((agent) => (
             <Card
-              key={agent.assistant_id}
-              onClick={() => toggleSelect(agent.assistant_id)}
-              className={`cursor-pointer ${selectedAgents.has(agent.assistant_id) ? 'ring-2 ring-blue-500' : ''}`}
+              key={agent.id}
+              onClick={() => toggleSelect(agent.id)}
+              className={`cursor-pointer ${selectedAgents.has(agent.id) ? 'ring-2 ring-blue-500' : ''}`}
             >
               <CardContent className="space-y-2 p-4">
                 <h2 className="text-xl font-semibold">{agent.name}</h2>
