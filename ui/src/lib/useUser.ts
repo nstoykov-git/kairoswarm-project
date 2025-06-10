@@ -1,5 +1,6 @@
 // lib/useUser.ts
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
 type UserProfile = {
@@ -10,10 +11,11 @@ type UserProfile = {
 
 export function useUser() {
   const [user, setUser] = useState<UserProfile | null>(null);
+  const router = useRouter();
 
   useEffect(() => {
     const loadUserProfile = async (userId: string, email: string) => {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from("users")
         .select("display_name")
         .eq("id", userId)
@@ -39,7 +41,6 @@ export function useUser() {
       }
     };
 
-    // ✅ Load initial session
     supabase.auth.getSession().then(({ data, error }) => {
       if (error) {
         console.error("Session fetch error:", error.message);
@@ -48,10 +49,8 @@ export function useUser() {
       syncSessionToProfile(data.session);
     });
 
-    // ✅ Listen to all auth changes (including tab sync)
     const { data: listener } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
-        // session can be null (sign-out), so we always handle both cases
         if (!session) {
           const { data } = await supabase.auth.getSession();
           session = data.session ?? null;
@@ -63,7 +62,7 @@ export function useUser() {
     return () => {
       listener.subscription.unsubscribe();
     };
-  }, []);
+  }, [router]);
 
   return user;
 }
