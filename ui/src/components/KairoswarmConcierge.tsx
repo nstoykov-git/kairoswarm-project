@@ -32,6 +32,7 @@ const ConciergePage = () => {
         method: 'GET'
       });
       const data = await res.json();
+      console.log('Loaded agents:', data.agents);
       setAgents(data.agents);
       if (data.agents.length === 0) toast('No agents found');
     } catch (err) {
@@ -131,7 +132,7 @@ const ConciergePage = () => {
                 <h2 className="text-xl font-semibold">{agent.name}</h2>
                 <p className="text-sm text-gray-400 line-clamp-3">{agent.description}</p>
                 <div className="flex flex-wrap gap-1">
-                  {agent.skills.map((skill: string) => (
+                  {(agent.skills ?? []).map((skill: string) => (
                     <Badge key={skill}>{skill}</Badge>
                   ))}
                 </div>
