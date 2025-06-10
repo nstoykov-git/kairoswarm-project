@@ -10,34 +10,27 @@ type UserProfile = {
 
 export function useUser() {
   const [user, setUser] = useState<UserProfile | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Exit early during SSR
-    if (typeof window === "undefined") return;
-
     const loadUserProfile = async (userId: string, email: string) => {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from("users")
         .select("display_name")
         .eq("id", userId)
         .single();
 
-      if (error) {
-        console.warn("Failed to fetch profile:", error.message);
-        return;
-      }
-
-      setUser({
+      const profile: UserProfile = {
         id: userId,
         email,
         display_name: data?.display_name ?? undefined,
-      });
+      };
+
+      setUser(profile);
     };
 
-    const syncSession = async () => {
-      const { data, error } = await supabase.auth.getSession();
-      const sessionUser = data.session?.user;
-
+    const syncSessionToProfile = async (session: any) => {
+      const sessionUser = session?.user;
       if (sessionUser?.id && sessionUser?.email) {
         await loadUserProfile(sessionUser.id, sessionUser.email);
       } else {
@@ -45,25 +38,26 @@ export function useUser() {
         localStorage.removeItem("kairoswarm_user_id");
         localStorage.removeItem("kairoswarm_user_email");
       }
+      setLoading(false);
     };
 
-    syncSession();
-
-    const { data: listener } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        const user = session?.user;
-        if (user?.id && user.email) {
-          await loadUserProfile(user.id, user.email);
-        } else {
-          setUser(null);
-        }
+    supabase.auth.getSession().then(({ data, error }) => {
+      if (error) {
+        console.error("Session fetch error:", error.message);
+        setLoading(false);
+        return;
       }
-    );
+      syncSessionToProfile(data.session);
+    });
+
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      syncSessionToProfile(session);
+    });
 
     return () => {
       listener.subscription.unsubscribe();
     };
   }, []);
 
-  return user;
+  return { user, loading };
 }

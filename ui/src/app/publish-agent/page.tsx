@@ -11,7 +11,7 @@ import { useUser } from "@/lib/useUser";
 
 export default function PublishAgentPage() {
   const router = useRouter();
-  const user = useUser();
+  const { user, loading } = useUser();
 
   const [form, setForm] = useState({
     agentId: "",
@@ -26,8 +26,9 @@ export default function PublishAgentPage() {
   const [errorMessage, setErrorMessage] = useState("");
   const [showToast, setShowToast] = useState(false);
 
-  // ✅ Set user ID reactively
   useEffect(() => {
+    if (loading) return;
+
     if (user === null) {
       setErrorMessage("You must be logged in to publish an agent.");
       setStatus("error");
@@ -35,7 +36,7 @@ export default function PublishAgentPage() {
     } else {
       setForm((prev) => ({ ...prev, userId: user.id }));
     }
-  }, [user, router]);
+  }, [user, loading, router]);
 
   useEffect(() => {
     if (showToast) {
