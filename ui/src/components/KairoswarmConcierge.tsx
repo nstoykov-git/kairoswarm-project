@@ -8,7 +8,7 @@ import { toast } from 'react-hot-toast';
 
 const availableSkills = ['copywriting', 'python', 'design', 'strategy', 'marketing', 'llm-tuning'];
 
-const KairoswarmConcierge = () => {
+const ConciergePage = () => {
   const [query, setQuery] = useState('');
   const [skills, setSkills] = useState<string[]>([]);
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 100]);
@@ -69,19 +69,26 @@ const KairoswarmConcierge = () => {
   };
 
   return (
-    <div className="p-6 space-y-4">
-      <div className="flex flex-col md:flex-row md:items-center md:space-x-4 space-y-2 md:space-y-0">
+    <div className="p-6 space-y-4 bg-gray-900 text-white min-h-screen">
+      <div className="flex flex-col md:flex-row md:items-center md:space-x-4 space-y-4 md:space-y-0">
         <Input
           placeholder="Search agents..."
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
-        <Slider
-          defaultValue={[0, 100]}
-          max={100}
-          step={5}
-          onValueChange={(val) => setPriceRange([val[0], val[1]])}
-        />
+        <div className="flex flex-col space-y-1 w-full max-w-xs">
+          <label className="text-sm text-gray-300">Price Range</label>
+          <Slider
+            defaultValue={[0, 100]}
+            max={100}
+            step={5}
+            onValueChange={(val) => setPriceRange([val[0], val[1]])}
+          />
+          <div className="flex justify-between text-sm text-gray-400">
+            <span>${priceRange[0]}</span>
+            <span>${priceRange[1]}</span>
+          </div>
+        </div>
         <label className="flex items-center space-x-2">
           <input
             type="checkbox"
@@ -116,7 +123,7 @@ const KairoswarmConcierge = () => {
             >
               <CardContent className="space-y-2 p-4">
                 <h2 className="text-xl font-semibold">{agent.name}</h2>
-                <p className="text-sm text-gray-600 line-clamp-3">{agent.description}</p>
+                <p className="text-sm text-gray-400 line-clamp-3">{agent.description}</p>
                 <div className="flex flex-wrap gap-1">
                   {agent.skills.map((skill: string) => (
                     <Badge key={skill}>{skill}</Badge>
@@ -136,10 +143,14 @@ const KairoswarmConcierge = () => {
       </div>
 
       {selectedAgents.size > 0 && (
-        <Button onClick={handleHire}>Hire {selectedAgents.size} Agent(s)</Button>
+        <div className="fixed bottom-4 right-4">
+          <Button onClick={handleHire} className="text-white bg-blue-600 hover:bg-blue-700">
+            Hire {selectedAgents.size} Agent(s)
+          </Button>
+        </div>
       )}
     </div>
   );
 };
 
-export default KairoswarmConcierge;
+export default ConciergePage;
