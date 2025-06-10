@@ -175,9 +175,14 @@ export default function KairoswarmDashboard() {
           </Button>
           <Button variant="secondary" onClick={() => router.push("/publish-agent")}>
             <PlusCircle className="w-4 h-4 mr-2" />
-            Publish AI Agent
+            Publish AI Agents
           </Button>
-          <Button variant="ghost" className="ml-auto md:hidden" onClick={() => setShowParticipants((prev) => !prev)}>
+          <Button variant="secondary" onClick={() => router.push("/concierge")}>
+            <PlusCircle className="w-4 h-4 mr-2" />
+            Hire AI Agents
+          </Button>
+
+          <Button variant="secondary" className="ml-auto md:hidden" onClick={() => setShowParticipants((prev) => !prev)}>
             {showParticipants ? <PanelRightClose className="w-4 h-4" /> : <PanelRightOpen className="w-4 h-4" />}
           </Button>
         </div>
