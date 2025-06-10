@@ -21,7 +21,7 @@ const ConciergePage = () => {
     const fetchAgents = async () => {
       setLoading(true);
       try {
-        const res = await fetch(`/agents/search?q=${encodeURIComponent(query)}`, {
+        const res = await fetch(`/swarm/agents/search?q=${encodeURIComponent(query)}`, {
           method: 'GET',
         });
         const data = await res.json();
