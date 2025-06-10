@@ -1,6 +1,5 @@
 // lib/useUser.ts
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
 type UserProfile = {
@@ -11,27 +10,34 @@ type UserProfile = {
 
 export function useUser() {
   const [user, setUser] = useState<UserProfile | null>(null);
-  const router = useRouter();
 
   useEffect(() => {
+    // Exit early during SSR
+    if (typeof window === "undefined") return;
+
     const loadUserProfile = async (userId: string, email: string) => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("users")
         .select("display_name")
         .eq("id", userId)
         .single();
 
-      const profile: UserProfile = {
+      if (error) {
+        console.warn("Failed to fetch profile:", error.message);
+        return;
+      }
+
+      setUser({
         id: userId,
         email,
         display_name: data?.display_name ?? undefined,
-      };
-
-      setUser(profile);
+      });
     };
 
-    const syncSessionToProfile = async (session: any) => {
-      const sessionUser = session?.user;
+    const syncSession = async () => {
+      const { data, error } = await supabase.auth.getSession();
+      const sessionUser = data.session?.user;
+
       if (sessionUser?.id && sessionUser?.email) {
         await loadUserProfile(sessionUser.id, sessionUser.email);
       } else {
@@ -41,28 +47,23 @@ export function useUser() {
       }
     };
 
-    supabase.auth.getSession().then(({ data, error }) => {
-      if (error) {
-        console.error("Session fetch error:", error.message);
-        return;
-      }
-      syncSessionToProfile(data.session);
-    });
+    syncSession();
 
     const { data: listener } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
-        if (!session) {
-          const { data } = await supabase.auth.getSession();
-          session = data.session ?? null;
+        const user = session?.user;
+        if (user?.id && user.email) {
+          await loadUserProfile(user.id, user.email);
+        } else {
+          setUser(null);
         }
-        await syncSessionToProfile(session);
       }
     );
 
     return () => {
       listener.subscription.unsubscribe();
     };
-  }, [router]);
+  }, []);
 
   return user;
 }
