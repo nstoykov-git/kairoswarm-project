@@ -39,13 +39,6 @@ export default function PublishAgentPage() {
     }
   }, [user, loading, router]);
 
- // useEffect(() => {
- //   if (showToast) {
- //     const timeout = setTimeout(() => setShowToast(false), 3000);
- //     return () => clearTimeout(timeout);
- //   }
- // }, [showToast]);
-
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
     const checked = (e.target as HTMLInputElement).checked;
