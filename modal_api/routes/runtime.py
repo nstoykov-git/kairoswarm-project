@@ -6,7 +6,6 @@ import uuid
 import json
 import os
 from datetime import datetime
-import logging
 from openai import AsyncOpenAI
 from modal_api.utils.services import get_redis
 

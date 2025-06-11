@@ -111,9 +111,34 @@ export default function KairoswarmDashboard() {
       setParticipantId(null);
       setTape([]);
       setParticipants([]);
-      await fetchSwarmData(newSwarmId); // immediate update
+
+      const [tapeRes, participantsRes] = await Promise.all([
+        fetch(`${API_BASE_URL}/tape?swarm_id=${newSwarmId}`),
+        fetch(`${API_BASE_URL}/participants-full?swarm_id=${newSwarmId}`),
+      ]);
+
+      const tapeData = await tapeRes.json();
+      const participantsData = await participantsRes.json();
+
+      if (Array.isArray(tapeData)) setTape(tapeData);
+      if (Array.isArray(participantsData)) setParticipants(participantsData);
+
+      // 🔁 Reload all AI agents with OpenAI threads
+      for (const p of participantsData) {
+        if (p.type === "agent") {
+          await fetch(`${API_BASE_URL}/swarm/reload-agent`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              swarm_id: newSwarmId,
+              agent_id: p.metadata?.agent_id || p.id,
+            }),
+          });
+        }
+      }
     }
   };
+
 
   const fetchSwarmData = async (id: string) => {
     const [tapeRes, participantsRes] = await Promise.all([
