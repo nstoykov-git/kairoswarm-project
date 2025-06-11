@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -10,6 +11,7 @@ const availableSkills = ['copywriting', 'python', 'design', 'strategy', 'marketi
 const API_BASE_URL = process.env.NEXT_PUBLIC_MODAL_API_URL;
 
 const ConciergePage = () => {
+  const router = useRouter();
   const [query, setQuery] = useState('');
   const [skills, setSkills] = useState<string[]>([]);
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 100]);
@@ -67,7 +69,12 @@ const ConciergePage = () => {
         body: JSON.stringify({ agent_ids: Array.from(selectedAgents) }),
       });
       const data = await res.json();
-      toast.success(`Swarm ID: ${data.swarm_id}`);
+      if (data.swarm_id) {
+        toast.success(`Swarm ID: ${data.swarm_id}`);
+        router.push(`/dashboard?swarm_id=${data.swarm_id}`);
+      } else {
+        throw new Error('No swarm_id returned');
+      }
     } catch (err) {
       toast.error('Failed to create swarm');
     }
