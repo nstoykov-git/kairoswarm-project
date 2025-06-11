@@ -59,7 +59,7 @@ const ConciergePage = () => {
 
   const handleHire = async () => {
     try {
-      const res = await fetch('/swarm/initiate', {
+      const res = await fetch(`${API_BASE_URL}/swarm/initiate`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
