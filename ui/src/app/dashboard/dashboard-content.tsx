@@ -40,7 +40,7 @@ export default function DashboardContent() {
             </Button>
           </div>
           <div className="mt-4">
-            <Button onClick={handleOk} variant="secondary">
+            <Button onClick={() => router.push(`/?swarm_id=${swarmId}`)}>
               OK
             </Button>
           </div>
