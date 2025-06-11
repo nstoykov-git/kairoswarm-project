@@ -8,7 +8,6 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from 'react-hot-toast';
 
 const availableSkills = ['copywriting', 'python', 'design', 'strategy', 'marketing', 'llm-tuning'];
-const API_BASE_URL = process.env.NEXT_PUBLIC_MODAL_API_URL;
 
 const ConciergePage = () => {
   const router = useRouter();
@@ -19,6 +18,7 @@ const ConciergePage = () => {
   const [agents, setAgents] = useState<any[]>([]);
   const [selectedAgents, setSelectedAgents] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
+  const [swarmId, setSwarmId] = useState<string | null>(null);
 
   const handleSearch = async () => {
     setLoading(true);
@@ -28,17 +28,12 @@ const ConciergePage = () => {
         min_price: priceRange[0].toString(),
         max_price: priceRange[1].toString(),
         has_free_tier: hasFreeTier.toString(),
-        skills: skills.join(',')
       });
-
-      const res = await fetch(`${API_BASE_URL}/swarm/agents/search?${params.toString()}`, {
-        method: 'GET'
-      });
+      const res = await fetch(`/swarm/agents/search?${params}`, { method: 'GET' });
       const data = await res.json();
-      console.log('Loaded agents:', data.agents);
       setAgents(data.agents);
       if (data.agents.length === 0) toast('No agents found');
-    } catch (err) {
+    } catch (e) {
       toast.error('Search failed');
     } finally {
       setLoading(false);
@@ -54,95 +49,54 @@ const ConciergePage = () => {
   };
 
   const toggleSkill = (skill: string) => {
-    setSkills((prev) =>
-      prev.includes(skill) ? prev.filter((s) => s !== skill) : [...prev, skill]
-    );
+    setSkills((prev) => (prev.includes(skill) ? prev.filter(s => s !== skill) : [...prev, skill]));
   };
 
   const handleHire = async () => {
+    if (selectedAgents.size === 0) return toast.error('Select at least one agent');
     try {
-      const res = await fetch(`${API_BASE_URL}/swarm/initiate`, {
+      const res = await fetch(`/swarm/initiate`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({ agent_ids: Array.from(selectedAgents) }),
       });
       const data = await res.json();
       if (data.swarm_id) {
-        toast.success(`Swarm ID: ${data.swarm_id}`);
+        toast.success('Swarm created!');
+        setSwarmId(data.swarm_id);
+        // Redirect to dashboard
         router.push(`/dashboard?swarm_id=${data.swarm_id}`);
       } else {
-        throw new Error('No swarm_id returned');
+        toast.error('Failed to create swarm');
       }
-    } catch (err) {
+    } catch (e) {
       toast.error('Failed to create swarm');
     }
   };
 
   return (
     <div className="p-6 space-y-4 bg-gray-900 text-white min-h-screen">
+      {/* Search / Filters */}
       <div className="flex flex-col md:flex-row md:items-end md:space-x-4 space-y-4 md:space-y-0">
-        <Input
-          placeholder="Search agents..."
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-        />
-        <div className="flex flex-col space-y-1 w-full max-w-xs">
-          <label className="text-sm text-gray-300">Price Range</label>
-          <Slider
-            defaultValue={[0, 100]}
-            max={100}
-            step={5}
-            onValueChange={(val) => setPriceRange([val[0], val[1]])}
-          />
-          <div className="flex justify-between text-sm text-gray-400">
-            <span>${priceRange[0]}</span>
-            <span>${priceRange[1]}</span>
-          </div>
-        </div>
-        <label className="flex items-center space-x-2">
-          <input
-            type="checkbox"
-            checked={hasFreeTier}
-            onChange={(e) => setHasFreeTier(e.target.checked)}
-          />
-          <span>Free Tier</span>
-        </label>
-        <div className="flex flex-wrap gap-1">
-          {availableSkills.map((skill) => (
-            <Badge
-              key={skill}
-              variant={skills.includes(skill) ? 'default' : 'outline'}
-              className="cursor-pointer"
-              onClick={() => toggleSkill(skill)}
-            >
-              {skill}
-            </Badge>
-          ))}
-        </div>
+        {/* ... existing UI ... */}
         <Button onClick={handleSearch} className="bg-blue-600 hover:bg-blue-700 text-white">
           Search
         </Button>
       </div>
 
+      {/* Found Agents */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {loading ? (
           <p>Loading...</p>
         ) : (
-          agents.map((agent) => (
-            <Card
-              key={agent.id}
-              onClick={() => toggleSelect(agent.id)}
-              className={`cursor-pointer ${selectedAgents.has(agent.id) ? 'ring-2 ring-blue-500' : ''}`}
-            >
+          agents.map(agent => (
+            <Card key={agent.id} onClick={() => toggleSelect(agent.id)} 
+              className={`cursor-pointer ${selectedAgents.has(agent.id) ? 'ring-2 ring-blue-500' : ''}`}>
               <CardContent className="space-y-2 p-4">
                 <h2 className="text-xl font-semibold">{agent.name}</h2>
                 <p className="text-sm text-gray-400 line-clamp-3">{agent.description}</p>
                 <div className="flex flex-wrap gap-1">
-                  {(agent.skills ?? []).map((skill: string) => (
-                    <Badge key={skill}>{skill}</Badge>
-                  ))}
+                  {agent.skills.map((s:string) => <Badge key={s}>{s}</Badge>)}
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-lg font-bold">${agent.price}</span>
@@ -153,15 +107,26 @@ const ConciergePage = () => {
                 </div>
               </CardContent>
             </Card>
-          ))
-        )}
+        )))}
       </div>
 
+      {/* Hire Button */}
       {selectedAgents.size > 0 && (
         <div className="fixed bottom-4 right-4">
           <Button onClick={handleHire} className="text-white bg-blue-600 hover:bg-blue-700">
             Hire {selectedAgents.size} Agent(s)
           </Button>
+        </div>
+      )}
+
+      {/* Confirmation UI (optional) */}
+      {!!swarmId && (
+        <div className="fixed bottom-24 right-4 p-4 bg-gray-800 rounded shadow-lg">
+          <p className="mb-2">✅ Your swarm is ready!</p>
+          <div className="flex gap-2">
+            <Button onClick={() => router.push(`/dashboard?swarm_id=${swarmId}`)}>View Swarm</Button>
+            <Button variant="outline" onClick={() => setSwarmId(null)}>Done</Button>
+          </div>
         </div>
       )}
     </div>

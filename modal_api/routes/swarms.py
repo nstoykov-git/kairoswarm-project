@@ -150,7 +150,67 @@ async def add_agent(request: Request):
         logging.exception("Failed to add agent")
         return {"error": str(e)}
     
+
+# --- Reload Agent ---
     
+@router.post("/reload-agent")
+async def reload_agent(request: Request):
+    body = await request.json()
+    swarm_id = body.get("swarm_id", "default")
+    agent_id = body.get("agent_id")
+
+    if not agent_id:
+        return {"status": "error", "message": "Missing agent_id"}
+
+    try:
+        assistant = openai.beta.assistants.retrieve(agent_id)
+        thread = openai.beta.threads.create()
+
+        async with get_redis() as r:
+            # 🔍 Look for existing participant with this agent_id
+            participants_raw = await r.hvals(f"{swarm_id}:participants")
+            existing_pid = None
+            for entry in participants_raw:
+                try:
+                    data = json.loads(entry)
+                    if (
+                        data.get("type") == "agent"
+                        and data.get("metadata", {}).get("agent_id") == agent_id
+                    ):
+                        existing_pid = data["id"]
+                        break
+                except Exception:
+                    continue
+
+            # ✅ If found, update in place
+            pid = existing_pid or str(uuid.uuid4())
+
+            await r.hset(f"{swarm_id}:agents", agent_id, json.dumps({
+                "agent_id": agent_id,
+                "thread_id": thread.id,
+                "name": assistant.name
+            }))
+            await r.hset(f"{swarm_id}:agent:{agent_id}", mapping={
+                "agent_id": agent_id,
+                "thread_id": thread.id,
+                "name": assistant.name
+            })
+            await r.hset(f"{swarm_id}:participants", pid, json.dumps({
+                "id": pid,
+                "name": assistant.name,
+                "type": "agent",
+                "metadata": {
+                    "agent_id": agent_id,
+                    "thread_id": thread.id
+                }
+            }))
+
+        return {"status": "ok", "message": f"Agent {assistant.name} reloaded"}
+
+    except Exception as e:
+        return {"status": "error", "message": str(e)}    
+
+
 # --- Generate Embedding for Agent Publishing ---
 
 @router.post("/generate-embedding")
