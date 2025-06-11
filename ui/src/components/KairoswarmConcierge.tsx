@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from 'react-hot-toast';
 
 const availableSkills = ['copywriting', 'python', 'design', 'strategy', 'marketing', 'llm-tuning'];
+const API_BASE_URL = process.env.NEXT_PUBLIC_MODAL_API_URL;
 
 const ConciergePage = () => {
   const [query, setQuery] = useState('');
@@ -28,7 +29,7 @@ const ConciergePage = () => {
         skills: skills.join(',')
       });
 
-      const res = await fetch(`/swarm/agents/search?${params.toString()}`, {
+      const res = await fetch(`${API_BASE_URL}/swarm/agents/search?${params.toString()}`, {
         method: 'GET'
       });
       const data = await res.json();
