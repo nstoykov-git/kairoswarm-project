@@ -10,12 +10,13 @@ import { Send, Users, Bot, PlusCircle, Eye, PanelRightClose, PanelRightOpen } fr
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_MODAL_API_URL;
 
-export default function KairoswarmDashboard() {
+export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?: string }) {
+  const [swarmId, setSwarmId] = useState(swarmIdProp || 'default');
+
   const router = useRouter();
   const [input, setInput] = useState("");
   const [joinName, setJoinName] = useState("");
   const [participantId, setParticipantId] = useState<string | null>(null);
-  const [swarmId, setSwarmId] = useState("default");
   const [participants, setParticipants] = useState<any[]>([]);
   const [tape, setTape] = useState<any[]>([]);
   const [showParticipants, setShowParticipants] = useState(true);
