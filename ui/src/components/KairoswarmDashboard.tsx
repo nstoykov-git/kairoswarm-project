@@ -25,6 +25,29 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
   const participantsScrollRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
+  const reloadAllAgents = async () => {
+    const res = await fetch(`${API_BASE_URL}/participants-full?swarm_id=${swarmId}`);
+    const participantsData = await res.json();
+    for (const p of participantsData) {
+      if (p.type === "agent") {
+        await fetch(`${API_BASE_URL}/swarm/reload-agent`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            swarm_id: swarmId,
+            agent_id: p.metadata?.agent_id || p.id,
+          }),
+        });
+      }
+    }
+  };
+
+  if (swarmId) {
+    reloadAllAgents();
+  }
+}, [swarmId]);
+  
+  useEffect(() => {
     const poll = setInterval(async () => {
       const [tapeRes, participantsRes] = await Promise.all([
         fetch(`${API_BASE_URL}/tape?swarm_id=${swarmId}`),
@@ -161,14 +184,29 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
             ⏳ Ephemeral swarm expires in 24 hours
           </div>
         )}
+          {swarmId === "default" && (
+            <div className="mt-2 text-xs text-yellow-400">
+              🧪 You're in the <code className="font-mono text-white">default</code> swarm — an open space to experiment, speak freely, and remix ideas.
+              It’s yours. It’s everyone’s.
+            </div>
+          )}
 
         <ScrollArea className="flex-1 bg-black rounded-xl p-4 max-h-[65vh] overflow-y-scroll" ref={scrollRef}>
           <div className="space-y-2">
             {tape.map((msg, idx) => (
-              <div key={idx}>
-                <span className="font-bold text-white">{msg.from}:</span> {msg.message}
+              <div key={msg.timestamp || idx} className="flex flex-col space-y-0.5">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-white">{msg.from}:</span>
+                  {msg.timestamp && (
+                    <span className="text-xs text-gray-400 font-mono">
+                      {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  )}
+                </div>
+                <div>{msg.message}</div>
               </div>
             ))}
+
           </div>
         </ScrollArea>
 
