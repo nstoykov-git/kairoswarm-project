@@ -115,12 +115,16 @@ const ConciergePage = () => {
           {availableSkills.map((skill) => (
             <Badge
               key={skill}
-              variant={skills.includes(skill) ? 'default' : 'outline'}
-              className="cursor-pointer"
+              className={`cursor-pointer ${
+                skills.includes(skill)
+                  ? 'bg-blue-600 text-white border-blue-600'
+                  : 'bg-gray-800 text-gray-200 border-gray-600'
+              }`}
               onClick={() => toggleSkill(skill)}
             >
               {skill}
             </Badge>
+
           ))}
         </div>
         <Button onClick={handleSearch} className="bg-blue-600 hover:bg-blue-700 text-white">
