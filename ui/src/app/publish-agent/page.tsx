@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/lib/supabase";
-import { useUser } from "@/lib/useUser";
+import { useUser } from "@/context/UserContext";
 
 export default function PublishAgentPage() {
   const router = useRouter();
