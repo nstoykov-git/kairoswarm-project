@@ -77,6 +77,7 @@ export default function AuthPage() {
           setMessage("❌ Failed to persist session.");
           return;
         }
+        router.refresh();
       }
 
       localStorage.setItem("kairoswarm_user_id", data.user_id);
