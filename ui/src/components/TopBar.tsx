@@ -10,6 +10,11 @@ export default function TopBar() {
   const router = useRouter();
   const { user, loading, signOut } = useUser();
 
+  const handleSignOut = async () => {
+    await signOut();
+    router.refresh();
+  };
+
   return (
     <div className="flex justify-between items-center py-2 px-4 bg-black border-b border-gray-800">
       <div className="text-white font-bold text-lg">Kairoswarm</div>
@@ -18,7 +23,7 @@ export default function TopBar() {
           {user ? (
             <>
               <span className="text-white text-sm">{user.display_name || user.email}</span>
-              <Button variant="secondary" size="sm" onClick={signOut}>
+              <Button variant="secondary" size="sm" onClick={handleSignOut}>
                 <LogOut className="w-4 h-4 mr-1" /> Sign Out
               </Button>
             </>
