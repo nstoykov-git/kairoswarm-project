@@ -190,14 +190,7 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
             It’s yours. It’s everyone’s.
           </div>
         )}
-        {user && (
-          <div className="flex items-center gap-2">
-            <span className="text-sm">{user.email}</span>
-            <Button variant="ghost" size="sm" onClick={signOut}>
-              <LogOut className="w-4 h-4 mr-1" /> Sign Out
-            </Button>
-          </div>
-        )}
+
         <ScrollArea className="flex-1 bg-black rounded-xl p-4 max-h-[65vh] overflow-y-scroll" ref={scrollRef}>
           <div className="space-y-2">
             {tape.map((msg, idx) => (
@@ -273,10 +266,6 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
               </ScrollArea>
             </CardContent>
           </Card>
-
-          <p className="text-sm text-gray-400">
-            Debug: User ID is {user?.id || "none"}
-          </p>
 
           {!participantId && (
             <>
