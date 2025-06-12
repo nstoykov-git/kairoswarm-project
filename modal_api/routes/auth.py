@@ -1,6 +1,5 @@
 from pydantic import BaseModel
-from fastapi import APIRouter, HTTPException
-from fastapi import Request
+from fastapi import APIRouter, HTTPException, Request
 from modal_api.utils.services import get_supabase
 
 router = APIRouter()
@@ -115,23 +114,38 @@ async def signout(payload: SignOutRequest):
 
 # --- Profile ---
 
-from fastapi import Body
+router = APIRouter()
 
-@router.post("/profile")
-async def get_profile(data: dict = Body(...)):
-    try:
-        user_id = data.get("user_id")
-        if not user_id:
-            raise HTTPException(status_code=400, detail="Missing user_id")
+@router.get("/profile")
+async def get_profile(request: Request):
+    # 1) grab bearer token
+    auth_header = request.headers.get("Authorization") or ""
+    if not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing or invalid token")
+    token = auth_header.split(" ", 1)[1]
 
-        supabase = get_supabase()
-        result = supabase.from_("users").select("display_name").eq("id", user_id).single().execute()
+    # 2) validate & decode it via Supabase
+    supabase = get_supabase()
+    user_resp = supabase.auth.get_user(token)
+    if not user_resp or not user_resp.user:
+        raise HTTPException(status_code=401, detail="Invalid or expired session")
 
-        if result.data:
-            return { "display_name": result.data["display_name"] }
+    user = user_resp.user
 
-        raise HTTPException(status_code=404, detail="Profile not found")
+    # 3) look up your own profile table for display_name
+    profile_resp = (
+        supabase
+        .from_("users")
+        .select("display_name")
+        .eq("id", user.id)
+        .single()
+        .execute()
+    )
+    display_name = profile_resp.data.get("display_name") if profile_resp.data else None
 
-    except Exception as e:
-        print("Profile fetch error:", e)
-        raise HTTPException(status_code=500, detail="Failed to fetch profile")
+    # 4) return everything in one shot
+    return {
+        "user_id":      user.id,
+        "email":        user.email,
+        "display_name": display_name,
+    }

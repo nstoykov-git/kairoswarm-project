@@ -25,16 +25,18 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchProfile = async (accessToken: string) => {
-    const res = await fetch("/auth/profile", {
-      headers: { Authorization: `Bearer ${accessToken}` },
+  const API = process.env.NEXT_PUBLIC_MODAL_API_URL;
+
+  async function fetchProfile(token: string) {
+    const res = await fetch(`${API}/auth/profile`, {
+      method: "GET",
+      headers: { Authorization: `Bearer ${token}` },
     });
+    if (!res.ok) throw new Error("Failed to fetch profile");
 
-    if (!res.ok) throw new Error("Failed to fetch user profile");
-
-    const profile = await res.json();
-    setUser(profile);
-  };
+    const { user_id, email, display_name } = await res.json();
+    setUser({ id: user_id, email, display_name });
+  }
 
   const loadUser = async () => {
     const { data, error } = await supabase.auth.getSession();
