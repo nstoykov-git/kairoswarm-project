@@ -274,6 +274,10 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
             </CardContent>
           </Card>
 
+          <p className="text-sm text-gray-400">
+            Debug: User ID is {user?.id || "none"}
+          </p>
+
           {!participantId && (
             <>
               <Input
