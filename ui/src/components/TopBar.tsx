@@ -4,18 +4,11 @@
 import { useRouter } from "next/navigation";
 import { LogIn, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useUser } from "@/lib/useUser";
+import { useUser } from "@/context/UserContext";
 
 export default function TopBar() {
   const router = useRouter();
-  const { user, loading } = useUser();
-
-  const handleSignOut = async () => {
-    localStorage.removeItem("kairoswarm_user_id");
-    localStorage.removeItem("kairoswarm_user_email");
-    await import("@/lib/supabase").then(({ supabase }) => supabase.auth.signOut());
-    router.refresh();
-  };
+  const { user, loading, signOut } = useUser();
 
   return (
     <div className="flex justify-between items-center py-2 px-4 bg-black border-b border-gray-800">
@@ -25,12 +18,12 @@ export default function TopBar() {
           {user ? (
             <>
               <span className="text-white text-sm">{user.display_name || user.email}</span>
-              <Button variant="ghost" size="sm" onClick={handleSignOut}>
+              <Button variant="secondary" size="sm" onClick={signOut}>
                 <LogOut className="w-4 h-4 mr-1" /> Sign Out
               </Button>
             </>
           ) : (
-            <Button variant="secondary" size="sm" onClick={() => router.push("/auth")}>
+            <Button variant="secondary" size="sm" onClick={() => router.push("/auth")}> 
               <LogIn className="w-4 h-4 mr-1" /> Sign In
             </Button>
           )}

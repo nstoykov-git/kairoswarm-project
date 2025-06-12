@@ -1,3 +1,4 @@
+// src/app/dashboard/KairoswarmDashboard.tsx
 'use client';
 
 import { useRouter } from 'next/navigation';
@@ -9,6 +10,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Send, Users, Bot, PlusCircle, Eye, PanelRightClose, PanelRightOpen
 } from 'lucide-react';
+import { useUser } from '@/context/UserContext';
 import TopBar from '@/components/TopBar';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_MODAL_API_URL;
@@ -16,6 +18,7 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_MODAL_API_URL;
 export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?: string }) {
   const [swarmId, setSwarmId] = useState(swarmIdProp || 'default');
   const router = useRouter();
+  const { user, loading } = useUser();
 
   const [input, setInput] = useState('');
   const [joinName, setJoinName] = useState('');
@@ -63,12 +66,13 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
   }, [tape]);
 
   const handleJoin = async () => {
-    if (!joinName.trim()) return;
+    if (!joinName.trim() && !user) return;
     const res = await fetch(`${API_BASE_URL}/swarm/join`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        name: joinName,
+        name: user?.email || joinName,
+        user_id: user?.id,
         swarm_id: swarmId
       })
     });
@@ -171,9 +175,9 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
   };
 
   return (
-    <>
+    <div className="p-4 h-screen bg-gray-900 text-white">
       <TopBar />
-      <div className="p-4 grid grid-cols-1 md:grid-cols-5 gap-4 h-screen bg-gray-900 text-white">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
         <div className="col-span-3 flex flex-col space-y-2">
           {swarmId !== "default" && (
             <div className="text-xs text-gray-300 mb-1">
@@ -241,6 +245,7 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
               <PlusCircle className="w-4 h-4 mr-2" />
               Hire AI Agents
             </Button>
+
             <Button variant="secondary" className="ml-auto md:hidden" onClick={() => setShowParticipants((prev) => !prev)}>
               {showParticipants ? <PanelRightClose className="w-4 h-4" /> : <PanelRightOpen className="w-4 h-4" />}
             </Button>
@@ -279,6 +284,6 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
           </div>
         )}
       </div>
-    </>
+    </div>
   );
 }
