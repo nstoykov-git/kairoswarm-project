@@ -47,6 +47,7 @@ export default function AuthPage() {
     setMessage("");
 
     const endpoint = mode === "sign-in" ? "/auth/signin" : "/auth/signup";
+    console.log("fetching auth →", process.env.NEXT_PUBLIC_MODAL_API_URL + endpoint);
 
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_MODAL_API_URL}${endpoint}`, {
