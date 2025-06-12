@@ -1,23 +1,21 @@
-// src/app/dashboard/KairoswarmDashboard.tsx
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useEffect, useState, useRef, useContext } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
-  Send, Users, Bot, PlusCircle, Eye, PanelRightClose, PanelRightOpen, LogOut
+  Send, Users, Bot, PlusCircle, Eye, PanelRightClose, PanelRightOpen
 } from 'lucide-react';
-import { useUser } from '@/context/UserContext';
+import TopBar from '@/components/TopBar';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_MODAL_API_URL;
 
 export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?: string }) {
   const [swarmId, setSwarmId] = useState(swarmIdProp || 'default');
   const router = useRouter();
-  const { user, loading, signOut } = useUser();
 
   const [input, setInput] = useState('');
   const [joinName, setJoinName] = useState('');
@@ -65,13 +63,12 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
   }, [tape]);
 
   const handleJoin = async () => {
-    if (!joinName.trim() && !user) return;
+    if (!joinName.trim()) return;
     const res = await fetch(`${API_BASE_URL}/swarm/join`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        name: user?.email || joinName,
-        user_id: user?.id,
+        name: joinName,
         swarm_id: swarmId
       })
     });
@@ -124,7 +121,7 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
     if (data.id) {
       setSwarmId(data.id);
       setParticipantId(null);
-      await fetchSwarmData(data.id); // 👈 fetch content immediately
+      await fetchSwarmData(data.id);
     }
   };
 
@@ -147,7 +144,6 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
       if (Array.isArray(tapeData)) setTape(tapeData);
       if (Array.isArray(participantsData)) setParticipants(participantsData);
 
-      // 🔁 Reload all AI agents with OpenAI threads
       for (const p of participantsData) {
         if (p.type === "agent") {
           await fetch(`${API_BASE_URL}/swarm/reload-agent`, {
@@ -163,7 +159,6 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
     }
   };
 
-
   const fetchSwarmData = async (id: string) => {
     const [tapeRes, participantsRes] = await Promise.all([
       fetch(`${API_BASE_URL}/tape?swarm_id=${id}`),
@@ -176,113 +171,114 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
   };
 
   return (
-    <div className="p-4 grid grid-cols-1 md:grid-cols-5 gap-4 h-screen bg-gray-900 text-white">
-      <div className="col-span-3 flex flex-col space-y-2">
-        {swarmId !== "default" && (
-          <div className="text-xs text-gray-300 mb-1">
-            Swarm ID: <span className="text-white font-mono">{swarmId}</span><br />
-            ⏳ Ephemeral swarm expires in 24 hours
-          </div>
-        )}
-        {swarmId === "default" && (
-          <div className="mt-2 text-xs text-yellow-400">
-            🧪 You're in the <code className="font-mono text-white">default</code> swarm — an open space to experiment, speak freely, and remix ideas.
-            It’s yours. It’s everyone’s.
-          </div>
-        )}
-
-        <ScrollArea className="flex-1 bg-black rounded-xl p-4 max-h-[65vh] overflow-y-scroll" ref={scrollRef}>
-          <div className="space-y-2">
-            {tape.map((msg, idx) => (
-              <div key={msg.timestamp || idx} className="flex flex-col space-y-0.5">
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-white">{msg.from}:</span>
-                  {msg.timestamp && (
-                    <span className="text-xs text-gray-400 font-mono">
-                      {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                  )}
-                </div>
-                <div>{msg.message}</div>
-              </div>
-            ))}
-
-          </div>
-        </ScrollArea>
-
-        <div className="flex gap-2">
-          <Input
-            className="text-white placeholder-gray-400"
-            value={input}
-            placeholder="Say something..."
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleSpeak()}
-            disabled={!participantId}
-          />
-          <Button onClick={handleSpeak} disabled={!participantId}>
-            <Send className="w-4 h-4" />
-          </Button>
-        </div>
-
-        <div className="flex gap-2">
-          <Button variant="secondary" onClick={handleAddAgent}>
-            <Bot className="w-4 h-4 mr-2" />
-            Add AI Agent
-          </Button>
-          <Button variant="secondary" onClick={handleCreateSwarm}>
-            <PlusCircle className="w-4 h-4 mr-2" />
-            New Swarm
-          </Button>
-          <Button variant="secondary" onClick={handleViewSwarm}>
-            <Eye className="w-4 h-4 mr-2" />
-            View Swarm
-          </Button>
-          <Button variant="secondary" onClick={() => router.push("/publish-agent")}>
-            <PlusCircle className="w-4 h-4 mr-2" />
-            Publish AI Agents
-          </Button>
-          <Button variant="secondary" onClick={() => router.push("/concierge")}>
-            <PlusCircle className="w-4 h-4 mr-2" />
-            Hire AI Agents
-          </Button>
-
-          <Button variant="secondary" className="ml-auto md:hidden" onClick={() => setShowParticipants((prev) => !prev)}>
-            {showParticipants ? <PanelRightClose className="w-4 h-4" /> : <PanelRightOpen className="w-4 h-4" />}
-          </Button>
-        </div>
-      </div>
-
-      {showParticipants && (
-        <div className="col-span-2 flex flex-col space-y-2">
-          <Card>
-            <CardContent className="p-4">
-              <div className="text-sm font-bold mb-2">Participants</div>
-              <ScrollArea className="h-64" ref={participantsScrollRef}>
-                {participants.map((p) => (
-                  <div key={p.id} className="mb-1">
-                    {p.name} {p.type === "agent" ? "🤖" : "🧑"}
-                  </div>
-                ))}
-              </ScrollArea>
-            </CardContent>
-          </Card>
-
-          {!participantId && (
-            <>
-              <Input
-                className="text-white placeholder-gray-400"
-                value={joinName}
-                placeholder="Your Name"
-                onChange={(e) => setJoinName(e.target.value)}
-              />
-              <Button variant="secondary" onClick={handleJoin}>
-                <Users className="w-4 h-4 mr-2" />
-                Join Swarm
-              </Button>
-            </>
+    <>
+      <TopBar />
+      <div className="p-4 grid grid-cols-1 md:grid-cols-5 gap-4 h-screen bg-gray-900 text-white">
+        <div className="col-span-3 flex flex-col space-y-2">
+          {swarmId !== "default" && (
+            <div className="text-xs text-gray-300 mb-1">
+              Swarm ID: <span className="text-white font-mono">{swarmId}</span><br />
+              ⏳ Ephemeral swarm expires in 24 hours
+            </div>
           )}
+          {swarmId === "default" && (
+            <div className="mt-2 text-xs text-yellow-400">
+              🧪 You're in the <code className="font-mono text-white">default</code> swarm — an open space to experiment, speak freely, and remix ideas.
+              It’s yours. It’s everyone’s.
+            </div>
+          )}
+
+          <ScrollArea className="flex-1 bg-black rounded-xl p-4 max-h-[65vh] overflow-y-scroll" ref={scrollRef}>
+            <div className="space-y-2">
+              {tape.map((msg, idx) => (
+                <div key={msg.timestamp || idx} className="flex flex-col space-y-0.5">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-white">{msg.from}:</span>
+                    {msg.timestamp && (
+                      <span className="text-xs text-gray-400 font-mono">
+                        {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    )}
+                  </div>
+                  <div>{msg.message}</div>
+                </div>
+              ))}
+            </div>
+          </ScrollArea>
+
+          <div className="flex gap-2">
+            <Input
+              className="text-white placeholder-gray-400"
+              value={input}
+              placeholder="Say something..."
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleSpeak()}
+              disabled={!participantId}
+            />
+            <Button onClick={handleSpeak} disabled={!participantId}>
+              <Send className="w-4 h-4" />
+            </Button>
+          </div>
+
+          <div className="flex gap-2">
+            <Button variant="secondary" onClick={handleAddAgent}>
+              <Bot className="w-4 h-4 mr-2" />
+              Add AI Agent
+            </Button>
+            <Button variant="secondary" onClick={handleCreateSwarm}>
+              <PlusCircle className="w-4 h-4 mr-2" />
+              New Swarm
+            </Button>
+            <Button variant="secondary" onClick={handleViewSwarm}>
+              <Eye className="w-4 h-4 mr-2" />
+              View Swarm
+            </Button>
+            <Button variant="secondary" onClick={() => router.push("/publish-agent")}>
+              <PlusCircle className="w-4 h-4 mr-2" />
+              Publish AI Agents
+            </Button>
+            <Button variant="secondary" onClick={() => router.push("/concierge")}>
+              <PlusCircle className="w-4 h-4 mr-2" />
+              Hire AI Agents
+            </Button>
+            <Button variant="secondary" className="ml-auto md:hidden" onClick={() => setShowParticipants((prev) => !prev)}>
+              {showParticipants ? <PanelRightClose className="w-4 h-4" /> : <PanelRightOpen className="w-4 h-4" />}
+            </Button>
+          </div>
         </div>
-      )}
-    </div>
+
+        {showParticipants && (
+          <div className="col-span-2 flex flex-col space-y-2">
+            <Card>
+              <CardContent className="p-4">
+                <div className="text-sm font-bold mb-2">Participants</div>
+                <ScrollArea className="h-64" ref={participantsScrollRef}>
+                  {participants.map((p) => (
+                    <div key={p.id} className="mb-1">
+                      {p.name} {p.type === "agent" ? "🤖" : "🧑"}
+                    </div>
+                  ))}
+                </ScrollArea>
+              </CardContent>
+            </Card>
+
+            {!participantId && (
+              <>
+                <Input
+                  className="text-white placeholder-gray-400"
+                  value={joinName}
+                  placeholder="Your Name"
+                  onChange={(e) => setJoinName(e.target.value)}
+                />
+                <Button variant="secondary" onClick={handleJoin}>
+                  <Users className="w-4 h-4 mr-2" />
+                  Join Swarm
+                </Button>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+    </>
   );
 }
