@@ -18,60 +18,65 @@ type UserContextType = {
 const UserContext = createContext<UserContextType>({
   user: null,
   loading: true,
-  signOut: async () => {}, // 👈 dummy implementation for default context
+  signOut: async () => {},
 });
 
 export function UserProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const signOut = async () => {
-    await supabase.auth.signOut();
-    localStorage.removeItem("kairoswarm_user_id");
-    localStorage.removeItem("kairoswarm_user_email");
-    setUser(null);
-    window.location.reload(); // force UI reset
-  };
+  const fetchProfile = async (accessToken: string) => {
+    const res = await fetch("/auth/profile", {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
 
-  const loadUserProfile = async (userId: string, email: string) => {
-    const { data } = await supabase
-      .from("users")
-      .select("display_name")
-      .eq("id", userId)
-      .single();
+    if (!res.ok) throw new Error("Failed to fetch user profile");
 
-    const profile: UserProfile = {
-      id: userId,
-      email,
-      display_name: data?.display_name ?? undefined,
-    };
-
+    const profile = await res.json();
     setUser(profile);
   };
 
-  useEffect(() => {
-    const init = async () => {
-      const { data } = await supabase.auth.getSession();
-      const sessionUser = data.session?.user;
-
-      if (sessionUser?.id && sessionUser?.email) {
-        await loadUserProfile(sessionUser.id, sessionUser.email);
-      }
+  const loadUser = async () => {
+    const { data, error } = await supabase.auth.getSession();
+    if (error || !data.session) {
+      setUser(null);
       setLoading(false);
-    };
+      return;
+    }
 
-    init();
+    const token = data.session.access_token;
+    try {
+      await fetchProfile(token);
+    } catch (err) {
+      console.error("Profile fetch error:", err);
+      setUser(null);
+    }
+    setLoading(false);
+  };
+
+  const signOut = async () => {
+    await supabase.auth.signOut();
+    setUser(null);
+  };
+
+  useEffect(() => {
+    loadUser();
 
     const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      const sessionUser = session?.user;
-      if (sessionUser?.id && sessionUser?.email) {
-        await loadUserProfile(sessionUser.id, sessionUser.email);
+      if (session?.access_token) {
+        try {
+          await fetchProfile(session.access_token);
+        } catch (err) {
+          setUser(null);
+        }
       } else {
         setUser(null);
       }
     });
 
-    return () => authListener.subscription.unsubscribe();
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
   }, []);
 
   return (
@@ -82,4 +87,3 @@ export function UserProvider({ children }: { children: ReactNode }) {
 }
 
 export const useUser = () => useContext(UserContext);
-
