@@ -26,8 +26,11 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const signOut = async () => {
-  await supabase.auth.signOut();
-  setUser(null);
+    await supabase.auth.signOut();
+    localStorage.removeItem("kairoswarm_user_id");
+    localStorage.removeItem("kairoswarm_user_email");
+    setUser(null);
+    window.location.reload(); // force UI reset
   };
 
   const loadUserProfile = async (userId: string, email: string) => {
