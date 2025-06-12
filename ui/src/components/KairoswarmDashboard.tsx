@@ -1,21 +1,26 @@
-"use client";
+// src/app/dashboard/KairoswarmDashboard.tsx
+'use client';
 
-import { useRouter } from "next/navigation";
-import { useEffect, useState, useRef } from "react";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Send, Users, Bot, PlusCircle, Eye, PanelRightClose, PanelRightOpen } from "lucide-react";
+import { useRouter } from 'next/navigation';
+import { useEffect, useState, useRef, useContext } from 'react';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+  Send, Users, Bot, PlusCircle, Eye, PanelRightClose, PanelRightOpen, LogOut
+} from 'lucide-react';
+import { useUser } from '@/context/UserContext';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_MODAL_API_URL;
 
 export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?: string }) {
   const [swarmId, setSwarmId] = useState(swarmIdProp || 'default');
-
   const router = useRouter();
-  const [input, setInput] = useState("");
-  const [joinName, setJoinName] = useState("");
+  const { user, loading, signOut } = useUser();
+
+  const [input, setInput] = useState('');
+  const [joinName, setJoinName] = useState('');
   const [participantId, setParticipantId] = useState<string | null>(null);
   const [participants, setParticipants] = useState<any[]>([]);
   const [tape, setTape] = useState<any[]>([]);
@@ -25,33 +30,27 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
   const participantsScrollRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-  const reloadAllAgents = async () => {
-    const res = await fetch(`${API_BASE_URL}/participants-full?swarm_id=${swarmId}`);
-    const participantsData = await res.json();
-    for (const p of participantsData) {
-      if (p.type === "agent") {
-        await fetch(`${API_BASE_URL}/swarm/reload-agent`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            swarm_id: swarmId,
-            agent_id: p.metadata?.agent_id || p.id,
-          }),
-        });
+    const reloadAllAgents = async () => {
+      const res = await fetch(`${API_BASE_URL}/participants-full?swarm_id=${swarmId}`);
+      const participantsData = await res.json();
+      for (const p of participantsData) {
+        if (p.type === 'agent') {
+          await fetch(`${API_BASE_URL}/swarm/reload-agent`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ swarm_id: swarmId, agent_id: p.metadata?.agent_id || p.id })
+          });
+        }
       }
-    }
-  };
+    };
+    if (swarmId) reloadAllAgents();
+  }, [swarmId]);
 
-  if (swarmId) {
-    reloadAllAgents();
-  }
-}, [swarmId]);
-  
   useEffect(() => {
     const poll = setInterval(async () => {
       const [tapeRes, participantsRes] = await Promise.all([
         fetch(`${API_BASE_URL}/tape?swarm_id=${swarmId}`),
-        fetch(`${API_BASE_URL}/participants-full?swarm_id=${swarmId}`),
+        fetch(`${API_BASE_URL}/participants-full?swarm_id=${swarmId}`)
       ]);
       const tapeData = await tapeRes.json();
       const participantsData = await participantsRes.json();
@@ -66,21 +65,22 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
   }, [tape]);
 
   const handleJoin = async () => {
-    if (!joinName.trim()) return;
+    if (!joinName.trim() && !user) return;
     const res = await fetch(`${API_BASE_URL}/swarm/join`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        name: joinName,
-        swarm_id: swarmId,
-      }),
+        name: user?.email || joinName,
+        user_id: user?.id,
+        swarm_id: swarmId
+      })
     });
     const data = await res.json();
-    if (data.status === "joined") {
+    if (data.status === 'joined') {
       setParticipantId(data.participant_id);
     }
   };
-  
+
   const handleSpeak = async () => {
     if (!participantId || !input.trim()) return;
     await fetch(`${API_BASE_URL}/speak`, {
@@ -184,13 +184,20 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
             ⏳ Ephemeral swarm expires in 24 hours
           </div>
         )}
-          {swarmId === "default" && (
-            <div className="mt-2 text-xs text-yellow-400">
-              🧪 You're in the <code className="font-mono text-white">default</code> swarm — an open space to experiment, speak freely, and remix ideas.
-              It’s yours. It’s everyone’s.
-            </div>
-          )}
-
+        {swarmId === "default" && (
+          <div className="mt-2 text-xs text-yellow-400">
+            🧪 You're in the <code className="font-mono text-white">default</code> swarm — an open space to experiment, speak freely, and remix ideas.
+            It’s yours. It’s everyone’s.
+          </div>
+        )}
+        {user && (
+          <div className="flex items-center gap-2">
+            <span className="text-sm">{user.email}</span>
+            <Button variant="ghost" size="sm" onClick={signOut}>
+              <LogOut className="w-4 h-4 mr-1" /> Sign Out
+            </Button>
+          </div>
+        )}
         <ScrollArea className="flex-1 bg-black rounded-xl p-4 max-h-[65vh] overflow-y-scroll" ref={scrollRef}>
           <div className="space-y-2">
             {tape.map((msg, idx) => (

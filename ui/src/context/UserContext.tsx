@@ -12,13 +12,23 @@ type UserProfile = {
 type UserContextType = {
   user: UserProfile | null;
   loading: boolean;
+  signOut: () => Promise<void>;
 };
 
-const UserContext = createContext<UserContextType>({ user: null, loading: true });
+const UserContext = createContext<UserContextType>({
+  user: null,
+  loading: true,
+  signOut: async () => {}, // 👈 dummy implementation for default context
+});
 
 export function UserProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const signOut = async () => {
+  await supabase.auth.signOut();
+  setUser(null);
+  };
 
   const loadUserProfile = async (userId: string, email: string) => {
     const { data } = await supabase
@@ -62,7 +72,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <UserContext.Provider value={{ user, loading }}>
+    <UserContext.Provider value={{ user, loading, signOut }}>
       {children}
     </UserContext.Provider>
   );
