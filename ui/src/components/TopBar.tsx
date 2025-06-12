@@ -1,35 +1,40 @@
-'use client';
+// src/components/TopBar.tsx
+"use client";
 
 import { useRouter } from "next/navigation";
+import { LogIn, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { LogOut, LogIn } from "lucide-react";
 import { useUser } from "@/lib/useUser";
-import { supabase } from "@/lib/supabase";
 
 export default function TopBar() {
   const router = useRouter();
   const { user, loading } = useUser();
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    router.push("/");
+    localStorage.removeItem("kairoswarm_user_id");
+    localStorage.removeItem("kairoswarm_user_email");
+    await import("@/lib/supabase").then(({ supabase }) => supabase.auth.signOut());
+    router.refresh();
   };
 
   return (
-    <div className="w-full px-4 py-2 flex justify-end items-center bg-gray-950 text-white border-b border-gray-800">
-      {!loading && user ? (
-        <div className="flex items-center gap-3 text-sm">
-          <span className="text-gray-300">{user.email}</span>
-          <Button variant="ghost" size="sm" onClick={handleSignOut}>
-            <LogOut className="w-4 h-4 mr-1" />
-            Sign Out
-          </Button>
+    <div className="flex justify-between items-center py-2 px-4 bg-black border-b border-gray-800">
+      <div className="text-white font-bold text-lg">Kairoswarm</div>
+      {!loading && (
+        <div className="flex items-center gap-4">
+          {user ? (
+            <>
+              <span className="text-white text-sm">{user.display_name || user.email}</span>
+              <Button variant="ghost" size="sm" onClick={handleSignOut}>
+                <LogOut className="w-4 h-4 mr-1" /> Sign Out
+              </Button>
+            </>
+          ) : (
+            <Button variant="secondary" size="sm" onClick={() => router.push("/auth")}>
+              <LogIn className="w-4 h-4 mr-1" /> Sign In
+            </Button>
+          )}
         </div>
-      ) : (
-        <Button variant="ghost" size="sm" onClick={() => router.push("/auth")}>
-          <LogIn className="w-4 h-4 mr-1" />
-          Sign In
-        </Button>
       )}
     </div>
   );
