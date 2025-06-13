@@ -71,7 +71,7 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        name: user?.display_name || joinName,
+        name: joinName || user?.display_name,
         user_id: user?.id,
         swarm_id: swarmId
       })
