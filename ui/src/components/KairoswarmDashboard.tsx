@@ -265,7 +265,7 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
                 <ScrollArea className="h-64" ref={participantsScrollRef}>
                   {participants.map((p) => (
                     <div key={p.id} className="mb-1">
-                      {p.display_name || p.name} {p.type === "agent" ? "🤖" : "🧑"}
+                      {p.display_name} {p.type === "agent" ? "🤖" : "🧑"}
                     </div>
                   ))}
                 </ScrollArea>
