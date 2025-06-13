@@ -220,6 +220,9 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
               type="text"
               name="chat-message"
               autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="off"
+              spellCheck={false}
               className="text-white placeholder-gray-400"
               value={input}
               placeholder="Say something..."
@@ -280,6 +283,9 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
                 <Input
                   type="text"
                   autoComplete="off"
+                  autoCorrect="off"
+                  autoCapitalize="off"
+                  spellCheck={false}
                   className="text-white placeholder-gray-400"
                   value={joinName}
                   placeholder="Your Name"
