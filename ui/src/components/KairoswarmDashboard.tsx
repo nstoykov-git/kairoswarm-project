@@ -217,6 +217,7 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
 
           <div className="flex gap-2">
             <Input
+              type="text"
               className="text-white placeholder-gray-400"
               value={input}
               placeholder="Say something..."
