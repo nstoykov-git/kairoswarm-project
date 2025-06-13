@@ -219,6 +219,7 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
             <Input
               type="text"
               name="chat-message"
+              autoComplete="off"
               className="text-white placeholder-gray-400"
               value={input}
               placeholder="Say something..."
@@ -277,6 +278,8 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
             {!participantId && (
               <>
                 <Input
+                  type="text"
+                  autoComplete="off"
                   className="text-white placeholder-gray-400"
                   value={joinName}
                   placeholder="Your Name"
