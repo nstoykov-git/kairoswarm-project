@@ -71,7 +71,7 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        name: user?.email || joinName,
+        name: user?.display_name || joinName,
         user_id: user?.id,
         swarm_id: swarmId
       })
@@ -265,7 +265,7 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
                 <ScrollArea className="h-64" ref={participantsScrollRef}>
                   {participants.map((p) => (
                     <div key={p.id} className="mb-1">
-                      {p.display_name} {p.type === "agent" ? "🤖" : "🧑"}
+                      {p.name} {p.type === "agent" ? "🤖" : "🧑"}
                     </div>
                   ))}
                 </ScrollArea>
