@@ -114,8 +114,6 @@ async def signout(payload: SignOutRequest):
 
 # --- Profile ---
 
-router = APIRouter()
-
 @router.get("/profile")
 async def get_profile(request: Request):
     # 1) grab bearer token

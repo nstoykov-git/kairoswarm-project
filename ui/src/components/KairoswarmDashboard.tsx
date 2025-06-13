@@ -192,7 +192,12 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
             </div>
           )}
 
-          <ScrollArea className="flex-1 bg-black rounded-xl p-4 max-h-[65vh] overflow-y-scroll" ref={scrollRef}>
+          <ScrollArea
+            className="flex-1 bg-black rounded-xl p-4 overflow-y-scroll"
+            style={{ height: '400px' }} // 👈 Adjust this height as needed
+            ref={scrollRef}
+          >
+
             <div className="space-y-2">
               {tape.map((msg, idx) => (
                 <div key={msg.timestamp || idx} className="flex flex-col space-y-0.5">
@@ -260,7 +265,7 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
                 <ScrollArea className="h-64" ref={participantsScrollRef}>
                   {participants.map((p) => (
                     <div key={p.id} className="mb-1">
-                      {p.name} {p.type === "agent" ? "🤖" : "🧑"}
+                      {p.display_name || p.name} {p.type === "agent" ? "🤖" : "🧑"}
                     </div>
                   ))}
                 </ScrollArea>
