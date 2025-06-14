@@ -81,19 +81,23 @@ export default function ReviewContent() {
             <ul className="list-disc list-inside text-gray-300">
               {agents.map((agent) => (
                 <li key={agent.id}>
-                  {agent.name} - ${agent.price / 100}
+                  {agent.name} — ${agent.price.toFixed(2)}
                 </li>
               ))}
             </ul>
           </div>
           <div className="text-xl font-bold">
-            Total: ${total / 100}
+            Total: ${total.toFixed(2)}
           </div>
-          <Button onClick={handlePayment} className="bg-blue-600 hover:bg-blue-700 text-white">
+          <Button
+            onClick={handlePayment}
+            className="bg-blue-600 hover:bg-blue-700 text-white"
+          >
             Submit Payment
           </Button>
         </CardContent>
       </Card>
+
     </div>
   );
 }
