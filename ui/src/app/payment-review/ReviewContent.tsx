@@ -10,7 +10,7 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_MODAL_API_URL;
 
 export default function ReviewContent() {
   const searchParams = useSearchParams();
-  const router = useRouter();
+  const router = useRouter()
   const swarmId = searchParams.get("swarm_id");
 
   const [agents, setAgents] = useState<any[]>([]);
@@ -37,8 +37,8 @@ export default function ReviewContent() {
         body: JSON.stringify({ swarm_id: swarmId }),
       });
       const data = await res.json();
-      if (data.url) {
-        window.location.href = data.url;
+      if (data.checkout_url) {
+        window.location.href = data.checkout_url;
       } else {
         throw new Error("No checkout URL returned");
       }
@@ -73,4 +73,3 @@ export default function ReviewContent() {
     </div>
   );
 }
-
