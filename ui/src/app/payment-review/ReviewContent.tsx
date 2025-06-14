@@ -5,12 +5,14 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "react-hot-toast";
+import { useUser } from "@/context/UserContext";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_MODAL_API_URL;
 
 export default function ReviewContent() {
   const searchParams = useSearchParams();
   const router = useRouter()
+  const { user } = useUser();
   const swarmId = searchParams.get("swarm_id");
 
   const [agents, setAgents] = useState<any[]>([]);
@@ -28,24 +30,27 @@ export default function ReviewContent() {
     fetchData();
   }, [swarmId]);
 
-  const handlePayment = async () => {
-    if (!swarmId) return;
-    try {
-      const res = await fetch(`${API_BASE_URL}/payments/create-checkout-session`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ swarm_id: swarmId }),
-      });
-      const data = await res.json();
-      if (data.checkout_url) {
-        window.location.href = data.checkout_url;
-      } else {
-        throw new Error("No checkout URL returned");
-      }
-    } catch (err) {
-      toast.error("Failed to start checkout");
+const agentIdsParam = searchParams.get("agent_ids") || "";
+const agentIds = agentIdsParam.split(",").filter(Boolean);
+
+const handlePayment = async () => {
+  try {
+    const res = await fetch(`${API_BASE_URL}/payments/create-checkout-session`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ agent_ids: agentIds, user_id: user?.id || "anonymous" }),
+    });
+    const data = await res.json();
+    console.log("Stripe response:", data);
+    if (data.checkout_url) {
+      window.location.href = data.checkout_url;
+    } else {
+      throw new Error("No checkout URL returned");
     }
-  };
+  } catch (err) {
+    toast.error("Failed to start checkout");
+  }
+};
 
   return (
     <div className="p-6 space-y-4 bg-gray-900 text-white min-h-screen">

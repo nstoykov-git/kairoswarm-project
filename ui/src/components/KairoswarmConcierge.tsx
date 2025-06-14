@@ -61,26 +61,25 @@ const ConciergePage = () => {
     );
   };
 
-  const handleHire = async () => {
-    try {
-      const res = await fetch(`${API_BASE_URL}/swarm/initiate`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ agent_ids: Array.from(selectedAgents) }),
-      });
-      const data = await res.json();
-      if (data.swarm_id) {
-        toast.success(`Swarm ID: ${data.swarm_id}`);
-        router.push(`/dashboard?swarm_id=${data.swarm_id}`);
-      } else {
-        throw new Error('No swarm_id returned');
-      }
-    } catch (err) {
-      toast.error('Failed to create swarm');
-    }
-  };
+const handleHire = async () => {
+  const selected = agents.filter(a => selectedAgents.has(a.id));
+  const total = selected.reduce((sum, a) => sum + a.price, 0); // price in cents
+
+  toast(`Estimated price at checkout: $${(total / 100).toFixed(2)}`, { icon: '💵' });
+
+  if (total === 0) {
+    const res = await fetch(`${API_BASE_URL}/swarm/initiate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ agent_ids: selected.map(a => a.id) }),
+    });
+    const data = await res.json();
+    toast.success(`Your free swarm is ready! ID: ${data.swarm_id}`);
+    router.push(`/dashboard?swarm_id=${data.swarm_id}`);
+  } else {
+    router.push(`/payment-review?agent_ids=${selected.map(a => a.id).join(',')}`);
+  }
+};
 
   return (
     <div className="p-6 space-y-4 bg-gray-900 text-white min-h-screen">
