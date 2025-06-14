@@ -11,46 +11,65 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_MODAL_API_URL;
 
 export default function ReviewContent() {
   const searchParams = useSearchParams();
-  const router = useRouter()
+  const router = useRouter();
   const { user } = useUser();
-  const swarmId = searchParams.get("swarm_id");
+
+  // Parse agent IDs from URL
+  const agentIdsParam = searchParams.get("agent_ids") ?? "";
+  const agentIds = agentIdsParam.split(",").filter(Boolean);
 
   const [agents, setAgents] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
 
   useEffect(() => {
-    const fetchData = async () => {
-      if (!swarmId) return;
-      const res = await fetch(`${API_BASE_URL}/swarm/agents?swarm_id=${swarmId}`);
+    async function fetchData() {
+      if (agentIds.length === 0) return;
+
+      const res = await fetch(
+        `${API_BASE_URL}/swarm/agents?agent_ids=${agentIds.join(",")}`
+      );
       const data = await res.json();
-      setAgents(data.agents || []);
-      const sum = data.agents?.reduce((acc: number, a: any) => acc + (a.price || 0), 0) || 0;
+
+      const agentList = data.agents ?? [];
+      setAgents(agentList);
+
+      const sum = agentList.reduce((acc: number, a: any) => acc + (a.price ?? 0), 0);
+      console.log("🔍 agentIds:", agentIds);
+      console.log("🔢 calculated sum (cents):", sum);
+
       setTotal(sum);
-    };
-    fetchData();
-  }, [swarmId]);
-
-const agentIdsParam = searchParams.get("agent_ids") || "";
-const agentIds = agentIdsParam.split(",").filter(Boolean);
-
-const handlePayment = async () => {
-  try {
-    const res = await fetch(`${API_BASE_URL}/payments/create-checkout-session`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ agent_ids: agentIds, user_id: user?.id || "anonymous" }),
-    });
-    const data = await res.json();
-    console.log("Stripe response:", data);
-    if (data.checkout_url) {
-      window.location.href = data.checkout_url;
-    } else {
-      throw new Error("No checkout URL returned");
     }
-  } catch (err) {
-    toast.error("Failed to start checkout");
-  }
-};
+    fetchData();
+  }, [agentIds]);
+
+  const handlePayment = async () => {
+    try {
+      console.log("→ Posting payload:", { agent_ids: agentIds, user_id: user?.id });
+      const res = await fetch(
+        `${API_BASE_URL}/payments/create-checkout-session`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            agent_ids: agentIds,
+            user_id: user?.id ?? "anonymous",
+          }),
+        }
+      );
+      const data = await res.json();
+      console.log("Stripe response:", data);
+
+      if (data.checkout_url) {
+        window.location.href = data.checkout_url;
+      } else {
+        toast.error("No checkout URL returned");
+      }
+    } catch (err) {
+      toast.error("Failed to start checkout");
+    }
+  };
+
+  // --- JSX return goes here ---
 
   return (
     <div className="p-6 space-y-4 bg-gray-900 text-white min-h-screen">
