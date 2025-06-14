@@ -40,7 +40,7 @@ export default function DashboardContent() {
             </Button>
           </div>
           <div className="mt-4">
-            <Button onClick={() => router.push(`/?swarm_id=${swarmId}`)}>
+            <Button onClick={() => router.push(`/?swarm_id=default`)}>
               OK
             </Button>
           </div>

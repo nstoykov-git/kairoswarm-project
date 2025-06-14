@@ -77,7 +77,7 @@ const handleHire = async () => {
     toast.success(`Your free swarm is ready! ID: ${data.swarm_id}`);
     router.push(`/dashboard?swarm_id=${data.swarm_id}`);
   } else {
-    router.push(`/payment-review?agent_ids=${selected.map(a => a.id).join(',')}`);
+    router.push(`/payment-review?agent_ids=${Array.from(selectedAgents).join(",")}`);
   }
 };
 

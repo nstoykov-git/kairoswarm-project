@@ -1,4 +1,4 @@
-// src/app/payment-success/page.tsx
+// src/app/payment-success/SuccessContent.tsx
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -28,7 +28,7 @@ export default function PaymentSuccessPage() {
   };
 
   const goToDashboard = () => {
-    if (swarmId) router.push(`/dashboard?swarm_id=${swarmId}`);
+    if (swarmId) router.push(`/?swarm_id=default`);
   };
 
   return (
@@ -48,7 +48,7 @@ export default function PaymentSuccessPage() {
           )}
 
           <Button className="bg-blue-600 hover:bg-blue-700 text-white w-full" onClick={goToDashboard}>
-            Open Swarm
+            OK
           </Button>
         </CardContent>
       </Card>

@@ -34,9 +34,6 @@ export default function ReviewContent() {
       setAgents(agentList);
 
       const sum = agentList.reduce((acc: number, a: any) => acc + (a.price ?? 0), 0);
-      console.log("🔍 agentIds:", agentIds);
-      console.log("🔢 calculated sum (cents):", sum);
-
       setTotal(sum);
     }
     fetchData();
@@ -97,7 +94,6 @@ export default function ReviewContent() {
           </Button>
         </CardContent>
       </Card>
-
     </div>
   );
 }
