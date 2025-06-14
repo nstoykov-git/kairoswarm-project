@@ -26,8 +26,8 @@ export default function ReviewContent() {
       if (agentIds.length === 0) return;
 
       const res = await fetch(
-        `${API_BASE_URL}/swarm/agents?agent_ids=${agentIds.join(",")}`
-      );
+        `${API_BASE_URL}/swarm/agents/search?agent_ids=${agentIds.join(",")}`);
+
       const data = await res.json();
 
       const agentList = data.agents ?? [];
