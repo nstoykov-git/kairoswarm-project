@@ -13,7 +13,7 @@ export default function DashboardContent() {
 
   const handleOk = () => {
     setTimeout(() => {
-      router.replace(`/?swarm_id={swarmId}`);
+      router.push(`/?swarm_id=${swarmId}`);
     }, 100);
   };
 
