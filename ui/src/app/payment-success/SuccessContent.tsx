@@ -28,7 +28,7 @@ export default function PaymentSuccessPage() {
   };
 
   const goToDashboard = () => {
-    if (swarmId) router.push(`/?swarm_id=default`);
+    if (swarmId) router.push(`/dashboard?swarm_id=${swarmId}`);
   };
 
   return (
