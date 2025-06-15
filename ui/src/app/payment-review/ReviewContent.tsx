@@ -69,24 +69,26 @@ export default function ReviewContent() {
   return (
     <div className="p-6 space-y-4 bg-gray-900 text-white min-h-screen">
       <h1 className="text-2xl font-bold">Review & Payment</h1>
-      <Card>
-        <CardContent className="p-4 space-y-4">
+      <Card className="bg-gray-800 border border-gray-600">
+        <CardContent className="p-4 space-y-4 text-white">
           <div>
-            <h2 className="text-lg font-semibold mb-2">Selected Agents</h2>
-            <ul className="list-disc list-inside text-gray-300">
+            <h2 className="text-lg font-semibold mb-2 text-white">Selected Agents</h2>
+            <ul className="list-disc list-inside text-gray-200">
               {agents.map((agent) => (
-                <li key={agent.id}>
-                  {agent.name} — ${(agent.price / 100).toFixed(2)}
+                <li key={agent.id} className="py-1">
+                  <span className="font-medium text-white">{agent.name}</span>
+                  {" — "}
+                  <span className="font-bold text-green-400">${(agent.price).toFixed(2)}</span>
                 </li>
               ))}
             </ul>
           </div>
-          <div className="text-xl font-bold">
-            Total: ${(total / 100).toFixed(2)}
+          <div className="text-xl font-extrabold text-white">
+            Total: <span className="text-green-400">${(total).toFixed(2)}</span>
           </div>
           <Button
             onClick={handlePayment}
-            className="bg-blue-600 hover:bg-blue-700 text-white"
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white"
           >
             Submit Payment
           </Button>
