@@ -1,6 +1,6 @@
 "use client";
 
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -11,36 +11,37 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_MODAL_API_URL;
 
 export default function ReviewContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const { user } = useUser();
 
-  const agentIds = (searchParams.get("agent_ids") ?? "")
-    .split(",")
-    .filter(Boolean);
+  // Parse agent IDs from URL
+  const agentIdsParam = searchParams.get("agent_ids") ?? "";
+  const agentIds = agentIdsParam.split(",").filter(Boolean);
 
   const [agents, setAgents] = useState<any[]>([]);
-  const [totalCents, setTotalCents] = useState(0);
+  const [total, setTotal] = useState(0);
 
   useEffect(() => {
-    async function fetchAgents() {
+    async function fetchData() {
       if (agentIds.length === 0) return;
 
       const res = await fetch(
-        `${API_BASE_URL}/swarm/agents?agent_ids=${agentIds.join(",")}`
-      );
+        `${API_BASE_URL}/swarm/agents/search?agent_ids=${agentIds.join(",")}`);
+
       const data = await res.json();
 
-      const list = data.agents || [];
-      setAgents(list);
+      const agentList = data.agents ?? [];
+      setAgents(agentList);
 
-      const sum = list.reduce((acc: number, a: any) => acc + (a.price || 0), 0);
-      setTotalCents(sum);
+      const sum = agentList.reduce((acc: number, a: any) => acc + (a.price ?? 0), 0);
+      setTotal(sum);
     }
-
-    fetchAgents();
+    fetchData();
   }, [agentIds]);
 
   const handlePayment = async () => {
     try {
+      console.log("→ Posting payload:", { agent_ids: agentIds, user_id: user?.id });
       const res = await fetch(
         `${API_BASE_URL}/payments/create-checkout-session`,
         {
@@ -53,16 +54,19 @@ export default function ReviewContent() {
         }
       );
       const data = await res.json();
+      console.log("Stripe response:", data);
 
       if (data.checkout_url) {
         window.location.href = data.checkout_url;
       } else {
         toast.error("No checkout URL returned");
       }
-    } catch {
+    } catch (err) {
       toast.error("Failed to start checkout");
     }
   };
+
+  // --- JSX return goes here ---
 
   return (
     <div className="p-6 space-y-4 bg-gray-900 text-white min-h-screen">
@@ -74,13 +78,13 @@ export default function ReviewContent() {
             <ul className="list-disc list-inside text-gray-300">
               {agents.map((agent) => (
                 <li key={agent.id}>
-                  {agent.name} — ${(agent.price! / 100).toFixed(2)}
+                  {agent.name} — ${agent.price.toFixed(2)}
                 </li>
               ))}
             </ul>
           </div>
           <div className="text-xl font-bold">
-            Total: ${(totalCents / 100).toFixed(2)}
+            Total: ${total.toFixed(2)}
           </div>
           <Button
             onClick={handlePayment}
