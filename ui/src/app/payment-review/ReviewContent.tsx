@@ -14,7 +14,6 @@ export default function ReviewContent() {
   const router = useRouter();
   const { user } = useUser();
 
-  // Parse agent IDs from URL
   const agentIdsParam = searchParams.get("agent_ids") ?? "";
   const agentIds = agentIdsParam.split(",").filter(Boolean);
 
@@ -25,44 +24,44 @@ export default function ReviewContent() {
     async function fetchData() {
       if (agentIds.length === 0) return;
 
-      const res = await fetch(
-        `${API_BASE_URL}/swarm/agents//by-ids?agent_ids=${agentIds.join(",")}`
-      );
+      const res = await fetch(`${API_BASE_URL}/agents/by-ids`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ agent_ids: agentIds }),
+      });
+
+      if (!res.ok) {
+        toast.error("Failed to fetch agent details");
+        return;
+      }
 
       const data = await res.json();
-
       const agentList = data.agents ?? [];
       setAgents(agentList);
 
       const sum = agentList.reduce((acc: number, a: any) => acc + (a.price ?? 0), 0);
-      setTotal(sum);
+      setTotal(sum); // cents
     }
     fetchData();
   }, [agentIds]);
 
   const handlePayment = async () => {
     try {
-      console.log("→ Posting payload:", { agent_ids: agentIds, user_id: user?.id });
-      const res = await fetch(
-        `${API_BASE_URL}/payments/create-checkout-session`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            agent_ids: agentIds,
-            user_id: user?.id ?? "anonymous",
-          }),
-        }
-      );
+      const res = await fetch(`${API_BASE_URL}/payments/create-checkout-session`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          agent_ids: agentIds,
+          user_id: user?.id ?? "anonymous",
+        }),
+      });
       const data = await res.json();
-      console.log("Stripe response:", data);
-
       if (data.checkout_url) {
         window.location.href = data.checkout_url;
       } else {
         toast.error("No checkout URL returned");
       }
-    } catch (err) {
+    } catch {
       toast.error("Failed to start checkout");
     }
   };
@@ -77,13 +76,13 @@ export default function ReviewContent() {
             <ul className="list-disc list-inside text-gray-300">
               {agents.map((agent) => (
                 <li key={agent.id}>
-                  {agent.name} — ${agent.price.toFixed(2)}
+                  {agent.name} — ${(agent.price / 100).toFixed(2)}
                 </li>
               ))}
             </ul>
           </div>
           <div className="text-xl font-bold">
-            Total: ${total.toFixed(2)}
+            Total: ${(total / 100).toFixed(2)}
           </div>
           <Button
             onClick={handlePayment}
