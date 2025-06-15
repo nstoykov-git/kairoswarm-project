@@ -24,7 +24,7 @@ export default function ReviewContent() {
     async function fetchData() {
       if (agentIds.length === 0) return;
 
-      const res = await fetch(`${API_BASE_URL}/agents/by-ids`, {
+      const res = await fetch(`${API_BASE_URL}/swarm/agents/by-ids`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ agent_ids: agentIds }),
