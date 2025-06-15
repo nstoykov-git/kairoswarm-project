@@ -60,41 +60,49 @@ async def create_ephemeral_swarm(payload: CreateEphemeralRequest):
 
 @router.post("/join")
 async def join_ephemeral_swarm(request: Request):
-    try:
-        body = await request.json()
-        swarm_id = body.get("swarm_id", "default")
-        name = body.get("name", "Anonymous")
+    body = await request.json()
+    swarm_id = body.get("swarm_id", "default")
+    name = body.get("name", "Anonymous")
+    user_id = body.get("user_id")  # may be None
+    now = datetime.utcnow().isoformat()
+
+    async with get_redis() as r:
+        # Ensure swarm exists
+        ttl = await r.ttl(f"{swarm_id}:conversation_tape")
+        if ttl <= 0:
+            return JSONResponse(status_code=400, content={"error": "Swarm expired or not found"})
+
+        participant_key = f"{swarm_id}:participants"
+        # If logged in, check for existing participant
+        if user_id:
+            existing = await r.hvals(participant_key)
+            for item in existing:
+                p = json.loads(item)
+                if p.get("user_id") == user_id:
+                    # Refresh TTL and return existing participant
+                    pid = p["id"]
+                    await r.expire(f"{swarm_id}:participant:{pid}", ttl)
+                    await r.expire(participant_key, ttl)
+                    return {"status": "joined", "swarm_id": swarm_id, "participant_id": pid}
+        
+        # Otherwise create a new participant
         participant_id = str(uuid.uuid4())
-        now = datetime.utcnow().isoformat()
+        record = {
+            "id": participant_id,
+            "name": name,
+            "type": "human",
+            "joined_at": now
+        }
+        if user_id:
+            record["user_id"] = user_id
 
-        async with get_redis() as r:
-            # Match participant TTL to existing tape TTL
-            ttl = await r.ttl(f"{swarm_id}:conversation_tape")
-            if ttl <= 0:
-                return JSONResponse(status_code=400, content={"error": "Swarm expired or not found"})
+        await r.hset(participant_key, participant_id, json.dumps(record))
+        await r.hset(f"{swarm_id}:participant:{participant_id}", mapping=record)
+        await r.expire(participant_key, ttl)
+        await r.expire(f"{swarm_id}:participant:{participant_id}", ttl)
 
-            # Add participant to participant list
-            await r.hset(f"{swarm_id}:participants", participant_id, json.dumps({
-                "id": participant_id,
-                "name": name,
-                "type": "human",
-                "joined_at": now
-            }))
-            await r.hset(f"{swarm_id}:participant:{participant_id}", mapping={
-                "id": participant_id,
-                "name": name,
-                "type": "human",
-                "joined_at": now
-            })
-            await r.expire(f"{swarm_id}:participants", ttl)
-            await r.expire(f"{swarm_id}:participant:{participant_id}", ttl)
-
-        logging.info("✅ Joined swarm: %s (%s)", participant_id, name)
-        return {"status": "joined", "swarm_id": swarm_id, "participant_id": participant_id}
-
-    except Exception as e:
-        logging.exception("❌ Failed to join swarm")
-        return JSONResponse(status_code=500, content={"error": str(e)})
+    logging.info("✅ Joined swarm: %s (%s)", participant_id, name)
+    return {"status": "joined", "swarm_id": swarm_id, "participant_id": participant_id}
 
 
 # --- Add Agent to Ephemeral Swarm ---
