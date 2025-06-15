@@ -68,9 +68,10 @@ async def join_ephemeral_swarm(request: Request):
 
     async with get_redis() as r:
         # Ensure swarm exists
-        ttl = await r.ttl(f"{swarm_id}:conversation_tape")
-        if ttl <= 0:
-            return JSONResponse(status_code=400, content={"error": "Swarm expired or not found"})
+        if swarm_id != "default":
+            ttl = await r.ttl(f"{swarm_id}:conversation_tape")
+            if ttl <= 0:
+                return JSONResponse(status_code=400, content={"error": "Swarm expired or not found"})
 
         participant_key = f"{swarm_id}:participants"
         # If logged in, check for existing participant
