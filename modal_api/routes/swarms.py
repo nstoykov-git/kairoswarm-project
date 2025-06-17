@@ -68,10 +68,9 @@ async def join_ephemeral_swarm(request: Request):
 
     async with get_redis() as r:
         # Ensure swarm exists
-        if swarm_id != "default":
-            ttl = await r.ttl(f"{swarm_id}:conversation_tape")
-            if ttl <= 0:
-                return JSONResponse(status_code=400, content={"error": "Swarm expired or not found"})
+        ttl = await r.ttl(f"{swarm_id}:conversation_tape")
+        if ttl <= 0 and ttl != -1:
+            return JSONResponse(status_code=400, content={"error": "Swarm expired or not found"})
 
         participant_key = f"{swarm_id}:participants"
         # If logged in, check for existing participant
@@ -82,8 +81,9 @@ async def join_ephemeral_swarm(request: Request):
                 if p.get("user_id") == user_id:
                     # Refresh TTL and return existing participant
                     pid = p["id"]
-                    await r.expire(f"{swarm_id}:participant:{pid}", ttl)
-                    await r.expire(participant_key, ttl)
+                    if ttl > 0:
+                        await r.expire(f"{swarm_id}:participant:{pid}", ttl)
+                        await r.expire(participant_key, ttl)
                     return {"status": "joined", "swarm_id": swarm_id, "participant_id": pid}
         
         # Otherwise create a new participant
@@ -99,8 +99,9 @@ async def join_ephemeral_swarm(request: Request):
 
         await r.hset(participant_key, participant_id, json.dumps(record))
         await r.hset(f"{swarm_id}:participant:{participant_id}", mapping=record)
-        await r.expire(participant_key, ttl)
-        await r.expire(f"{swarm_id}:participant:{participant_id}", ttl)
+        if ttl > 0:
+            await r.expire(participant_key, ttl)
+            await r.expire(f"{swarm_id}:participant:{participant_id}", ttl)
 
     logging.info("✅ Joined swarm: %s (%s)", participant_id, name)
     return {"status": "joined", "swarm_id": swarm_id, "participant_id": participant_id}
@@ -125,7 +126,7 @@ async def add_agent(request: Request):
 
         async with get_redis() as r:
             ttl = await r.ttl(f"{sid}:conversation_tape")
-            if ttl <= 0:
+            if ttl <= 0 and ttl != -1:
                 return JSONResponse(status_code=400, content={"error": "Swarm expired or not found"})
 
             # Add agent to Redis
@@ -149,9 +150,10 @@ async def add_agent(request: Request):
                 }
             }))
 
-            await r.expire(f"{sid}:agents", ttl)
-            await r.expire(f"{sid}:agent:{assistant.id}", ttl)
-            await r.expire(f"{sid}:participants", ttl)
+            if ttl > 0:
+                await r.expire(f"{sid}:agents", ttl)
+                await r.expire(f"{sid}:agent:{assistant.id}", ttl)
+                await r.expire(f"{sid}:participants", ttl)
 
         return {"name": assistant.name, "thread_id": thread.id}
 
