@@ -235,7 +235,7 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
             </Button>
           </div>
 
-          <div className="flex flex-wrap gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
             <Button variant="secondary" onClick={handleAddAgent}>
               <Bot className="w-4 h-4 mr-2" />
               Add AI Agent

@@ -79,8 +79,8 @@ Respond in a way that reflects this personality.`;
           {traits.map(({ key, label }) => (
             <div key={key} className="space-y-2">
               <div className="flex justify-between">
-                <span>{label}</span>
-                <span>{(profile as any)[key].toFixed(2)}</span>
+                <span className="text-white">{label}</span>
+                <span className="text-white">{(profile as any)[key].toFixed(2)}</span>
               </div>
               <Slider
                 defaultValue={[(profile as any)[key]]}
@@ -95,16 +95,19 @@ Respond in a way that reflects this personality.`;
             placeholder="Personal story or memory..."
             value={profile.personalMemory}
             onChange={(e) => handleChange("personalMemory", e.target.value)}
+            className="text-white placeholder-gray-400"
           />
           <Textarea
             placeholder="Economic reasoning model..."
             value={profile.economicModel}
             onChange={(e) => handleChange("economicModel", e.target.value)}
+            className="text-white placeholder-gray-400"
           />
           <Textarea
             placeholder="Etiquette rules..."
             value={profile.etiquetteRules}
             onChange={(e) => handleChange("etiquetteRules", e.target.value)}
+            className="text-white placeholder-gray-400"
           />
 
           <Button className="w-full bg-blue-600 text-white" onClick={() => alert(generatePrompt())}>
@@ -121,7 +124,7 @@ Respond in a way that reflects this personality.`;
               placeholder="Profile name"
               value={newProfileName}
               onChange={(e) => setNewProfileName(e.target.value)}
-              className="text-black"
+              className="bg-white text-black dark:bg-gray-900 dark:text-white"
             />
             <Button onClick={saveProfile} className="bg-green-600 text-white">
               Save
@@ -129,7 +132,7 @@ Respond in a way that reflects this personality.`;
           </div>
           <div className="space-y-2">
             {savedProfiles.map(({ name, profile: p }, idx) => (
-              <Button key={idx} className="w-full bg-gray-700" onClick={() => loadProfile(p)}>
+              <Button key={idx} className="w-full bg-gray-700 text-white" onClick={() => loadProfile(p)}>
                 Load: {name}
               </Button>
             ))}
@@ -144,8 +147,8 @@ Respond in a way that reflects this personality.`;
             <ResponsiveContainer width="100%" height="100%">
               <RadarChart cx="50%" cy="50%" outerRadius="80%" data={chartData}>
                 <PolarGrid />
-                <PolarAngleAxis dataKey="trait" />
-                <PolarRadiusAxis domain={[0, 1]} />
+                <PolarAngleAxis dataKey="trait" stroke="#ffffff" />
+                <PolarRadiusAxis domain={[0, 1]} stroke="#ffffff" />
                 <Radar name="Profile" dataKey="value" stroke="#00f6ff" fill="#00f6ff" fillOpacity={0.6} />
               </RadarChart>
             </ResponsiveContainer>
