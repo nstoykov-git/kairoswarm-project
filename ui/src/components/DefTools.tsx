@@ -2,6 +2,7 @@
 
 // src/components/DefTools.tsx
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
@@ -18,6 +19,7 @@ const traits = [
 ];
 
 export default function DefTools() {
+  const router = useRouter();
   const [profile, setProfile] = useState({
     openness: 0.5,
     conscientiousness: 0.5,
@@ -74,6 +76,8 @@ Respond in a way that reflects this personality.`;
   return (
     <div className="p-6 space-y-6">
       <h1 className="text-2xl font-bold text-white">Agent Personality Builder</h1>
+      <Button variant="secondary" onClick={() => router.push("/")}>⬅ Back to Dashboard</Button>
+
       <Card className="bg-gray-800 text-white">
         <CardContent className="space-y-6">
           {traits.map(({ key, label }) => (
