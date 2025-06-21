@@ -75,7 +75,7 @@ Respond in a way that reflects this personality.`;
 
   return (
     <div className="p-6 space-y-6">
-      <h1 className="text-2xl font-bold text-white">Agent Personality Builder</h1>
+      <h1 className="text-2xl font-bold text-white bg-gray-800 p-4 rounded-xl">Agent Personality Builder</h1>
       <Button variant="secondary" onClick={() => router.push("/")}>⬅ Back to Dashboard</Button>
 
       <Card className="bg-gray-800 text-white">
