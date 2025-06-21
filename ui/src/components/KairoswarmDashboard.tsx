@@ -235,7 +235,7 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
             </Button>
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button variant="secondary" onClick={handleAddAgent}>
               <Bot className="w-4 h-4 mr-2" />
               Add AI Agent
@@ -256,7 +256,10 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
               <PlusCircle className="w-4 h-4 mr-2" />
               Hire AI Agents
             </Button>
-
+            <Button variant="secondary" onClick={() => router.push("/def-tools")}>
+              <PlusCircle className="w-4 h-4 mr-2" />
+              Digikids
+            </Button>
             <Button variant="secondary" className="ml-auto md:hidden" onClick={() => setShowParticipants((prev) => !prev)}>
               {showParticipants ? <PanelRightClose className="w-4 h-4" /> : <PanelRightOpen className="w-4 h-4" />}
             </Button>
