@@ -1,6 +1,7 @@
 from pydantic import BaseModel
 from fastapi import APIRouter, HTTPException, Request
 from modal_api.utils.services import get_supabase
+from fastapi import Header
 
 router = APIRouter()
 
@@ -140,10 +141,28 @@ async def get_profile(request: Request):
         .execute()
     )
     display_name = profile_resp.data.get("display_name") if profile_resp.data else None
-
+    profile_data = profile_resp.data if profile_resp.data else {}
+    
     # 4) return everything in one shot
     return {
         "user_id":      user.id,
         "email":        user.email,
         "display_name": display_name,
+        "is_premium": profile_data.get("is_premium", False),
     }
+
+
+
+async def get_current_user(authorization: str = Header(...)):
+    if not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing or invalid token")
+
+    token = authorization.split(" ")[1]
+    supabase = get_supabase()
+    user_response = supabase.auth.get_user(token)
+
+    if not user_response or not user_response.user:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+
+    user = user_response.user
+    return {"id": user.id, "email": user.email}

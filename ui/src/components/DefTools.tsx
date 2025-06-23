@@ -1,6 +1,8 @@
 "use client";
 
 // src/components/DefTools.tsx
+import { useEffect } from "react";
+import toast from "react-hot-toast";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
@@ -33,9 +35,57 @@ export default function DefTools() {
   const [savedProfiles, setSavedProfiles] = useState<{ name: string; profile: typeof profile }[]>([]);
   const [newProfileName, setNewProfileName] = useState("");
 
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+
+    if (urlParams.get("success") === "true") {
+      toast.success("🎉 Subscription Activated! You can now compile with Tess.");
+    }
+
+    if (urlParams.get("canceled") === "true") {
+      toast.error("Subscription canceled. No worries—you can upgrade anytime!");
+    }
+  }, []);
+
+
   const handleChange = (key: string, value: number | string) => {
     setProfile({ ...profile, [key]: value });
   };
+
+  const handleCompile = async () => {
+  try {
+    // Step 1: Fetch user profile to check premium status
+    const res = await fetch("/api/auth/profile", {
+      headers: { Authorization: `Bearer ${localStorage.getItem("access_token")}` },
+    });
+    const user = await res.json();
+
+    if (!user.is_premium) {
+      // Step 2: User is not premium → Start subscription
+      const checkoutRes = await fetch("/api/payments/create-subscription-session", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${localStorage.getItem("access_token")}` },
+      });
+      const { checkout_url } = await checkoutRes.json();
+      window.location.href = checkout_url;
+      return;
+    }
+
+    // Step 3: User is premium → Compile with Tess
+    const compileRes = await fetch("/api/personalities/compile", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${localStorage.getItem("access_token")}` },
+      body: JSON.stringify(profile),
+    });
+
+    const { compiled_prompt } = await compileRes.json();
+    alert(`Compiled Prompt:\n\n${compiled_prompt}`);
+
+  } catch (err) {
+    console.error("Error during compile:", err);
+    alert("Something went wrong. Please try again.");
+  }
+};
 
   const generatePrompt = () => {
     return `You are an AI agent with the following traits:
@@ -117,6 +167,10 @@ Respond in a way that reflects this personality.`;
           <Button className="w-full bg-blue-600 text-white" onClick={() => alert(generatePrompt())}>
             Generate Prompt
           </Button>
+          <Button className="w-full bg-purple-600 text-white" onClick={handleCompile}>
+            Compile with Tess
+          </Button>
+
         </CardContent>
       </Card>
 

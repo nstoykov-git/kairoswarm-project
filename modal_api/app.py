@@ -14,9 +14,11 @@ from modal_api.routes.swarms import router as swarms_router
 from kairoswarm_core.routes.persistent_runtime import router as persistent_runtime_router
 from kairoswarm_core.routes.ephemeral_runtime import router as ephemeral_runtime_router
 from kairoswarm_core.routes.payments import router as payments_router
+from kairoswarm_core.routes.personalities import router as personalities_router
 
 from kairoswarm_core.memory_core.memory_store import MemoryStore
 from kairoswarm_core.agent_updater.update_assistants import reload_agent
+
 
 # --- FastAPI Setup ---
 api = FastAPI()
@@ -41,6 +43,7 @@ api.include_router(swarms_router, prefix="/swarm", tags=["swarms"])
 api.include_router(persistent_runtime_router, prefix="/persistent", tags=["persistent"])
 api.include_router(ephemeral_runtime_router, prefix="/swarm", tags=["swarms"])
 api.include_router(payments_router, prefix="/payments", tags=["payments"])
+api.include_router(personalities_router, prefix="/personalities", tags=["personalities"])
 
 
 # --- Modal Image Definition ---
