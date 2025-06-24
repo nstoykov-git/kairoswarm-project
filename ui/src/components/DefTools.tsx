@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Slider } from '@/components/ui/slider';
+import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'react-hot-toast';
 import { supabase } from '@/lib/supabase';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from 'recharts';
@@ -19,6 +20,9 @@ export default function DefTools() {
   const searchParams = useSearchParams();
 
   const [compileInput, setCompileInput] = useState('');
+  const [personalStories, setPersonalStories] = useState('');
+  const [economicConsiderations, setEconomicConsiderations] = useState('');
+  const [etiquetteGuidelines, setEtiquetteGuidelines] = useState('');
   const [compiling, setCompiling] = useState(false);
 
   const [profile, setProfile] = useState({
@@ -59,7 +63,14 @@ export default function DefTools() {
 
       const res = await fetch(`${API_BASE_URL}/payments/create-subscription-session`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          compile_instructions: compileInput,
+          personal_stories: personalStories,
+          economic_considerations: economicConsiderations,
+          etiquette_guidelines: etiquetteGuidelines,
+          profile,
+        }),
       });
 
       const data = await res.json();
@@ -73,22 +84,12 @@ export default function DefTools() {
         return;
       }
 
-      const compileRes = await fetch(`${API_BASE_URL}/personalities/compile`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ input: compileInput, profile }),
-      });
-
-      const compileData = await compileRes.json();
-
-      if (!compileRes.ok) {
-        throw new Error(compileData.detail || 'Compilation failed.');
+      if (data.status === 'compiled') {
+        toast.success('✅ Compilation successful!');
+        return;
       }
 
-      toast.success('✅ Compilation successful!');
+      throw new Error('Unexpected response.');
     } catch (err: any) {
       console.error('Error during compile:', err);
       toast.error(err.message || 'Something went wrong.');
@@ -115,6 +116,24 @@ export default function DefTools() {
           value={compileInput}
           onChange={(e) => setCompileInput(e.target.value)}
           placeholder="Enter compile instructions here..."
+        />
+
+        <Textarea
+          value={personalStories}
+          onChange={(e) => setPersonalStories(e.target.value)}
+          placeholder="Enter personal stories..."
+        />
+
+        <Textarea
+          value={economicConsiderations}
+          onChange={(e) => setEconomicConsiderations(e.target.value)}
+          placeholder="Enter economic considerations..."
+        />
+
+        <Textarea
+          value={etiquetteGuidelines}
+          onChange={(e) => setEtiquetteGuidelines(e.target.value)}
+          placeholder="Enter etiquette guidelines..."
         />
 
         {['openness', 'conscientiousness', 'extraversion', 'agreeableness', 'neuroticism'].map((trait) => (
