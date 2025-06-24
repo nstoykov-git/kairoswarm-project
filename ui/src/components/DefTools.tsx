@@ -80,59 +80,77 @@ function DefTools() {
 
   const handleCompile = async () => {
     try {
-      let token = localStorage.getItem("access_token");
+      toast.loading("Checking subscription...", { id: "compile" });
 
-      // If no manual token, try to get Supabase OAuth token
+      const API_BASE_URL = process.env.NEXT_PUBLIC_MODAL_API_URL;
+
+      // Try to get the token from localStorage
+      let token = localStorage.getItem("kairoswarm_user_token");
+
+      // If no manual token, refresh Supabase OAuth token
       if (!token) {
-        const { data } = await supabase.auth.getSession();
-        token = data.session?.access_token || "";
+        const { data, error } = await supabase.auth.getSession();
+        if (error) throw new Error("Failed to retrieve session.");
+        if (data?.session?.access_token) {
+          token = data.session.access_token;
+        } else {
+          throw new Error("Not logged in. Please sign in to continue.");
+        }
       }
 
-      if (!token) {
-        alert("You are not logged in. Please sign in to continue.");
-        return;
-      }
+      // Step 1: Refresh session token to prevent expiration
+      const { error: refreshError } = await supabase.auth.refreshSession();
+      if (refreshError) throw new Error("Session refresh failed. Please log in again.");
 
-      console.log("Using token:", token);
-
-      // Step 1: Fetch user profile to check premium status
-      const res = await fetch(`${API_BASE_URL}/profile`, {
+      // Step 2: Fetch user profile to check subscription
+      const res = await fetch(`${API_BASE_URL}/auth/profile`, {
         headers: { Authorization: `Bearer ${token}` },
       });
+
+      if (!res.ok) throw new Error("Failed to fetch user profile.");
+
       const user = await res.json();
 
-      if (!user.is_premium) {
-        console.log("Creating subscription session with token:", token);
-        const checkoutRes = await fetch(`${API_BASE_URL}/payments/create-subscription-session`, {
+      if (user.is_premium) {
+        // Proceed with compile if already subscribed
+        toast.loading("Compiling with Tess...", { id: "compile" });
+
+        const compileRes = await fetch(`${API_BASE_URL}/personalities/compile`, {
           method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...profile, user_id: user.user_id }),
         });
-        const { checkout_url } = await checkoutRes.json();
-        window.location.href = checkout_url;
+
+        if (!compileRes.ok) throw new Error("Compilation failed. Please try again.");
+
+        const data = await compileRes.json();
+        toast.success("Compiled successfully!", { id: "compile" });
+        console.log("Compilation result:", data);
         return;
       }
 
-      const compileRes = await fetch(`${API_BASE_URL}/personalities/compile`, {
+      // If not subscribed, initiate Stripe checkout
+      toast.loading("Redirecting to Stripe...", { id: "compile" });
+
+      const checkoutRes = await fetch(`${API_BASE_URL}/payments/create-subscription-session`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
-        body: JSON.stringify(profile),
       });
 
-      const { compiled_prompt } = await compileRes.json();
-      alert(`Compiled Prompt:\n\n${compiled_prompt}`);
+      const checkoutData = await checkoutRes.json();
+
+      if (checkoutData.checkout_url) {
+        window.location.href = checkoutData.checkout_url;
+      } else {
+        toast.success("You already have an active subscription.", { id: "compile" });
+      }
 
     } catch (err: any) {
       console.error("Error during compile:", err);
-
-      if (err instanceof SyntaxError) {
-        alert("Token is likely invalid or missing. Please sign in again.");
-      } else if (err.message) {
-        alert(`Error: ${err.message}`);
-      } else {
-        alert("Something went wrong. Please try again.");
-      }
+      toast.error(err.message || "Something went wrong. Please try again.", { id: "compile" });
     }
   };
+
 
   const generatePrompt = () => {
     return `You are an AI agent with the following traits:
