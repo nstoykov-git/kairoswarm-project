@@ -53,39 +53,46 @@ export default function DefTools() {
   };
 
   const handleCompile = async () => {
-  try {
-    // Step 1: Fetch user profile to check premium status
-    const res = await fetch("/api/auth/profile", {
-      headers: { Authorization: `Bearer ${localStorage.getItem("access_token")}` },
-    });
-    const user = await res.json();
+    try {
+      const token = localStorage.getItem("access_token");
+      if (!token) {
+        alert("You are not logged in. Please sign in to continue.");
+        return;
+      }
 
-    if (!user.is_premium) {
-      // Step 2: User is not premium → Start subscription
-      const checkoutRes = await fetch("/api/payments/create-subscription-session", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${localStorage.getItem("access_token")}` },
+      // Step 1: Fetch user profile to check premium status
+      const res = await fetch("/api/auth/profile", {
+        headers: { Authorization: `Bearer ${token}` },
       });
-      const { checkout_url } = await checkoutRes.json();
-      window.location.href = checkout_url;
-      return;
+      const user = await res.json();
+
+      if (!user.is_premium) {
+        // Step 2: User is not premium → Start subscription
+        const checkoutRes = await fetch("/api/payments/create-subscription-session", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const { checkout_url } = await checkoutRes.json();
+        window.location.href = checkout_url;
+        return;
+      }
+
+      // Step 3: User is premium → Compile with Tess
+      const compileRes = await fetch("/api/personalities/compile", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: JSON.stringify(profile),
+      });
+
+      const { compiled_prompt } = await compileRes.json();
+      alert(`Compiled Prompt:\n\n${compiled_prompt}`);
+
+    } catch (err) {
+      console.error("Error during compile:", err);
+      alert("Something went wrong. Please try again.");
     }
+  };
 
-    // Step 3: User is premium → Compile with Tess
-    const compileRes = await fetch("/api/personalities/compile", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${localStorage.getItem("access_token")}` },
-      body: JSON.stringify(profile),
-    });
-
-    const { compiled_prompt } = await compileRes.json();
-    alert(`Compiled Prompt:\n\n${compiled_prompt}`);
-
-  } catch (err) {
-    console.error("Error during compile:", err);
-    alert("Something went wrong. Please try again.");
-  }
-};
 
   const generatePrompt = () => {
     return `You are an AI agent with the following traits:
