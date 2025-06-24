@@ -20,6 +20,8 @@ const traits = [
   { key: "neuroticism", label: "Neuroticism" },
 ];
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_MODAL_API_URL;
+
 export default function DefTools() {
   const router = useRouter();
   const [profile, setProfile] = useState({
@@ -54,23 +56,30 @@ export default function DefTools() {
 
   const handleCompile = async () => {
     try {
-      const token = localStorage.getItem("access_token");
+      let token = localStorage.getItem("access_token");
+
+      // If no manual token, try to get Supabase OAuth token
+      if (!token) {
+        const { data } = await supabase.auth.getSession();
+        token = data.session?.access_token || "";
+      }
+
       if (!token) {
         alert("You are not logged in. Please sign in to continue.");
         return;
       }
 
+      console.log("Using token:", token);
+
       // Step 1: Fetch user profile to check premium status
-      console.log("Fetching profile with token:", token);
-      const res = await fetch("/api/auth/profile", {
+      const res = await fetch(`${API_BASE_URL}/profile`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const user = await res.json();
 
       if (!user.is_premium) {
-        // Step 2: User is not premium → Start subscription
         console.log("Creating subscription session with token:", token);
-        const checkoutRes = await fetch("/api/payments/create-subscription-session", {
+        const checkoutRes = await fetch(`${API_BASE_URL}/payments/create-subscription-session`, {
           method: "POST",
           headers: { Authorization: `Bearer ${token}` },
         });
@@ -79,8 +88,7 @@ export default function DefTools() {
         return;
       }
 
-      // Step 3: User is premium → Compile with Tess
-      const compileRes = await fetch("/api/personalities/compile", {
+      const compileRes = await fetch(`${API_BASE_URL}/personalities/compile`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
         body: JSON.stringify(profile),
@@ -89,8 +97,7 @@ export default function DefTools() {
       const { compiled_prompt } = await compileRes.json();
       alert(`Compiled Prompt:\n\n${compiled_prompt}`);
 
-    } 
-    catch (err: any) {
+    } catch (err: any) {
       console.error("Error during compile:", err);
 
       if (err instanceof SyntaxError) {
@@ -102,7 +109,6 @@ export default function DefTools() {
       }
     }
   };
-
 
   const generatePrompt = () => {
     return `You are an AI agent with the following traits:
