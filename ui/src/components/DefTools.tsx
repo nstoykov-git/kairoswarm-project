@@ -1,6 +1,7 @@
 "use client";
 
 // src/components/DefTools.tsx
+import { Suspense } from "react";
 import { useEffect } from "react";
 import toast from "react-hot-toast";
 import { useSearchParams } from 'next/navigation';
@@ -24,7 +25,15 @@ const traits = [
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_MODAL_API_URL;
 
-export default function DefTools() {
+export default function DefToolsWrapper() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <DefTools />
+    </Suspense>
+  );
+}
+
+function DefTools() {
   const router = useRouter();
   const [profile, setProfile] = useState({
     openness: 0.5,
