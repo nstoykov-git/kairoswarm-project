@@ -1,11 +1,12 @@
-import TopBar from "@/components/TopBar";
-import DefTools from "@/components/DefTools";
+// src/app/def-tools/page.tsx
+import { Suspense } from 'react';
+import DefTools from '@/components/DefTools';
 
 export default function DefToolsPage() {
   return (
-    <>
-      <TopBar />
+    <Suspense fallback={<div>Loading...</div>}>
       <DefTools />
-    </>
+    </Suspense>
   );
 }
+
