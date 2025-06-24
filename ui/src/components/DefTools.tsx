@@ -112,6 +112,32 @@ export default function DefTools() {
       <Button variant="secondary" onClick={() => router.push('/')}>⬅ Back to Dashboard</Button>
 
       <div className="space-y-4">
+        {['openness', 'conscientiousness', 'extraversion', 'agreeableness', 'neuroticism'].map((trait) => (
+          <div key={trait} className="space-y-2">
+            <label className="text-black capitalize text-lg font-semibold">{trait}</label>
+            <Slider
+              value={[profile[trait as keyof typeof profile]]}
+              onValueChange={([val]) => setProfile((prev) => ({ ...prev, [trait]: val }))}
+              min={0}
+              max={1}
+              step={0.01}
+            />
+          </div>
+        ))}
+
+        <Card>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <RadarChart data={profileData} outerRadius={100}>
+                <PolarGrid />
+                <PolarAngleAxis dataKey="trait" tick={{ fill: 'black', fontSize: 12, fontWeight: 'bold' }} />
+                <PolarRadiusAxis angle={30} domain={[0, 1]} />
+                <Radar name="Profile" dataKey="value" stroke="#8884d8" fill="#8884d8" fillOpacity={0.6} />
+              </RadarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
         <Input
           value={compileInput}
           onChange={(e) => setCompileInput(e.target.value)}
@@ -135,32 +161,6 @@ export default function DefTools() {
           onChange={(e) => setEtiquetteGuidelines(e.target.value)}
           placeholder="Enter etiquette guidelines..."
         />
-
-        {['openness', 'conscientiousness', 'extraversion', 'agreeableness', 'neuroticism'].map((trait) => (
-          <div key={trait} className="space-y-2">
-            <label className="text-black capitalize">{trait}</label>
-            <Slider
-              value={[profile[trait as keyof typeof profile]]}
-              onValueChange={([val]) => setProfile((prev) => ({ ...prev, [trait]: val }))}
-              min={0}
-              max={1}
-              step={0.01}
-            />
-          </div>
-        ))}
-
-        <Card>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <RadarChart data={profileData} outerRadius={100}>
-                <PolarGrid />
-                <PolarAngleAxis dataKey="trait" />
-                <PolarRadiusAxis angle={30} domain={[0, 1]} />
-                <Radar name="Profile" dataKey="value" stroke="#8884d8" fill="#8884d8" fillOpacity={0.6} />
-              </RadarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
 
         <Button variant="secondary" onClick={handleCompile} disabled={compiling}>
           {compiling ? 'Compiling...' : 'Compile with Tess'}
