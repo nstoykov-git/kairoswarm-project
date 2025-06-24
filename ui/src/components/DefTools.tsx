@@ -4,6 +4,7 @@
 import { supabase } from "@/lib/supabase";
 import { useEffect } from "react";
 import toast from "react-hot-toast";
+import { useSearchParams } from 'next/navigation';
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
@@ -38,6 +39,19 @@ export default function DefTools() {
   const [savedProfiles, setSavedProfiles] = useState<{ name: string; profile: typeof profile }[]>([]);
   const [newProfileName, setNewProfileName] = useState("");
 
+  // Inside your component
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    if (searchParams.get('success') === 'true') {
+      toast.success('🎉 Subscription successful! Welcome to Kairoswarm Premium.');
+    }
+
+    if (searchParams.get('canceled') === 'true') {
+      toast.error('You canceled the subscription checkout.');
+    }
+  }, [searchParams]);
+  
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
 
