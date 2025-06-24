@@ -6,8 +6,11 @@ import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Slider } from '@/components/ui/slider';
 import { toast } from 'react-hot-toast';
 import { supabase } from '@/lib/supabase';
+import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from 'recharts';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_MODAL_API_URL;
 
@@ -17,6 +20,14 @@ export default function DefTools() {
 
   const [compileInput, setCompileInput] = useState('');
   const [compiling, setCompiling] = useState(false);
+
+  const [profile, setProfile] = useState({
+    openness: 0.5,
+    conscientiousness: 0.5,
+    extraversion: 0.5,
+    agreeableness: 0.5,
+    neuroticism: 0.5,
+  });
 
   useEffect(() => {
     if (searchParams.get('success')) {
@@ -62,14 +73,13 @@ export default function DefTools() {
         return;
       }
 
-      // If no checkout_url, the user is already subscribed
       const compileRes = await fetch(`${API_BASE_URL}/personalities/compile`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ input: compileInput }),
+        body: JSON.stringify({ input: compileInput, profile }),
       });
 
       const compileData = await compileRes.json();
@@ -87,6 +97,14 @@ export default function DefTools() {
     }
   };
 
+  const profileData = [
+    { trait: 'Openness', value: profile.openness },
+    { trait: 'Conscientiousness', value: profile.conscientiousness },
+    { trait: 'Extraversion', value: profile.extraversion },
+    { trait: 'Agreeableness', value: profile.agreeableness },
+    { trait: 'Neuroticism', value: profile.neuroticism },
+  ];
+
   return (
     <div className="p-6 space-y-6">
       <h1 className="text-2xl font-bold text-black">Agent Personality Builder</h1>
@@ -98,6 +116,32 @@ export default function DefTools() {
           onChange={(e) => setCompileInput(e.target.value)}
           placeholder="Enter compile instructions here..."
         />
+
+        {['openness', 'conscientiousness', 'extraversion', 'agreeableness', 'neuroticism'].map((trait) => (
+          <div key={trait} className="space-y-2">
+            <label className="text-black capitalize">{trait}</label>
+            <Slider
+              value={[profile[trait as keyof typeof profile]]}
+              onValueChange={([val]) => setProfile((prev) => ({ ...prev, [trait]: val }))}
+              min={0}
+              max={1}
+              step={0.01}
+            />
+          </div>
+        ))}
+
+        <Card>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <RadarChart data={profileData} outerRadius={100}>
+                <PolarGrid />
+                <PolarAngleAxis dataKey="trait" />
+                <PolarRadiusAxis angle={30} domain={[0, 1]} />
+                <Radar name="Profile" dataKey="value" stroke="#8884d8" fill="#8884d8" fillOpacity={0.6} />
+              </RadarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
 
         <Button variant="secondary" onClick={handleCompile} disabled={compiling}>
           {compiling ? 'Compiling...' : 'Compile with Tess'}
