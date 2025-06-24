@@ -79,8 +79,9 @@ app = App(
         Secret.from_name("upstash-redis-url"),
         Secret.from_name("openai-key"),
         Secret.from_name("supabase-credentials"),
-        Secret.from_name("stripe-secret-key"),\
-        Secret.from_name("stripe-prices")
+        Secret.from_name("stripe-secret-key"),
+        Secret.from_name("stripe-prices"),
+        Secret.from_name("platform-domain")
     ]
 )
 
