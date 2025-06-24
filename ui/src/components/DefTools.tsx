@@ -61,6 +61,7 @@ export default function DefTools() {
       }
 
       // Step 1: Fetch user profile to check premium status
+      console.log("Fetching profile with token:", token);
       const res = await fetch("/api/auth/profile", {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -68,6 +69,7 @@ export default function DefTools() {
 
       if (!user.is_premium) {
         // Step 2: User is not premium → Start subscription
+        console.log("Creating subscription session with token:", token);
         const checkoutRes = await fetch("/api/payments/create-subscription-session", {
           method: "POST",
           headers: { Authorization: `Bearer ${token}` },
@@ -87,9 +89,17 @@ export default function DefTools() {
       const { compiled_prompt } = await compileRes.json();
       alert(`Compiled Prompt:\n\n${compiled_prompt}`);
 
-    } catch (err) {
+    } 
+    catch (err: any) {
       console.error("Error during compile:", err);
-      alert("Something went wrong. Please try again.");
+
+      if (err instanceof SyntaxError) {
+        alert("Token is likely invalid or missing. Please sign in again.");
+      } else if (err.message) {
+        alert(`Error: ${err.message}`);
+      } else {
+        alert("Something went wrong. Please try again.");
+      }
     }
   };
 
