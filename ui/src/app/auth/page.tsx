@@ -83,6 +83,7 @@ export default function AuthPage() {
 
       localStorage.setItem("kairoswarm_user_id", data.user_id);
       localStorage.setItem("kairoswarm_user_email", data.email);
+      localStorage.setItem("access_token", data.access_token);
 
       setMessage("✅ Signed in!");
     } catch (err) {
