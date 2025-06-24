@@ -1,6 +1,7 @@
 "use client";
 
 // src/components/DefTools.tsx
+import { supabase } from "@/lib/supabase";
 import { useEffect } from "react";
 import toast from "react-hot-toast";
 import { useState } from "react";
@@ -11,7 +12,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from 'recharts';
-import { supabase } from "@/lib/supabase";
 
 const traits = [
   { key: "openness", label: "Openness" },
