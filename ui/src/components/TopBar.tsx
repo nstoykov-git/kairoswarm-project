@@ -2,7 +2,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { LogIn, LogOut } from "lucide-react";
+import { LogIn, LogOut, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useUser } from "@/context/UserContext";
 
@@ -23,6 +23,9 @@ export default function TopBar() {
           {user ? (
             <>
               <span className="text-white text-sm">{user.display_name || user.email}</span>
+              <Button variant="secondary" size="sm" onClick={() => router.push('/profile')}>
+                <User className="w-4 h-4 mr-1" /> Profile
+              </Button>
               <Button variant="secondary" size="sm" onClick={handleSignOut}>
                 <LogOut className="w-4 h-4 mr-1" /> Sign Out
               </Button>
