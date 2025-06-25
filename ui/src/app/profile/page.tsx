@@ -17,7 +17,13 @@ export default function ProfilePage() {
 
   useEffect(() => {
     const fetchProfile = async () => {
-      const token = localStorage.getItem('kairoswarm_token');
+      let token = localStorage.getItem('kairoswarm_token') || '';
+
+      if (!token) {
+        const { data } = await supabase.auth.getSession();
+        token = data.session?.access_token || '';
+      }
+
       if (!token) {
         toast.error('You must be signed in.');
         router.push('/auth');
@@ -49,7 +55,13 @@ export default function ProfilePage() {
 
   const handleCancelSubscription = async () => {
     try {
-      const token = localStorage.getItem('kairoswarm_token');
+      let token = localStorage.getItem('kairoswarm_token') || '';
+
+      if (!token) {
+        const { data } = await supabase.auth.getSession();
+        token = data.session?.access_token || '';
+      }
+
       if (!token) {
         toast.error('You must be signed in.');
         return;
