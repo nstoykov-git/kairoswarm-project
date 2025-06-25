@@ -1,3 +1,4 @@
+import logging
 from pydantic import BaseModel
 from fastapi import APIRouter, HTTPException, Request
 from modal_api.utils.services import get_supabase
@@ -115,42 +116,71 @@ async def signout(payload: SignOutRequest):
 
 # --- Profile ---
 
+# --- Profile ---
+
 @router.get("/profile")
 async def get_profile(request: Request):
-    # 1) grab bearer token
-    auth_header = request.headers.get("Authorization") or ""
-    if not auth_header.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Missing or invalid token")
-    token = auth_header.split(" ", 1)[1]
+    try:
+        # 1) Grab bearer token
+        auth_header = request.headers.get("Authorization") or ""
+        if not auth_header.startswith("Bearer "):
+            raise HTTPException(status_code=401, detail="Missing or invalid token")
+        token = auth_header.split(" ", 1)[1]
 
-    # 2) validate & decode it via Supabase
-    supabase = get_supabase()
-    user_resp = supabase.auth.get_user(token)
-    if not user_resp or not user_resp.user:
-        raise HTTPException(status_code=401, detail="Invalid or expired session")
+        # 2) Validate & decode it via Supabase
+        supabase = get_supabase()
+        user_resp = supabase.auth.get_user(token)
+        if not user_resp or not user_resp.user:
+            raise HTTPException(status_code=401, detail="Invalid or expired session")
 
-    user = user_resp.user
+        user = user_resp.user
 
-    # 3) look up your own profile table for display_name
-    profile_resp = (
-        supabase
-        .from_("users")
-        .select("display_name")
-        .eq("id", user.id)
-        .single()
-        .execute()
-    )
-    display_name = profile_resp.data.get("display_name") if profile_resp.data else None
-    profile_data = profile_resp.data if profile_resp.data else {}
-    
-    # 4) return everything in one shot
-    return {
-        "user_id":      user.id,
-        "email":        user.email,
-        "display_name": display_name,
-        "is_premium": profile_data.get("is_premium", False),
-    }
+        # 3) Lookup display_name from our users table
+        profile_resp = (
+            supabase
+            .from_("users")
+            .select("display_name")
+            .eq("id", user.id)
+            .single()
+            .execute()
+        )
+        display_name = profile_resp.data.get("display_name") if profile_resp.data else None
 
+        # 4) Check active subscriptions via Stripe
+        import stripe
+        import os
+
+        stripe.api_key = os.environ.get("STRIPE_SECRET_KEY", "")
+        STRIPE_PREMIUM_PRICE_ID = os.environ.get("STRIPE_PREMIUM_PRICE_ID")
+
+        customers = stripe.Customer.list(email=user.email)
+        is_premium = False
+
+        if customers.data:
+            customer_id = customers.data[0].id
+            stripe_subscriptions = stripe.Subscription.list(customer=customer_id, status="active")
+
+            if any(
+                item["price"]["id"] == STRIPE_PREMIUM_PRICE_ID
+                for subscription in stripe_subscriptions.auto_paging_iter()
+                for item in subscription["items"]["data"]
+            ):
+                is_premium = True
+
+        # 5) Return everything in one shot
+        return {
+            "user_id": user.id,
+            "email": user.email,
+            "display_name": display_name,
+            "is_premium": is_premium,
+        }
+
+    except Exception as e:
+        logging.exception("Profile fetch failed")
+        raise HTTPException(status_code=500, detail=f"Error fetching profile: {str(e)}")
+
+
+# --- Get Current User ---
 
 
 async def get_current_user(authorization: str = Header(...)):

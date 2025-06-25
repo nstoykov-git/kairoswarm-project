@@ -14,47 +14,49 @@ export default function ProfilePage() {
   const router = useRouter();
   const [userProfile, setUserProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [canceling, setCanceling] = useState(false);
+
+  const fetchProfile = async () => {
+    let token = localStorage.getItem('kairoswarm_token') || '';
+
+    if (!token) {
+      const { data } = await supabase.auth.getSession();
+      token = data.session?.access_token || '';
+    }
+
+    if (!token) {
+      toast.error('You must be signed in.');
+      router.push('/auth');
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/auth/profile`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.detail || 'Failed to fetch profile.');
+      }
+
+      setUserProfile(data);
+    } catch (err: any) {
+      console.error('Error fetching profile:', err);
+      toast.error(err.message || 'Failed to fetch profile.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchProfile = async () => {
-      let token = localStorage.getItem('kairoswarm_token') || '';
-
-      if (!token) {
-        const { data } = await supabase.auth.getSession();
-        token = data.session?.access_token || '';
-      }
-
-      if (!token) {
-        toast.error('You must be signed in.');
-        router.push('/auth');
-        return;
-      }
-
-      try {
-        const res = await fetch(`${API_BASE_URL}/auth/profile`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-
-        const data = await res.json();
-
-        if (!res.ok) {
-          throw new Error(data.detail || 'Failed to fetch profile.');
-        }
-
-        setUserProfile(data);
-      } catch (err: any) {
-        console.error('Error fetching profile:', err);
-        toast.error(err.message || 'Failed to fetch profile.');
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchProfile();
   }, [router]);
 
   const handleCancelSubscription = async () => {
     try {
+      setCanceling(true);
       let token = localStorage.getItem('kairoswarm_token') || '';
 
       if (!token) {
@@ -79,10 +81,12 @@ export default function ProfilePage() {
       }
 
       toast.success('✅ Subscription canceled.');
-      router.refresh();
+      await fetchProfile();  // Refresh local profile state
     } catch (err: any) {
       console.error('Cancellation error:', err);
       toast.error(err.message || 'Something went wrong.');
+    } finally {
+      setCanceling(false);
     }
   };
 
@@ -110,8 +114,8 @@ export default function ProfilePage() {
           </p>
 
           {userProfile.is_premium && (
-            <Button variant="destructive" onClick={handleCancelSubscription}>
-              Cancel Subscription
+            <Button variant="destructive" onClick={handleCancelSubscription} disabled={canceling}>
+              {canceling ? 'Cancelling...' : 'Cancel Subscription'}
             </Button>
           )}
         </div>
