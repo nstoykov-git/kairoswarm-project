@@ -46,7 +46,7 @@ export default function DefTools() {
     }
   }, [searchParams, router]);
 
-  const handleCompile = async () => {
+  const handleCompileWithTess = async () => {
     try {
       setCompiling(true);
       setCompiledMessage("");
@@ -88,7 +88,7 @@ export default function DefTools() {
 
       if (data.message) {
         setCompiledMessage(data.message);
-        toast.success("✅ Compilation successful!");
+        toast.success("✅ Tess compiled your instructions!");
         return;
       }
 
@@ -99,6 +99,31 @@ export default function DefTools() {
     } finally {
       setCompiling(false);
     }
+  };
+
+  const handleFreeCompile = () => {
+    const freePrompt = `
+Agent Name: ${compileInput || "Your Agent"}
+
+Personality Profile:
+- Openness: ${profile.openness}
+- Conscientiousness: ${profile.conscientiousness}
+- Extraversion: ${profile.extraversion}
+- Agreeableness: ${profile.agreeableness}
+- Neuroticism: ${profile.neuroticism}
+
+Personal Stories:
+${personalStories || "None provided."}
+
+Economic Considerations:
+${economicConsiderations || "None provided."}
+
+Etiquette Guidelines:
+${etiquetteGuidelines || "None provided."}
+    `;
+
+    setCompiledMessage(freePrompt);
+    toast.success("✅ Basic system prompt generated.");
   };
 
   const profileData = [
@@ -167,9 +192,15 @@ export default function DefTools() {
           placeholder="Enter etiquette guidelines..."
         />
 
-        <Button variant="secondary" onClick={handleCompile} disabled={compiling}>
-          {compiling ? "Compiling..." : "Compile with Tess"}
-        </Button>
+        <div className="flex gap-4">
+          <Button variant="secondary" onClick={handleCompileWithTess} disabled={compiling}>
+            {compiling ? "Compiling with Tess..." : "Compile with Tess"}
+          </Button>
+
+          <Button variant="outline" onClick={handleFreeCompile}>
+            Compile without Tess
+          </Button>
+        </div>
 
         {compiledMessage && (
           <Card className="bg-gray-800 text-white p-4 mt-4">
