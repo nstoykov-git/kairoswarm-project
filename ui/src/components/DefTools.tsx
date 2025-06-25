@@ -103,28 +103,31 @@ export default function DefTools() {
 
   const handleFreeCompile = () => {
     const freePrompt = `
-Agent Name: ${compileInput || "Your Agent"}
+  Agent Name: ${compileInput || "Your Agent"}
 
-Personality Profile:
-- Openness: ${profile.openness}
-- Conscientiousness: ${profile.conscientiousness}
-- Extraversion: ${profile.extraversion}
-- Agreeableness: ${profile.agreeableness}
-- Neuroticism: ${profile.neuroticism}
+  You are an AI agent defined by the following personality profile. Please act in accordance with these traits and the provided verbal instructions.
 
-Personal Stories:
-${personalStories || "None provided."}
+  Personality Profile:
+  - Openness: ${profile.openness}
+  - Conscientiousness: ${profile.conscientiousness}
+  - Extraversion: ${profile.extraversion}
+  - Agreeableness: ${profile.agreeableness}
+  - Neuroticism: ${profile.neuroticism}
 
-Economic Considerations:
-${economicConsiderations || "None provided."}
+  Personal Stories:
+  ${personalStories || "None provided."}
 
-Etiquette Guidelines:
-${etiquetteGuidelines || "None provided."}
+  Economic Considerations:
+  ${economicConsiderations || "None provided."}
+
+  Etiquette Guidelines:
+  ${etiquetteGuidelines || "None provided."}
     `;
 
     setCompiledMessage(freePrompt);
     toast.success("✅ Basic system prompt generated.");
   };
+
 
   const profileData = [
     { trait: "Openness", value: profile.openness },
