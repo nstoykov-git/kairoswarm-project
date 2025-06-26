@@ -81,6 +81,8 @@ app = App(
         Secret.from_name("supabase-credentials"),
         Secret.from_name("stripe-secret-key"),
         Secret.from_name("stripe-prices"),
+        Secret.from_name("stripe-live-credentials"),
+        Secret.from_name("stripe-mode"),
         Secret.from_name("platform-domain")
     ]
 )
