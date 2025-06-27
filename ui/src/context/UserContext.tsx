@@ -1,3 +1,5 @@
+// src/context/UserContext.tsx
+
 "use client";
 
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
@@ -7,7 +9,9 @@ type UserProfile = {
   id: string;
   email: string;
   display_name?: string;
-  stripe_onboarding_complete: boolean;
+  stripe_account_id?: string;
+  stripe_onboarding_complete?: boolean;
+  is_premium?: boolean;
 };
 
 type UserContextType = {
@@ -33,17 +37,10 @@ export function UserProvider({ children }: { children: ReactNode }) {
       method: "GET",
       headers: { Authorization: `Bearer ${token}` },
     });
-
     if (!res.ok) throw new Error("Failed to fetch profile");
 
-    const { user_id, email, display_name, stripe_onboarding_complete } = await res.json();
-
-    setUser({
-      id: user_id,
-      email,
-      display_name,
-      stripe_onboarding_complete: stripe_onboarding_complete ?? false,
-    });
+    const { user_id, email, display_name, stripe_account_id, stripe_onboarding_complete, is_premium } = await res.json();
+    setUser({ id: user_id, email, display_name, stripe_account_id, stripe_onboarding_complete, is_premium });
   }
 
   const loadUser = async () => {
@@ -55,7 +52,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
     }
 
     const token = data.session.access_token;
-
     try {
       await fetchProfile(token);
     } catch (err) {
@@ -79,6 +75,10 @@ export function UserProvider({ children }: { children: ReactNode }) {
           await fetchProfile(session.access_token);
         } catch (err) {
           setUser(null);
+        }
+        // ✅ Clean the URL after the session is captured
+        if (window.location.hash) {
+          window.history.replaceState({}, document.title, "/");
         }
       } else {
         setUser(null);

@@ -8,7 +8,6 @@ import "./globals.css";
 import { ReactNode } from "react";
 import { UserProvider } from "@/context/UserContext";
 import Footer from "@/components/Footer";
-import UrlCleanup from "@/components/UrlCleanup";
 
 const geistSans = Geist({
   subsets: ["latin"],
@@ -30,7 +29,6 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <UserProvider>
-          <UrlCleanup />
           {children}
           <Footer />
         </UserProvider>
