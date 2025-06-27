@@ -28,6 +28,7 @@ api.add_middleware(
     allow_origins=[
         "https://kairoswarm-project.vercel.app",
         "https://kairoswarm.nextminds.network",
+        "https://www.kairoswarm.com"
     ],
     allow_credentials=True,
     allow_methods=["*"],
