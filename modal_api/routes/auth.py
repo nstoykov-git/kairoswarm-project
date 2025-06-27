@@ -116,8 +116,6 @@ async def signout(payload: SignOutRequest):
 
 # --- Profile ---
 
-# --- Profile ---
-
 @router.get("/profile")
 async def get_profile(request: Request):
     try:
@@ -135,16 +133,22 @@ async def get_profile(request: Request):
 
         user = user_resp.user
 
-        # 3) Lookup display_name from our users table
+        # 3) Lookup display_name + payout info from our users table
         profile_resp = (
             supabase
             .from_("users")
-            .select("display_name")
+            .select("display_name, stripe_account_id, stripe_onboarding_complete")
             .eq("id", user.id)
             .single()
             .execute()
         )
-        display_name = profile_resp.data.get("display_name") if profile_resp.data else None
+
+        if not profile_resp.data:
+            raise HTTPException(status_code=404, detail="User not found in local table")
+
+        display_name = profile_resp.data.get("display_name")
+        stripe_account_id = profile_resp.data.get("stripe_account_id")
+        stripe_onboarding_complete = profile_resp.data.get("stripe_onboarding_complete", False)
 
         # 4) Check active subscriptions via Stripe
         import stripe
@@ -173,6 +177,8 @@ async def get_profile(request: Request):
             "email": user.email,
             "display_name": display_name,
             "is_premium": is_premium,
+            "stripe_account_id": stripe_account_id,
+            "stripe_onboarding_complete": stripe_onboarding_complete
         }
 
     except Exception as e:
@@ -181,7 +187,6 @@ async def get_profile(request: Request):
 
 
 # --- Get Current User ---
-
 
 async def get_current_user(authorization: str = Header(...)):
     if not authorization.startswith("Bearer "):

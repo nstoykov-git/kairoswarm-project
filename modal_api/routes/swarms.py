@@ -5,9 +5,10 @@ from datetime import datetime
 
 import openai
 from pydantic import BaseModel
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request, Depends
 from fastapi.responses import JSONResponse
 
+from modal_api.routes.auth import get_current_user
 from modal_api.utils.services import get_redis, get_supabase
 from modal_api.utils.services import EmbeddingRequest, generate_embedding
 
@@ -274,3 +275,30 @@ async def publish_agent(payload: PublishAgentRequest):
     except Exception as e:
         logging.exception("❌ Failed to publish agent")
         raise HTTPException(status_code=500, detail=f"Agent publish failed: {str(e)}")
+
+
+@router.post("/unpublish-agent")
+async def unpublish_agent(request: Request, user=Depends(get_current_user)):
+    try:
+        body = await request.json()
+        agent_id = body.get("agent_id")
+
+        if not agent_id:
+            raise HTTPException(status_code=400, detail="Agent ID is required.")
+
+        supabase = get_supabase()
+
+        # Verify agent ownership
+        agent_resp = supabase.table("agents").select("user_id").eq("id", agent_id).single().execute()
+
+        if not agent_resp.data or agent_resp.data["user_id"] != user["id"]:
+            raise HTTPException(status_code=403, detail="You do not have permission to unpublish this agent.")
+
+        # Perform soft delete
+        supabase.table("agents").update({"is_published": False}).eq("id", agent_id).execute()
+
+        return {"status": "success", "message": "Agent unpublished successfully."}
+
+    except Exception as e:
+        logging.exception("Failed to unpublish agent")
+        raise HTTPException(status_code=500, detail=f"Error unpublishing agent: {str(e)}")

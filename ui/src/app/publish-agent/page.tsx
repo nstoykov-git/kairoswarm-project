@@ -1,5 +1,6 @@
 "use client";
 
+import { toast } from 'react-hot-toast';
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
@@ -48,41 +49,50 @@ export default function PublishAgentPage() {
     }));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setStatus("idle");
-    setErrorMessage("");
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  setStatus("idle");
+  setErrorMessage("");
 
-    try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_MODAL_API_URL}/swarm/publish-agent`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          assistant_id: form.agentId,
-          name: form.name,
-          description: form.description,
-          skills: form.skills.split(",").map((s) => s.trim()),
-          price: parseFloat(form.price),
-          is_negotiable: form.isNegotiable,
-          has_free_tier: form.hasFreeTier,
-          user_id: form.userId,
-        }),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        setErrorMessage(error.detail || "Something went wrong");
-        setStatus("error");
-        return;
-      }
-
-      setStatus("success");
-      setShowToast(true);
-    } catch (error) {
-      setErrorMessage("Network error. Please try again.");
+  try {
+    if (parseFloat(form.price) > 0 && (!user || !user.stripe_onboarding_complete)) {
+      setErrorMessage("You must complete developer onboarding before publishing paid agents.");
       setStatus("error");
+      toast.error("Please complete developer onboarding first.");
+      router.push("/profile");
+      return;
     }
-  };
+
+    const response = await fetch(`${process.env.NEXT_PUBLIC_MODAL_API_URL}/swarm/publish-agent`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        assistant_id: form.agentId,
+        name: form.name,
+        description: form.description,
+        skills: form.skills.split(",").map((s) => s.trim()),
+        price: parseFloat(form.price),
+        is_negotiable: form.isNegotiable,
+        has_free_tier: form.hasFreeTier,
+        user_id: form.userId,
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      setErrorMessage(error.detail || "Something went wrong");
+      setStatus("error");
+      return;
+    }
+
+    setStatus("success");
+    setShowToast(true);
+  } catch (error) {
+    setErrorMessage("Network error. Please try again.");
+    setStatus("error");
+  }
+};
+
 
   const handleNewAgent = () => {
     setForm({
@@ -145,6 +155,9 @@ export default function PublishAgentPage() {
           <div>
             <Label htmlFor="price">Daily Rate ($)</Label>
             <Input name="price" type="number" value={form.price} onChange={handleChange} required />
+            <p className="text-sm text-gray-500 mt-1">
+              Publishing paid agents requires Stripe onboarding to ensure you get paid.
+            </p>
           </div>
 
           <div className="flex items-center gap-2">

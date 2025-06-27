@@ -15,6 +15,7 @@ export default function ProfilePage() {
   const [userProfile, setUserProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [canceling, setCanceling] = useState(false);
+  const [onboardingInProgress, setOnboardingInProgress] = useState(false);
 
   const fetchProfile = async () => {
     let token = localStorage.getItem('kairoswarm_token') || '';
@@ -54,6 +55,66 @@ export default function ProfilePage() {
     fetchProfile();
   }, [router]);
 
+  const startOnboarding = async () => {
+    try {
+      setOnboardingInProgress(true);
+      let token = localStorage.getItem('kairoswarm_token') || '';
+
+      if (!token) {
+        const { data } = await supabase.auth.getSession();
+        token = data.session?.access_token || '';
+      }
+
+      const res = await fetch(`${API_BASE_URL}/accounts/create-connect-account`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.detail || 'Onboarding failed.');
+      }
+
+      window.location.href = data.url; // Redirect to Stripe onboarding
+    } catch (err: any) {
+      console.error('Onboarding error:', err);
+      toast.error(err.message || 'Onboarding failed.');
+    } finally {
+      setOnboardingInProgress(false);
+    }
+  };
+
+  const refreshOnboarding = async () => {
+    try {
+      setOnboardingInProgress(true);
+      let token = localStorage.getItem('kairoswarm_token') || '';
+
+      if (!token) {
+        const { data } = await supabase.auth.getSession();
+        token = data.session?.access_token || '';
+      }
+
+      const res = await fetch(`${API_BASE_URL}/accounts/refresh-onboarding-link`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.detail || 'Refresh failed.');
+      }
+
+      window.location.href = data.url; // Redirect to Stripe onboarding
+    } catch (err: any) {
+      console.error('Refresh error:', err);
+      toast.error(err.message || 'Refresh failed.');
+    } finally {
+      setOnboardingInProgress(false);
+    }
+  };
+
   const handleCancelSubscription = async () => {
     try {
       setCanceling(true);
@@ -81,7 +142,7 @@ export default function ProfilePage() {
       }
 
       toast.success('✅ Subscription canceled.');
-      await fetchProfile();  // Refresh local profile state
+      await fetchProfile();
     } catch (err: any) {
       console.error('Cancellation error:', err);
       toast.error(err.message || 'Something went wrong.');
@@ -112,6 +173,27 @@ export default function ProfilePage() {
           <p>
             <strong>Premium:</strong> {userProfile.is_premium ? 'Yes' : 'No'}
           </p>
+          <Button variant="secondary" onClick={() => router.push('/profile/agents')}>
+            🗂️ My Agents
+          </Button>
+          <p className="text-sm text-gray-500 mt-1">
+            View and manage your published agents.
+          </p>
+          <p>
+            <strong>Developer Payouts:</strong> {userProfile.stripe_onboarding_complete ? '✅ Setup Complete' : '⚠️ Not Configured'}
+          </p>
+
+          {!userProfile.stripe_onboarding_complete && (
+            <div className="space-y-2">
+              <Button onClick={startOnboarding} disabled={onboardingInProgress}>
+                {onboardingInProgress ? 'Redirecting...' : 'Start Developer Onboarding'}
+              </Button>
+
+              <Button variant="outline" onClick={refreshOnboarding} disabled={onboardingInProgress}>
+                {onboardingInProgress ? 'Refreshing...' : 'Refresh Onboarding Link'}
+              </Button>
+            </div>
+          )}
 
           {userProfile.is_premium && (
             <Button variant="destructive" onClick={handleCancelSubscription} disabled={canceling}>

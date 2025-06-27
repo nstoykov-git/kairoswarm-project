@@ -7,6 +7,7 @@ type UserProfile = {
   id: string;
   email: string;
   display_name?: string;
+  stripe_onboarding_complete: boolean;
 };
 
 type UserContextType = {
@@ -32,10 +33,17 @@ export function UserProvider({ children }: { children: ReactNode }) {
       method: "GET",
       headers: { Authorization: `Bearer ${token}` },
     });
+
     if (!res.ok) throw new Error("Failed to fetch profile");
 
-    const { user_id, email, display_name } = await res.json();
-    setUser({ id: user_id, email, display_name });
+    const { user_id, email, display_name, stripe_onboarding_complete } = await res.json();
+
+    setUser({
+      id: user_id,
+      email,
+      display_name,
+      stripe_onboarding_complete: stripe_onboarding_complete ?? false,
+    });
   }
 
   const loadUser = async () => {
@@ -47,6 +55,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
     }
 
     const token = data.session.access_token;
+
     try {
       await fetchProfile(token);
     } catch (err) {
