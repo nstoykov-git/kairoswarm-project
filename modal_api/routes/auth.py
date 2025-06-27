@@ -1,8 +1,10 @@
+import os
 import logging
 from pydantic import BaseModel
 from fastapi import APIRouter, HTTPException, Request
 from modal_api.utils.services import get_supabase
 from fastapi import Header
+import stripe
 
 router = APIRouter()
 
@@ -151,11 +153,9 @@ async def get_profile(request: Request):
         stripe_onboarding_complete = profile_resp.data.get("stripe_onboarding_complete", False)
 
         # 4) Check active subscriptions via Stripe
-        import stripe
-        import os
-
-        stripe.api_key = os.environ.get("STRIPE_SECRET_KEY", "")
-        STRIPE_PREMIUM_PRICE_ID = os.environ.get("STRIPE_PREMIUM_PRICE_ID")
+        stripe_mode = os.environ.get("STRIPE_MODE", "test")
+        stripe.api_key = os.environ.get("STRIPE_LIVE_KEY" if stripe_mode == "live" else "STRIPE_SECRET_KEY", "")
+        STRIPE_PREMIUM_PRICE_ID = os.environ.get("STRIPE_LIVE_PREMIUM_PRICE_ID" if stripe_mode == "live" else "STRIPE_PREMIUM_PRICE_ID")
 
         customers = stripe.Customer.list(email=user.email)
         is_premium = False
