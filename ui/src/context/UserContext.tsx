@@ -1,5 +1,3 @@
-// src/context/UserContext.tsx
-
 "use client";
 
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
@@ -48,6 +46,10 @@ export function UserProvider({ children }: { children: ReactNode }) {
     if (error || !data.session) {
       setUser(null);
       setLoading(false);
+      // ✅ Clean the URL even if no session is found
+      if (window.location.hash) {
+        window.history.replaceState({}, document.title, "/");
+      }
       return;
     }
 
@@ -59,6 +61,11 @@ export function UserProvider({ children }: { children: ReactNode }) {
       setUser(null);
     }
     setLoading(false);
+
+    // ✅ Clean the URL after session is confirmed
+    if (window.location.hash) {
+      window.history.replaceState({}, document.title, "/");
+    }
   };
 
   const signOut = async () => {
@@ -76,12 +83,13 @@ export function UserProvider({ children }: { children: ReactNode }) {
         } catch (err) {
           setUser(null);
         }
-        // ✅ Clean the URL after the session is captured
-        if (window.location.hash) {
-          window.history.replaceState({}, document.title, "/");
-        }
       } else {
         setUser(null);
+      }
+
+      // ✅ Always clean the URL when auth state changes
+      if (window.location.hash) {
+        window.history.replaceState({}, document.title, "/");
       }
     });
 
