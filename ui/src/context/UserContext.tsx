@@ -48,8 +48,10 @@ export function UserProvider({ children }: { children: ReactNode }) {
       setLoading(false);
       // ✅ Clean the URL even if no session is found
       if (window.location.hash) {
-        window.history.replaceState({}, document.title, "/");
+        const cleanUrl = window.location.origin + window.location.pathname;
+        window.location.replace(cleanUrl);
       }
+
       return;
     }
 
@@ -64,8 +66,10 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
     // ✅ Clean the URL after session is confirmed
     if (window.location.hash) {
-      window.history.replaceState({}, document.title, "/");
+      const cleanUrl = window.location.origin + window.location.pathname;
+      window.location.replace(cleanUrl);
     }
+
   };
 
   const signOut = async () => {
@@ -89,8 +93,10 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
       // ✅ Always clean the URL when auth state changes
       if (window.location.hash) {
-        window.history.replaceState({}, document.title, "/");
+        const cleanUrl = window.location.origin + window.location.pathname;
+        window.location.replace(cleanUrl);
       }
+
     });
 
     return () => {
