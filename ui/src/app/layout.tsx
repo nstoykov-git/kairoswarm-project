@@ -1,11 +1,14 @@
-// app/layout.tsx (✅ server-only)
+// app/layout.tsx (✅ App Router, global cleanup)
+
+'use client';
 
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { ReactNode } from "react";
+import { ReactNode, useEffect } from "react";
 import { UserProvider } from "@/context/UserContext";
 import Footer from "@/components/Footer";
+import { supabase } from "@/lib/supabase";
 
 const geistSans = Geist({
   subsets: ["latin"],
@@ -23,6 +26,16 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
+
+  useEffect(() => {
+    // Supabase handles the session. This cleans the URL fragment.
+    supabase.auth.getSession().then(() => {
+      if (window.location.hash) {
+        window.history.replaceState({}, document.title, "/");
+      }
+    });
+  }, []);
+
   return (
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
@@ -34,4 +47,3 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     </html>
   );
 }
-
