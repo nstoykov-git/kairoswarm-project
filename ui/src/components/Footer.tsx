@@ -9,10 +9,15 @@ export default function Footer() {
         <div>Kairoswarm © 2025</div>
         <div className="text-center">
           Customer Support: +1 773 704 1084<br />
-          1801 W Diversey Parkway Unit 5, Chicago, IL 60614
+          1801 W Diversey Parkway Unit 5, Chicago, IL 60614<br />
+          <a href="mailto:nsstoykov@gmail.com" className="text-blue-400 hover:underline">Email: nsstoykov@gmail.com</a><br />
+          <a href="https://www.youtube.com/playlist?list=PLbgbaZJFsPRBTfkEdrXlRFpo5Odaactyp" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">
+            Kairoswarm YouTube Playlist
+          </a>
         </div>
       </div>
     </footer>
+
   );
 }
 
