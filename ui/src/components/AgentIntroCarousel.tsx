@@ -7,31 +7,31 @@ const agents = [
   {
     name: 'Marin',
     assistantId: 'assistant_marin_id',
-    videoUrl: '/videos/marin.mp4',
+    videoUrl: '/videos/Marin.mp4',
     orientation: 'portrait',
   },
   {
     name: 'Max',
     assistantId: 'assistant_max_id',
-    videoUrl: '/videos/max.mp4',
+    videoUrl: '/videos/Max.mp4',
     orientation: 'landscape',
   },
   {
     name: 'Logan',
     assistantId: 'assistant_logan_id',
-    videoUrl: '/videos/logan.mp4',
+    videoUrl: '/videos/Logan.mp4',
     orientation: 'landscape',
   },
   {
     name: 'Lumen',
     assistantId: 'assistant_lumen_id',
-    videoUrl: '/videos/lumen.mp4',
+    videoUrl: '/videos/Lumen.mp4',
     orientation: 'landscape',
   },
   {
     name: 'Iris',
     assistantId: 'assistant_iris_id',
-    videoUrl: '/videos/iris.mp4',
+    videoUrl: '/videos/Iris.mp4',
     orientation: 'landscape',
   },
 ];
