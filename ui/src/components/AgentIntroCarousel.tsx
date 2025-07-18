@@ -7,31 +7,31 @@ const agents = [
   {
     name: 'Marin',
     assistantId: 'assistant_marin_id',
-    videoUrl: '/videos/Marin.mp4',
+    videoUrl: '/videos/marin.mp4',
     orientation: 'portrait',
   },
   {
     name: 'Max',
     assistantId: 'assistant_max_id',
-    videoUrl: '/videos/Max.mp4',
+    videoUrl: '/videos/max.mp4',
     orientation: 'landscape',
   },
   {
     name: 'Logan',
     assistantId: 'assistant_logan_id',
-    videoUrl: '/videos/Logan.mp4',
+    videoUrl: '/videos/logan.mp4',
     orientation: 'landscape',
   },
   {
     name: 'Lumen',
     assistantId: 'assistant_lumen_id',
-    videoUrl: '/videos/Lumen.mp4',
+    videoUrl: '/videos/lumen.mp4',
     orientation: 'landscape',
   },
   {
     name: 'Iris',
     assistantId: 'assistant_iris_id',
-    videoUrl: '/videos/Iris.mp4',
+    videoUrl: '/videos/iris.mp4',
     orientation: 'landscape',
   },
 ];
@@ -70,18 +70,19 @@ export default function AgentIntroCarousel() {
     <div className="relative w-full h-screen bg-black overflow-hidden">
       {/* Background Video */}
       <video
-        key={`bg-${activeAgent.videoUrl}`}
+        key={`bg-${activeAgent.name}`}
         src={activeAgent.videoUrl}
         className="absolute w-full h-full object-cover filter blur-2xl brightness-50"
         autoPlay
         loop
         muted
+        playsInline
       />
 
       {/* Foreground Video */}
       <div className="relative z-10 flex flex-col items-center justify-center h-full">
         <video
-          key={activeAgent.videoUrl}
+          key={`fg-${activeAgent.name}`}
           src={activeAgent.videoUrl}
           className={`${
             isPortrait ? 'h-[80%]' : 'w-full max-w-screen-xl'
@@ -89,6 +90,7 @@ export default function AgentIntroCarousel() {
           autoPlay
           loop
           muted
+          playsInline
         />
         <div className="absolute bottom-24 text-center">
           <h1 className="text-white text-4xl font-semibold mb-2 drop-shadow-lg">
