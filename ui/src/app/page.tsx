@@ -1,6 +1,5 @@
-import KairoswarmDashboard from "@/components/KairoswarmDashboard";
+import AgentIntroCarousel from "@/components/AgentIntroCarousel";
 
 export default function Home() {
-  return <KairoswarmDashboard />;
+  return <AgentIntroCarousel />;
 }
-
