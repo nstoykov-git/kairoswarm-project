@@ -19,19 +19,19 @@ const agents = [
   {
     name: 'Logan',
     assistantId: 'assistant_logan_id',
-    videoUrl: '/videos/logan.mp4',
+    videoUrl: '/videos/Logan.mp4',
     orientation: 'landscape',
   },
   {
     name: 'Lumen',
     assistantId: 'assistant_lumen_id',
-    videoUrl: '/videos/lumen.mp4',
+    videoUrl: '/videos/Lumen.mp4',
     orientation: 'landscape',
   },
   {
     name: 'Iris',
     assistantId: 'assistant_iris_id',
-    videoUrl: '/videos/iris.mp4',
+    videoUrl: '/videos/Iris.mp4',
     orientation: 'landscape',
   },
 ];
