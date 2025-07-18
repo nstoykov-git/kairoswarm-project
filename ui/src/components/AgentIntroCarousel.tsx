@@ -7,13 +7,13 @@ const agents = [
   {
     name: 'Marin',
     assistantId: 'assistant_marin_id',
-    videoUrl: '/videos/marin.mp4',
+    videoUrl: '/videos/Marin.mp4',
     orientation: 'portrait',
   },
   {
     name: 'Max',
     assistantId: 'assistant_max_id',
-    videoUrl: '/videos/max.mp4',
+    videoUrl: '/videos/Max.mp4',
     orientation: 'landscape',
   },
   {
