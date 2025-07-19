@@ -63,7 +63,7 @@ export default function AgentIntroCarousel() {
 
   const handleSelect = async (agent: Agent) => {
     try {
-      const res = await fetch(`${API_INTERNAL_URL}/initiate`, {
+      const res = await fetch(`${API_INTERNAL_URL}/swarm/initiate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ agent_ids: [agent.id] }),
