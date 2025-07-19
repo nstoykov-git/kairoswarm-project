@@ -28,7 +28,7 @@ export default function AgentIntroCarousel() {
   useEffect(() => {
     const fetchAgents = async () => {
       try {
-        const res = await fetch(`${API_INTERNAL_URL}/agents/by-ids`, {
+        const res = await fetch(`${API_INTERNAL_URL}/swarm/agents/by-ids`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
