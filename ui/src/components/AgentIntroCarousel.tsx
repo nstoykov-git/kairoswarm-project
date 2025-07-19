@@ -32,7 +32,7 @@ export default function AgentIntroCarousel() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            agent_ids: Object.keys(VIDEO_MAP),
+            names: Object.keys(VIDEO_MAP),
           }),
         });
         const data = await res.json();
