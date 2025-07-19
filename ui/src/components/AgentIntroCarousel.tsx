@@ -12,11 +12,11 @@ interface Agent {
 
 const API_INTERNAL_URL = process.env.NEXT_PUBLIC_MODAL_API_URL;
 const VIDEO_MAP: Record<string, { videoUrl: string; orientation: 'portrait' | 'landscape' }> = {
-  'assistant_marin_id': { videoUrl: '/videos/marin.mp4', orientation: 'portrait' },
-  'assistant_max_id': { videoUrl: '/videos/max.mp4', orientation: 'landscape' },
-  'assistant_logan_id': { videoUrl: '/videos/logan.mp4', orientation: 'landscape' },
-  'assistant_lumen_id': { videoUrl: '/videos/lumen.mp4', orientation: 'landscape' },
-  'assistant_iris_id': { videoUrl: '/videos/iris.mp4', orientation: 'landscape' },
+  'Marin': { videoUrl: '/videos/marin.mp4', orientation: 'portrait' },
+  'Max': { videoUrl: '/videos/max.mp4', orientation: 'landscape' },
+  'Logan': { videoUrl: '/videos/logan.mp4', orientation: 'landscape' },
+  'Lumen': { videoUrl: '/videos/lumen.mp4', orientation: 'landscape' },
+  'Iris': { videoUrl: '/videos/iris.mp4', orientation: 'landscape' },
 };
 
 export default function AgentIntroCarousel() {
@@ -28,7 +28,7 @@ export default function AgentIntroCarousel() {
   useEffect(() => {
     const fetchAgents = async () => {
       try {
-        const res = await fetch(`${API_INTERNAL_URL}/swarm/agents/by-ids`, {
+        const res = await fetch(`${API_INTERNAL_URL}/swarm/agents/by-names`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -40,8 +40,8 @@ export default function AgentIntroCarousel() {
           const enriched = data.agents.map((agent: any) => ({
             id: agent.id,
             name: agent.name,
-            videoUrl: VIDEO_MAP[agent.id]?.videoUrl || '',
-            orientation: VIDEO_MAP[agent.id]?.orientation || 'landscape',
+            videoUrl: VIDEO_MAP[agent.name]?.videoUrl || '',
+            orientation: VIDEO_MAP[agent.name]?.orientation || 'landscape',
           })).filter((a: Agent) => a.videoUrl);
           setAgents(enriched);
         }
