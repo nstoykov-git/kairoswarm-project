@@ -12,11 +12,11 @@ interface Agent {
 
 const API_INTERNAL_URL = process.env.NEXT_PUBLIC_MODAL_API_URL;
 const VIDEO_MAP: Record<string, { videoUrl: string; orientation: 'portrait' | 'landscape' }> = {
-  'Marin': { videoUrl: '/videos/marin.mp4', orientation: 'portrait' },
-  'Max': { videoUrl: '/videos/max.mp4', orientation: 'landscape' },
-  'Logan': { videoUrl: '/videos/logan.mp4', orientation: 'landscape' },
-  'Lumen': { videoUrl: '/videos/lumen.mp4', orientation: 'landscape' },
-  'Iris': { videoUrl: '/videos/iris.mp4', orientation: 'landscape' },
+  'Marin': { videoUrl: '/videos/Marin.mp4', orientation: 'portrait' },
+  'Max': { videoUrl: '/videos/Max.mp4', orientation: 'landscape' },
+  'Logan': { videoUrl: '/videos/Logan.mp4', orientation: 'landscape' },
+  'Lumen': { videoUrl: '/videos/Lumen.mp4', orientation: 'landscape' },
+  'Iris': { videoUrl: '/videos/Iris.mp4', orientation: 'landscape' },
 };
 
 export default function AgentIntroCarousel() {
