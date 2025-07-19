@@ -10,7 +10,7 @@ interface Agent {
   orientation: 'portrait' | 'landscape';
 }
 
-const API_INTERNAL_URL = process.env.NEXT_PUBLIC_KAIROSWARM_INTERNAL_URL;
+const API_INTERNAL_URL = process.env.NEXT_PUBLIC_MODAL_API_URL;
 const VIDEO_MAP: Record<string, { videoUrl: string; orientation: 'portrait' | 'landscape' }> = {
   'assistant_marin_id': { videoUrl: '/videos/marin.mp4', orientation: 'portrait' },
   'assistant_max_id': { videoUrl: '/videos/max.mp4', orientation: 'landscape' },
