@@ -3,65 +3,96 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
-const agents = [
-  {
-    name: 'Marin',
-    assistantId: 'assistant_marin_id',
-    videoUrl: '/videos/Marin.mp4',
-    orientation: 'portrait',
-  },
-  {
-    name: 'Max',
-    assistantId: 'assistant_max_id',
-    videoUrl: '/videos/Max.mp4',
-    orientation: 'landscape',
-  },
-  {
-    name: 'Logan',
-    assistantId: 'assistant_logan_id',
-    videoUrl: '/videos/Logan.mp4',
-    orientation: 'landscape',
-  },
-  {
-    name: 'Lumen',
-    assistantId: 'assistant_lumen_id',
-    videoUrl: '/videos/Lumen.mp4',
-    orientation: 'landscape',
-  },
-  {
-    name: 'Iris',
-    assistantId: 'assistant_iris_id',
-    videoUrl: '/videos/Iris.mp4',
-    orientation: 'landscape',
-  },
-];
+interface Agent {
+  id: string;
+  name: string;
+  videoUrl: string;
+  orientation: 'portrait' | 'landscape';
+}
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_MODAL_API_URL;
+const API_INTERNAL_URL = process.env.NEXT_PUBLIC_KAIROSWARM_INTERNAL_URL;
+const VIDEO_MAP: Record<string, { videoUrl: string; orientation: 'portrait' | 'landscape' }> = {
+  'assistant_marin_id': { videoUrl: '/videos/marin.mp4', orientation: 'portrait' },
+  'assistant_max_id': { videoUrl: '/videos/max.mp4', orientation: 'landscape' },
+  'assistant_logan_id': { videoUrl: '/videos/logan.mp4', orientation: 'landscape' },
+  'assistant_lumen_id': { videoUrl: '/videos/lumen.mp4', orientation: 'landscape' },
+  'assistant_iris_id': { videoUrl: '/videos/iris.mp4', orientation: 'landscape' },
+};
 
 export default function AgentIntroCarousel() {
+  const [agents, setAgents] = useState<Agent[]>([]);
   const [index, setIndex] = useState(0);
+  const [loading, setLoading] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setIndex((prev) => (prev + 1) % agents.length);
-    }, 6000);
-    return () => clearInterval(interval);
+    const fetchAgents = async () => {
+      try {
+        const res = await fetch(`${API_INTERNAL_URL}/agents/by-ids`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            agent_ids: Object.keys(VIDEO_MAP),
+          }),
+        });
+        const data = await res.json();
+        if (Array.isArray(data.agents)) {
+          const enriched = data.agents.map((agent: any) => ({
+            id: agent.id,
+            name: agent.name,
+            videoUrl: VIDEO_MAP[agent.id]?.videoUrl || '',
+            orientation: VIDEO_MAP[agent.id]?.orientation || 'landscape',
+          })).filter((a: Agent) => a.videoUrl);
+          setAgents(enriched);
+        }
+      } catch (err) {
+        console.error('Failed to fetch agents', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchAgents();
   }, []);
 
-  const handleSelect = async (agent: typeof agents[number]) => {
-    const res = await fetch(`${API_BASE_URL}/swarm/create`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ agentId: agent.assistantId }),
-    });
-    const data = await res.json();
-    if (data.id) {
-      router.push(`/dashboard?swarmId=${data.id}`);
-    } else {
-      alert('⚠️ Failed to start swarm');
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setIndex((prev) => agents.length ? (prev + 1) % agents.length : 0);
+    }, 6000);
+    return () => clearInterval(interval);
+  }, [agents]);
+
+  const handleSelect = async (agent: Agent) => {
+    try {
+      const res = await fetch(`${API_INTERNAL_URL}/initiate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ agent_ids: [agent.id] }),
+      });
+
+      const data = await res.json();
+      if (!data.swarm_id) throw new Error('No swarm_id returned');
+      router.push(`/dashboard?swarmId=${data.swarm_id}`);
+    } catch (err) {
+      console.error(err);
+      alert('⚠️ Failed to initiate swarm');
     }
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-black text-white">
+        <span className="text-xl animate-pulse">Loading agents...</span>
+      </div>
+    );
+  }
+
+  if (!agents.length) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-black text-white">
+        <span className="text-lg">No available agents found.</span>
+      </div>
+    );
+  }
 
   const activeAgent = agents[index];
   const isPortrait = activeAgent.orientation === 'portrait';
@@ -70,7 +101,7 @@ export default function AgentIntroCarousel() {
     <div className="relative w-full h-screen bg-black overflow-hidden">
       {/* Background Video */}
       <video
-        key={`bg-${activeAgent.name}`}
+        key={`bg-${activeAgent.id}`}
         src={activeAgent.videoUrl}
         className="absolute w-full h-full object-cover filter blur-2xl brightness-50"
         autoPlay
@@ -82,7 +113,7 @@ export default function AgentIntroCarousel() {
       {/* Foreground Video */}
       <div className="relative z-10 flex flex-col items-center justify-center h-full">
         <video
-          key={`fg-${activeAgent.name}`}
+          key={`fg-${activeAgent.id}`}
           src={activeAgent.videoUrl}
           className={`${
             isPortrait ? 'h-[80%]' : 'w-full max-w-screen-xl'
