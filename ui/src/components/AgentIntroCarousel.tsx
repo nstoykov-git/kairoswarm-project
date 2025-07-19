@@ -71,7 +71,7 @@ export default function AgentIntroCarousel() {
 
       const data = await res.json();
       if (!data.swarm_id) throw new Error('No swarm_id returned');
-      router.push(`/dashboard?swarmId=${data.swarm_id}`);
+      router.push(`/dashboard?swarm_id=${data.swarm_id}`);
     } catch (err) {
       console.error(err);
       alert('⚠️ Failed to initiate swarm');
