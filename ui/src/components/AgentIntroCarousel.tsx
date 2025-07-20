@@ -98,7 +98,9 @@ export default function AgentIntroCarousel() {
       }
 
       // Push to dashboard with swarm_id
-      router.push(`/dashboard?swarm_id=${swarmId}`);
+      //router.push(`/dashboard?swarm_id=${swarmId}`);
+      router.push(`https://kairoswarm.com/view-swarm?swarm_id=${swarmId}`);
+      
     } catch (err) {
       console.error(err);
       alert('⚠️ Failed to initiate swarm');
