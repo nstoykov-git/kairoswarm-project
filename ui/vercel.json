@@ -10,17 +10,6 @@
       ],
       "destination": "/agent-intro",
       "permanent": false
-    },
-    {
-      "source": "/",
-      "has": [
-        {
-          "type": "host",
-          "value": "kairoswarm.com"
-        }
-      ],
-      "destination": "/",
-      "permanent": false
     }
   ]
 }
