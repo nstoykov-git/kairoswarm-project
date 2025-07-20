@@ -19,7 +19,7 @@
           "value": "kairoswarm.com"
         }
       ],
-      "destination": "/dashboard",
+      "destination": "/",
       "permanent": false
     }
   ]
