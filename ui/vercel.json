@@ -1,0 +1,27 @@
+{
+  "redirects": [
+    {
+      "source": "/",
+      "has": [
+        {
+          "type": "host",
+          "value": "www.kairoswarm.com"
+        }
+      ],
+      "destination": "/agent-intro",
+      "permanent": false
+    },
+    {
+      "source": "/",
+      "has": [
+        {
+          "type": "host",
+          "value": "kairoswarm.com"
+        }
+      ],
+      "destination": "/dashboard",
+      "permanent": false
+    }
+  ]
+}
+
