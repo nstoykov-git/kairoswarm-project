@@ -1,4 +1,4 @@
-// src/app/dashboard/KairoswarmDashboard.tsx
+// src/components/KairoswarmDashboard.tsx
 'use client';
 
 import { useRouter } from 'next/navigation';

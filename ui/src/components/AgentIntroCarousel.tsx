@@ -71,7 +71,34 @@ export default function AgentIntroCarousel() {
 
       const data = await res.json();
       if (!data.swarm_id) throw new Error('No swarm_id returned');
-      router.push(`/dashboard?swarm_id=${data.swarm_id}`);
+
+      const swarmId = data.swarm_id;
+
+      // Load tape and participants
+      const [tapeRes, participantsRes] = await Promise.all([
+        fetch(`${API_INTERNAL_URL}/tape?swarm_id=${swarmId}`),
+        fetch(`${API_INTERNAL_URL}/participants-full?swarm_id=${swarmId}`),
+      ]);
+
+      const tapeData = await tapeRes.json();
+      const participantsData = await participantsRes.json();
+
+      // Reload agents
+      for (const p of participantsData) {
+        if (p.type === "agent") {
+          await fetch(`${API_INTERNAL_URL}/swarm/reload-agent`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              swarm_id: swarmId,
+              agent_id: p.metadata?.agent_id || p.id,
+            }),
+          });
+        }
+      }
+
+      // Push to dashboard with swarm_id
+      router.push(`/dashboard?swarm_id=${swarmId}`);
     } catch (err) {
       console.error(err);
       alert('⚠️ Failed to initiate swarm');
@@ -115,7 +142,7 @@ export default function AgentIntroCarousel() {
         <video
           key={`fg-${activeAgent.id}`}
           src={activeAgent.videoUrl}
-          className={`${
+          className={`$${
             isPortrait ? 'h-[80%]' : 'w-full max-w-screen-xl'
           } rounded-xl shadow-2xl`}
           autoPlay
