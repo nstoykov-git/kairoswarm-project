@@ -16,7 +16,10 @@ import TopBar from '@/components/TopBar';
 const API_BASE_URL = process.env.NEXT_PUBLIC_MODAL_API_URL;
 
 export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?: string }) {
-  const [swarmId, setSwarmId] = useState(swarmIdProp || 'default');
+  const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+  const initialSwarmId = swarmIdProp || searchParams?.get('swarm_id') || 'default';
+  const [swarmId, setSwarmId] = useState(initialSwarmId);
+
   const router = useRouter();
   const { user, loading } = useUser();
 
