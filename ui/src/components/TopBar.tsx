@@ -18,6 +18,17 @@ export default function TopBar() {
   return (
     <div className="flex justify-between items-center py-2 px-4 bg-black border-b border-gray-800">
       <div className="text-white font-bold text-lg">Kairoswarm</div>
+      {typeof window !== "undefined" && window.location.hostname === "kairoswarm.com" && (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => window.location.href = "https://www.kairoswarm.com"}
+        >
+          ← Back to Carousel
+        </Button>
+      )}
+
+      
       {!loading && (
         <div className="flex items-center gap-4">
           {user ? (
