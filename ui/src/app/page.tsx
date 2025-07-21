@@ -1,3 +1,5 @@
+'use client';
+
 import KairoswarmDashboard from "@/components/KairoswarmDashboard";
 
 export default function Home() {
