@@ -6,12 +6,11 @@ import { Button } from '@/components/ui/button';
 import { useUser } from '@/context/UserContext';
 
 export default function TopBar() {
-  const router = useRouter();
   const { user, loading, signOut } = useUser();
 
   const handleSignOut = async () => {
     await signOut();
-    router.refresh();
+    window.location.reload();
   };
 
   return (
@@ -19,7 +18,7 @@ export default function TopBar() {
       <div className="flex flex-col">
         <div className="text-white font-bold text-lg">Kairoswarm</div>
         <button
-          onClick={() => router.push('/carousel')}
+          onClick={() => (window.location.href = '/carousel')}
           className="text-xs text-gray-400 hover:text-white mt-1 text-left"
         >
           ← Back to Carousel
@@ -30,7 +29,7 @@ export default function TopBar() {
           {user ? (
             <>
               <span className="text-white text-sm">{user.display_name || user.email}</span>
-              <Button variant="secondary" size="sm" onClick={() => router.push('/profile')}>
+              <Button variant="secondary" size="sm" onClick={() => (window.location.href = '/profile')}>
                 <User className="w-4 h-4 mr-1" /> Profile
               </Button>
               <Button variant="secondary" size="sm" onClick={handleSignOut}>
@@ -38,7 +37,7 @@ export default function TopBar() {
               </Button>
             </>
           ) : (
-            <Button variant="secondary" size="sm" onClick={() => router.push("/auth")}> 
+            <Button variant="secondary" size="sm" onClick={() => (window.location.href = "/auth")}> 
               <LogIn className="w-4 h-4 mr-1" /> Sign In
             </Button>
           )}
