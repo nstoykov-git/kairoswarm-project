@@ -1,4 +1,5 @@
 // src/components/KairoswarmDashboard.tsx
+"use client"
 
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, useRef } from 'react';
@@ -7,13 +8,42 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
-  Send, Users, Bot, PlusCircle, Eye, PanelRightClose, PanelRightOpen
+  Send, Users, Bot, PlusCircle, Eye, PanelRightClose, PanelRightOpen, Copy
 } from 'lucide-react';
 import { useUser } from '@/context/UserContext';
 import { Suspense } from "react"
 import TopBar from '@/components/TopBar';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_MODAL_API_URL;
+
+function SwarmInfo({ swarmId }: { swarmId: string }) {
+  const [copied, setCopied] = useState(false)
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(swarmId)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  return (
+    <div className="text-green-400 text-sm space-y-1">
+      <div className="flex items-center space-x-2">
+        <span className="font-mono">Swarm ID:</span>
+        <span className="font-mono">{swarmId}</span>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleCopy}
+          className="text-green-300 hover:text-green-500 p-1"
+        >
+          <Copy className="h-4 w-4" />
+        </Button>
+        {copied && <span className="text-xs text-green-300">Copied!</span>}
+      </div>
+      <div className="text-gray-400">⏳ Ephemeral swarm expires in 24 hours</div>
+    </div>
+  )
+}
 
 export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?: string }) {
   const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
@@ -185,9 +215,12 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
         <div className="col-span-3 flex flex-col space-y-2">
           {swarmId !== "default" && (
-            <div className="text-xs text-gray-300 mb-1">
-              Swarm ID: <span className="text-white font-mono">{swarmId}</span><br />
-              ⏳ Ephemeral swarm expires in 24 hours
+            <div className="text-xs text-gray-300 mb-1 space-y-1">
+              <div className="flex items-center space-x-2">
+                <span>Swarm ID:</span>
+                <SwarmInfo swarmId={swarmId} />
+              </div>
+              <div className="text-gray-300">⏳ Ephemeral swarm expires in 24 hours</div>
             </div>
           )}
           {swarmId === "default" && (
