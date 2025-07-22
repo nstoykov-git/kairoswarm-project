@@ -146,7 +146,7 @@ export default function AgentIntroCarousel() {
           src={activeAgent.videoUrl}
           className={`rounded-xl shadow-2xl ${
             isPortrait
-              ? 'h-[70%] object-contain' // slightly smaller height, better framing
+              ? 'h-[85%] object-cover' // tighter crop, better facial presence
               : 'w-full max-w-screen-xl object-cover'
           }`}
           autoPlay
