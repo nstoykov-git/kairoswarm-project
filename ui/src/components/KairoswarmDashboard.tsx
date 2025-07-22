@@ -217,10 +217,8 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
           {swarmId !== "default" && (
             <div className="text-xs text-gray-300 mb-1 space-y-1">
               <div className="flex items-center space-x-2">
-                <span>Swarm ID:</span>
                 <SwarmInfo swarmId={swarmId} />
               </div>
-              <div className="text-gray-300">⏳ Ephemeral swarm expires in 24 hours</div>
             </div>
           )}
           {swarmId === "default" && (
