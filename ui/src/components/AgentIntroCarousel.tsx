@@ -144,9 +144,11 @@ export default function AgentIntroCarousel() {
         <video
           key={`fg-${activeAgent.id}`}
           src={activeAgent.videoUrl}
-          className={`$${
-            isPortrait ? 'h-[80%]' : 'w-full max-w-screen-xl'
-          } rounded-xl shadow-2xl`}
+          className={`rounded-xl shadow-2xl ${
+            isPortrait
+              ? 'h-[70%] object-contain' // slightly smaller height, better framing
+              : 'w-full max-w-screen-xl object-cover'
+          }`}
           autoPlay
           loop
           muted
