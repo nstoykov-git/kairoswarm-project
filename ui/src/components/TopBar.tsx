@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { LogIn, LogOut, User } from 'lucide-react';
+import { LogIn, LogOut, User, Film } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useUser } from '@/context/UserContext';
 
@@ -16,16 +16,9 @@ export default function TopBar() {
   return (
     <div className="flex justify-between items-center py-2 px-4 bg-black border-b border-gray-800">
       <div className="text-white font-bold text-2xl">Kairoswarm</div>
-      
+
       {!loading && (
         <div className="flex items-center gap-4">
-          <button
-            onClick={() => (window.location.href = '/carousel')}
-            className="text-sm text-gray-200 hover:text-white transition"
-          >
-            ← Back to Carousel
-          </button>
-
           {user ? (
             <>
               <span className="text-white text-sm">{user.display_name || user.email}</span>
@@ -34,6 +27,14 @@ export default function TopBar() {
               </Button>
               <Button variant="secondary" size="sm" onClick={handleSignOut}>
                 <LogOut className="w-4 h-4 mr-1" /> Sign Out
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                title="Return to the Kairoswarm experience selector"
+                onClick={() => (window.location.href = 'https://www.kairoswarm.com')}
+              >
+                <Film className="w-4 h-4 mr-1" /> Carousel
               </Button>
             </>
           ) : (
