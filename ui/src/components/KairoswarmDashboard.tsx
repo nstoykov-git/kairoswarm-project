@@ -40,7 +40,7 @@ function SwarmInfo({ swarmId }: { swarmId: string }) {
         </Button>
         {copied && <span className="text-xs text-green-300">Copied!</span>}
       </div>
-      <div className="text-gray-400">⏳ Ephemeral swarm expires in 24 hours</div>
+      <div className="text-white">⏳ Ephemeral swarm expires in 24 hours</div>
     </div>
   )
 }
