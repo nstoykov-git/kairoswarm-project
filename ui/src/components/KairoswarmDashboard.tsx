@@ -1,5 +1,4 @@
 // src/components/KairoswarmDashboard.tsx
-'use client';
 
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, useRef } from 'react';
@@ -11,6 +10,7 @@ import {
   Send, Users, Bot, PlusCircle, Eye, PanelRightClose, PanelRightOpen
 } from 'lucide-react';
 import { useUser } from '@/context/UserContext';
+import { Suspense } from "react"
 import TopBar from '@/components/TopBar';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_MODAL_API_URL;
@@ -179,7 +179,9 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
 
   return (
     <div className="p-4 h-screen bg-gray-900 text-white">
-      <TopBar />
+      <Suspense fallback={<div />}>
+        <TopBar />
+      </Suspense>
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
         <div className="col-span-3 flex flex-col space-y-2">
           {swarmId !== "default" && (
