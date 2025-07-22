@@ -15,17 +15,17 @@ export default function TopBar() {
 
   return (
     <div className="flex justify-between items-center py-2 px-4 bg-black border-b border-gray-800">
-      <div className="flex flex-col">
-        <div className="text-white font-bold text-lg">Kairoswarm</div>
-        <button
-          onClick={() => (window.location.href = '/carousel')}
-          className="text-xs text-gray-400 hover:text-white mt-1 text-left"
-        >
-          ← Back to Carousel
-        </button>
-      </div>
+      <div className="text-white font-bold text-2xl">Kairoswarm</div>
+      
       {!loading && (
         <div className="flex items-center gap-4">
+          <button
+            onClick={() => (window.location.href = '/carousel')}
+            className="text-sm text-gray-200 hover:text-white transition"
+          >
+            ← Back to Carousel
+          </button>
+
           {user ? (
             <>
               <span className="text-white text-sm">{user.display_name || user.email}</span>
@@ -37,7 +37,7 @@ export default function TopBar() {
               </Button>
             </>
           ) : (
-            <Button variant="secondary" size="sm" onClick={() => (window.location.href = "/auth")}> 
+            <Button variant="secondary" size="sm" onClick={() => (window.location.href = '/auth')}>
               <LogIn className="w-4 h-4 mr-1" /> Sign In
             </Button>
           )}
