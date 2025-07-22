@@ -144,10 +144,10 @@ export default function AgentIntroCarousel() {
         <video
           key={`fg-${activeAgent.id}`}
           src={activeAgent.videoUrl}
-          className={`rounded-xl shadow-2xl transform scale-125 ${
+          className={`rounded-xl shadow-2xl object-cover ${
             isPortrait
-              ? 'h-full w-auto object-cover object-top'
-              : 'w-full max-w-screen-xl object-cover'
+              ? 'h-full w-auto object-top transform scale-150'
+              : 'w-full max-w-screen-xl'
           }`}
           autoPlay
           loop
