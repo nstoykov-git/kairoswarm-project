@@ -12,7 +12,7 @@ interface Agent {
 
 const API_INTERNAL_URL = process.env.NEXT_PUBLIC_MODAL_API_URL;
 const VIDEO_MAP: Record<string, { videoUrl: string; orientation: 'portrait' | 'landscape' }> = {
-  'Marin': { videoUrl: '/videos/Marin.mp4', orientation: 'portrait' },
+  'Marin': { videoUrl: '/videos/Marin.mp4', orientation: 'landscape' },
   'Max': { videoUrl: '/videos/Max.mp4', orientation: 'landscape' },
   'Logan': { videoUrl: '/videos/Logan.mp4', orientation: 'landscape' },
   'Lumen': { videoUrl: '/videos/Lumen.mp4', orientation: 'landscape' },
