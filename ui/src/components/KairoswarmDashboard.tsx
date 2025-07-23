@@ -325,11 +325,12 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
                   autoCorrect="off"
                   autoCapitalize="off"
                   spellCheck={false}
-                  className="text-white placeholder-gray-400"
+                  className="bg-white text-black dark:bg-gray-900 dark:text-white placeholder-gray-500"
                   value={joinName}
                   placeholder="Your Name"
                   onChange={(e) => setJoinName(e.target.value)}
                 />
+
                 <Button variant="secondary" onClick={handleJoin}>
                   <Users className="w-4 h-4 mr-2" />
                   Join Swarm
