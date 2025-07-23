@@ -38,9 +38,19 @@ export default function TopBar() {
               </Button>
             </>
           ) : (
-            <Button variant="secondary" size="sm" onClick={() => (window.location.href = '/auth')}>
-              <LogIn className="w-4 h-4 mr-1" /> Sign In
-            </Button>
+            <>
+              <Button variant="secondary" size="sm" onClick={() => (window.location.href = '/auth')}>
+                <LogIn className="w-4 h-4 mr-1" /> Sign In
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                title="Return to the Kairoswarm experience selector"
+                onClick={() => (window.location.href = 'https://www.kairoswarm.com')}
+              >
+                <Film className="w-4 h-4 mr-1" /> Carousel
+              </Button>
+            </>
           )}
         </div>
       )}
