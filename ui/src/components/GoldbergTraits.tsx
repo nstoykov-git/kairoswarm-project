@@ -62,13 +62,16 @@ const goldbergGrouped = [
 
 interface GoldbergTraitsProps {
   onChange: (responses: TraitResponse[]) => void;
+  initialResponses?: TraitResponse[];
 }
 
-export default function GoldbergTraits({ onChange }: GoldbergTraitsProps) {
+export default function GoldbergTraits({ onChange, initialResponses = [] }: GoldbergTraitsProps) {
   const flatTraits = goldbergGrouped.flatMap(group => group.traits);
 
   const [responses, setResponses] = useState<TraitResponse[]>(
-    flatTraits.map(trait => ({ trait, score: null }))
+    initialResponses.length > 0
+      ? initialResponses
+      : flatTraits.map(trait => ({ trait, score: null }))
   );
 
   useEffect(() => {
@@ -86,6 +89,7 @@ export default function GoldbergTraits({ onChange }: GoldbergTraitsProps) {
       {goldbergGrouped.map(group => (
         <div key={group.domain} className="space-y-4">
           <h2 className="text-xl font-semibold text-black">{group.domain}</h2>
+
           {group.traits.map(trait => {
             const response = responses.find(r => r.trait === trait);
             if (!response) return null;
@@ -127,7 +131,6 @@ export default function GoldbergTraits({ onChange }: GoldbergTraitsProps) {
               </Card>
             );
           })}
-
         </div>
       ))}
     </div>

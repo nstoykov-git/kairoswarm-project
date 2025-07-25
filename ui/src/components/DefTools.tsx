@@ -191,7 +191,10 @@ ${etiquetteGuidelines || "None provided."}
         {showGoldberg && (
           <div className="border rounded-xl p-4 space-y-4 bg-white">
             <h2 className="text-xl font-bold text-black">Goldberg Trait Survey</h2>
-            <GoldbergTraits onChange={setTempGoldbergResponses} />
+            <GoldbergTraits
+              onChange={setTempGoldbergResponses}
+              initialResponses={tempGoldbergResponses}
+            />
             <div className="flex justify-end gap-4 pt-4">
               <Button variant="outline" onClick={() => setShowGoldberg(false)}>Cancel</Button>
               <Button onClick={() => {
