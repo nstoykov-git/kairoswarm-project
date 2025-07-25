@@ -177,9 +177,16 @@ ${etiquetteGuidelines || "None provided."}
           </CardContent>
         </Card>
 
-        <Button variant="outline" onClick={() => setShowGoldberg(true)}>
+        <Button
+          variant="outline"
+          onClick={() => {
+            setTempGoldbergResponses(goldbergResponses); // ← prefill form
+            setShowGoldberg(true);
+          }}
+        >
           Add Goldberg Traits
         </Button>
+
 
         {showGoldberg && (
           <div className="border rounded-xl p-4 space-y-4 bg-white">
