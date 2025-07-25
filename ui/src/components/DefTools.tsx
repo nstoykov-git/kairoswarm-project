@@ -42,7 +42,7 @@ async function createAgent({
     body: JSON.stringify({
       name,
       user_id: userId,
-      ocean_scores: oceanScores,
+      ocean: oceanScores,
       goldberg_traits: goldbergTraits,
       description,
       skills
