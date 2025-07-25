@@ -33,7 +33,7 @@ async function createAgent({
   skills: string[];
   userOpenAiKey?: string; // ✅ Make it optional
 }) {
-  const res = await fetch("`${API_BASE_URL}/swarm/create-agent`", {
+  const res = await fetch(`${API_BASE_URL}/swarm/create-agent`, {
     method: "POST",
     headers: {
     "Content-Type": "application/json",
