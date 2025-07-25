@@ -13,11 +13,15 @@ import { toast } from "react-hot-toast";
 import { supabase } from "@/lib/supabase";
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from "recharts";
 
+import type { TraitResponse } from "@/components/GoldbergTraits";
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_MODAL_API_URL;
 
 export default function DefTools() {
   const router = useRouter();
   const searchParams = useSearchParams();
+
+  const [goldbergResponses, setGoldbergResponses] = useState<TraitResponse[]>([]);
 
   const [compileInput, setCompileInput] = useState("");
   const [personalStories, setPersonalStories] = useState("");
@@ -45,6 +49,14 @@ export default function DefTools() {
       router.replace("/def-tools");
     }
   }, [searchParams, router]);
+
+  useEffect(() => {
+    const saved = localStorage.getItem("goldberg_responses");
+    if (saved) {
+      setGoldbergResponses(JSON.parse(saved));
+    }
+  }, []);
+
 
   const handleCompileWithTess = async () => {
     try {
@@ -155,6 +167,9 @@ export default function DefTools() {
               max={1}
               step={0.01}
             />
+            <Button variant="outline" onClick={() => router.push("/goldberg-traits")}>
+              Add Goldberg Traits
+            </Button>
           </div>
         ))}
 

@@ -294,7 +294,7 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
             </Button>
             <Button variant="secondary" onClick={() => router.push("/def-tools")}>
               <PlusCircle className="w-4 h-4 mr-2" />
-              Digikids
+              Simulate the Boss
             </Button>
             <Button variant="secondary" className="ml-auto md:hidden" onClick={() => setShowParticipants((prev) => !prev)}>
               {showParticipants ? <PanelRightClose className="w-4 h-4" /> : <PanelRightOpen className="w-4 h-4" />}
