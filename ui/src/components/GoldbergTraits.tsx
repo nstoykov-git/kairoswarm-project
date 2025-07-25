@@ -2,7 +2,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
@@ -12,82 +12,124 @@ export type TraitResponse = {
   score: number | null;
 };
 
+const goldbergGrouped = [
+  {
+    domain: "Openness",
+    traits: [
+      "Creative", "Imaginative", "Innovative", "Intellectual", "Philosophical",
+      "Insightful", "Curious", "Sophisticated", "Original", "Analytical",
+      "Abstract", "Complex", "Wide interests", "Artistic", "Uncreative",
+      "Unimaginative", "Unintellectual", "Uninformed", "Conventional"
+    ]
+  },
+  {
+    domain: "Conscientiousness",
+    traits: [
+      "Organized", "Systematic", "Neat", "Efficient", "Thorough", "Responsible",
+      "Orderly", "Hardworking", "Practical", "Reliable", "Planful", "Tidy",
+      "Persistent", "Self-disciplined", "Disorganized", "Careless",
+      "Inefficient", "Lazy", "Sloppy", "Unsystematic"
+    ]
+  },
+  {
+    domain: "Extraversion",
+    traits: [
+      "Talkative", "Energetic", "Assertive", "Extraverted", "Enthusiastic",
+      "Cheerful", "Lively", "Bold", "Sociable", "Active", "Full of pep",
+      "Outgoing", "Expressive", "Quiet", "Shy", "Bashful", "Inhibited",
+      "Withdrawn", "Timid", "Passive"
+    ]
+  },
+  {
+    domain: "Agreeableness",
+    traits: [
+      "Kind", "Cooperative", "Generous", "Pleasant", "Sympathetic",
+      "Warm-hearted", "Trusting", "Compassionate", "Helpful", "Gentle",
+      "Hostile", "Rude", "Angry", "Resentful", "Cold", "Harsh",
+      "Unsympathetic", "Unkind", "Bothered", "Irritable"
+    ]
+  },
+  {
+    domain: "Neuroticism",
+    traits: [
+      "Anxious", "Tense", "Nervous", "Uneasy", "On edge", "Uptight", "Sad",
+      "Depressed", "Fearful", "Distressed", "Worried", "Blue", "Tired",
+      "Worn out", "Drowsy", "Sleepy", "Calm", "Relaxed", "Contented",
+      "At ease"
+    ]
+  }
+];
+
 interface GoldbergTraitsProps {
   onChange: (responses: TraitResponse[]) => void;
 }
 
-const goldbergItems: string[] = [
-  "Sluggish", "Hostile", "Untalkative", "On Edge", "Anxious", "Generous", "Innovative", "Sad",
-  "Introspective", "Organized", "Thorough", "Bashful", "Kind", "Unintellectual", "Lively", "Careless",
-  "Touchy", "Shy", "Uncreative", "Happy", "Nervous", "Introverted", "Inhibited", "Resentful",
-  "Tense", "Philosophical", "Unimaginative", "Cold", "Talkative", "Pleased", "Uninformed", "Full of pep",
-  "Efficient", "Tired", "Rude", "Neat", "Sleepy", "Extraverted", "Cooperative", "Impractical",
-  "Timid", "Creative", "Intellectual", "Unkind", "Angry", "Pleasant", "Fatigued", "Imaginative",
-  "Relaxed", "Inefficient", "Unsympathetic", "Disorganized", "Unsystematic", "Sympathetic", "Intense", "Enthusiastic",
-  "Cheerful", "Energetic", "Harsh", "Unenvious", "Quiet", "Systematic", "Depressed", "Unhappy",
-  "Irritable", "Contented", "Vigorous", "Comfortable", "Uneasy", "Worried", "Distressed", "Uptight",
-  "Drowsy", "Alert", "Bothered", "Aroused", "Active", "Calm", "Passive", "Worn Out",
-  "Fearful", "Stimulated", "Bored", "Warm-hearted", "Inactive", "Blue", "At Ease", "Peppy"
-];
-
 export default function GoldbergTraits({ onChange }: GoldbergTraitsProps) {
+  const flatTraits = goldbergGrouped.flatMap(group => group.traits);
+
   const [responses, setResponses] = useState<TraitResponse[]>(
-    goldbergItems.map((trait) => ({ trait, score: null }))
+    flatTraits.map(trait => ({ trait, score: null }))
   );
 
   useEffect(() => {
     onChange(responses);
   }, [responses, onChange]);
 
-  const updateScore = (index: number, value: number | null) => {
-    setResponses((prev) =>
-      prev.map((r, i) => (i === index ? { ...r, score: value } : r))
+  const updateScore = (trait: string, value: number | null) => {
+    setResponses(prev =>
+      prev.map(r => (r.trait === trait ? { ...r, score: value } : r))
     );
   };
 
   return (
-    <div className="space-y-4">
-      <h2 className="text-xl font-bold text-black">Goldberg Adjective Trait Survey</h2>
-      <p className="text-gray-600">Rate how accurately each word describes the simulated person.</p>
+    <div className="space-y-6">
+      {goldbergGrouped.map(group => (
+        <div key={group.domain} className="space-y-4">
+          <h2 className="text-xl font-semibold text-black">{group.domain}</h2>
+          {group.traits.map(trait => {
+            const response = responses.find(r => r.trait === trait);
+            if (!response) return null;
 
-      <div className="grid gap-4 max-h-[600px] overflow-y-scroll pr-2">
-        {responses.map((item, index) => (
-          <Card key={index}>
-            <CardContent className="py-4 px-6">
-              <div className="flex flex-col gap-2">
-                <Label className="text-lg font-semibold text-black">{item.trait}</Label>
+            const score = response.score;
 
-                <div className="flex items-center justify-between gap-2">
-                  <Slider
-                    value={[item.score !== null ? item.score : 2]}
-                    min={0}
-                    max={4}
-                    step={1}
-                    disabled={item.score === null}
-                    onValueChange={([val]) => updateScore(index, val)}
-                    className="flex-1"
-                  />
-                  <div className="w-28 text-right text-sm text-gray-700">
-                    {item.score === null ? "Unknown" : `${item.score} / 4`}
+            return (
+              <Card key={trait}>
+                <CardContent className="py-4 px-6">
+                  <div className="flex flex-col gap-2">
+                    <Label className="text-md font-semibold text-black">{trait}</Label>
+
+                    <div className="flex items-center justify-between gap-4">
+                      <Slider
+                        value={[score !== null ? score : 2]}
+                        min={0}
+                        max={4}
+                        step={1}
+                        disabled={score === null}
+                        onValueChange={([val]) => updateScore(trait, val)}
+                        className="flex-1"
+                      />
+                      <div className="w-24 text-right text-sm text-gray-600">
+                        {score === null ? "Unknown" : `${score} / 4`}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={score === null}
+                        onChange={(e) => updateScore(trait, e.target.checked ? null : 2)}
+                        className="h-4 w-4"
+                      />
+                      <label className="text-sm text-gray-600">Mark as Unknown</label>
+                    </div>
                   </div>
-                </div>
+                </CardContent>
+              </Card>
+            );
+          })}
 
-                <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={item.score === null}
-                    onChange={(e) => updateScore(index, e.target.checked ? null : 2)}
-                    className="h-4 w-4"
-                  />
-                  <label className="text-sm text-gray-600">Mark as Unknown</label>
-                </div>
-
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+        </div>
+      ))}
     </div>
   );
 }
-
