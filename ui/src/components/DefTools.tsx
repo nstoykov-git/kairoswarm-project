@@ -12,16 +12,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "react-hot-toast";
 import { supabase } from "@/lib/supabase";
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from "recharts";
-
-import type { TraitResponse } from "@/components/GoldbergTraits";
+import GoldbergTraits, { TraitResponse } from "@/components/GoldbergTraits";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_MODAL_API_URL;
 
 export default function DefTools() {
   const router = useRouter();
   const searchParams = useSearchParams();
-
-  const [goldbergResponses, setGoldbergResponses] = useState<TraitResponse[]>([]);
 
   const [compileInput, setCompileInput] = useState("");
   const [personalStories, setPersonalStories] = useState("");
@@ -38,6 +35,10 @@ export default function DefTools() {
     neuroticism: 0.5,
   });
 
+  const [showGoldberg, setShowGoldberg] = useState(false);
+  const [goldbergResponses, setGoldbergResponses] = useState<TraitResponse[]>([]);
+  const [tempGoldbergResponses, setTempGoldbergResponses] = useState<TraitResponse[]>([]);
+
   useEffect(() => {
     if (searchParams.get("success")) {
       toast.success("✅ Subscription successful! You can now compile.");
@@ -49,14 +50,6 @@ export default function DefTools() {
       router.replace("/def-tools");
     }
   }, [searchParams, router]);
-
-  useEffect(() => {
-    const saved = localStorage.getItem("goldberg_responses");
-    if (saved) {
-      setGoldbergResponses(JSON.parse(saved));
-    }
-  }, []);
-
 
   const handleCompileWithTess = async () => {
     try {
@@ -84,6 +77,7 @@ export default function DefTools() {
           economic_considerations: economicConsiderations,
           etiquette_guidelines: etiquetteGuidelines,
           profile,
+          goldberg_responses: goldbergResponses,
         }),
       });
 
@@ -115,31 +109,33 @@ export default function DefTools() {
 
   const handleFreeCompile = () => {
     const freePrompt = `
-  Agent Name: ${compileInput || "Your Agent"}
+Agent Name: ${compileInput || "Your Agent"}
 
-  You are an AI agent defined by the following personality profile. Please act in accordance with these traits and the provided verbal instructions.
+You are an AI agent defined by the following personality profile. Please act in accordance with these traits and the provided verbal instructions.
 
-  Personality Profile:
-  - Openness: ${profile.openness}
-  - Conscientiousness: ${profile.conscientiousness}
-  - Extraversion: ${profile.extraversion}
-  - Agreeableness: ${profile.agreeableness}
-  - Neuroticism: ${profile.neuroticism}
+Personality Profile:
+- Openness: ${profile.openness}
+- Conscientiousness: ${profile.conscientiousness}
+- Extraversion: ${profile.extraversion}
+- Agreeableness: ${profile.agreeableness}
+- Neuroticism: ${profile.neuroticism}
 
-  Personal Stories:
-  ${personalStories || "None provided."}
+Goldberg Traits:
+${goldbergResponses.map(r => `${r.trait}: ${r.score === null ? "unknown" : r.score}`).join("\n")}
 
-  Economic Considerations:
-  ${economicConsiderations || "None provided."}
+Personal Stories:
+${personalStories || "None provided."}
 
-  Etiquette Guidelines:
-  ${etiquetteGuidelines || "None provided."}
+Economic Considerations:
+${economicConsiderations || "None provided."}
+
+Etiquette Guidelines:
+${etiquetteGuidelines || "None provided."}
     `;
 
     setCompiledMessage(freePrompt);
     toast.success("✅ Basic system prompt generated.");
   };
-
 
   const profileData = [
     { trait: "Openness", value: profile.openness },
@@ -152,9 +148,7 @@ export default function DefTools() {
   return (
     <div className="p-6 space-y-6">
       <h1 className="text-2xl font-bold text-black">Agent Personality Builder</h1>
-      <Button variant="secondary" onClick={() => router.push("/")}>
-        ⬅ Back to Dashboard
-      </Button>
+      <Button variant="secondary" onClick={() => router.push("/")}>⬅ Back to Dashboard</Button>
 
       <div className="space-y-4">
         {["openness", "conscientiousness", "extraversion", "agreeableness", "neuroticism"].map((trait) => (
@@ -167,9 +161,6 @@ export default function DefTools() {
               max={1}
               step={0.01}
             />
-            <Button variant="outline" onClick={() => router.push("/goldberg-traits")}>
-              Add Goldberg Traits
-            </Button>
           </div>
         ))}
 
@@ -185,6 +176,24 @@ export default function DefTools() {
             </ResponsiveContainer>
           </CardContent>
         </Card>
+
+        <Button variant="outline" onClick={() => setShowGoldberg(true)}>
+          Add Goldberg Traits
+        </Button>
+
+        {showGoldberg && (
+          <div className="border rounded-xl p-4 space-y-4 bg-white">
+            <h2 className="text-xl font-bold text-black">Goldberg Trait Survey</h2>
+            <GoldbergTraits onChange={setTempGoldbergResponses} />
+            <div className="flex justify-end gap-4 pt-4">
+              <Button variant="outline" onClick={() => setShowGoldberg(false)}>Cancel</Button>
+              <Button onClick={() => {
+                setGoldbergResponses(tempGoldbergResponses);
+                setShowGoldberg(false);
+              }}>OK</Button>
+            </div>
+          </div>
+        )}
 
         <Input
           value={compileInput}
