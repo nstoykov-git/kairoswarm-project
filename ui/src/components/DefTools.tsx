@@ -282,7 +282,7 @@ ${etiquetteGuidelines || "None provided."}
           placeholder="Enter etiquette guidelines..."
         />
 
-        <div className="flex gap-4">
+        <div className="flex flex-wrap gap-4">
           <Button variant="secondary" onClick={handleCompileWithTess} disabled={compiling}>
             {compiling ? "Compiling with Tess..." : "Compile with Tess"}
           </Button>
