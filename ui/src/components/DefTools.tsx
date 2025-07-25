@@ -16,9 +16,53 @@ import GoldbergTraits, { TraitResponse } from "@/components/GoldbergTraits";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_MODAL_API_URL;
 
+async function createAgent({
+  name,
+  userId,
+  oceanScores,
+  goldbergTraits,
+  description,
+  skills,
+  userOpenAiKey, // ✅ NEW
+}: {
+  name: string;
+  userId: string;
+  oceanScores: Record<string, number>;
+  goldbergTraits: { trait: string; score: number | null }[];
+  description: string;
+  skills: string[];
+  userOpenAiKey?: string; // ✅ Make it optional
+}) {
+  const res = await fetch("/api/internal/create-agent", {
+    method: "POST",
+    headers: {
+    "Content-Type": "application/json",
+    ...(userOpenAiKey && { "X-OpenAI-Key": userOpenAiKey })
+  },
+    body: JSON.stringify({
+      name,
+      user_id: userId,
+      ocean_scores: oceanScores,
+      goldberg_traits: goldbergTraits,
+      description,
+      skills
+    })
+  });
+
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.detail || "Failed to create agent");
+  }
+
+  return await res.json(); // { status: "ok", assistant_id, name }
+}
+
+
 export default function DefTools() {
   const router = useRouter();
   const searchParams = useSearchParams();
+
+  const [userOpenAiKey, setUserOpenAiKey] = useState("");
 
   const [compileInput, setCompileInput] = useState("");
   const [personalStories, setPersonalStories] = useState("");
@@ -78,6 +122,7 @@ export default function DefTools() {
           etiquette_guidelines: etiquetteGuidelines,
           profile,
           goldberg_responses: goldbergResponses,
+          openai_key: userOpenAiKey || undefined,  // <- only passes if provided
         }),
       });
 
@@ -206,6 +251,14 @@ ${etiquetteGuidelines || "None provided."}
         )}
 
         <Input
+          type="password"
+          placeholder="Optional: Your OpenAI API Key"
+          value={userOpenAiKey}
+          onChange={(e) => setUserOpenAiKey(e.target.value)}
+          className="mt-4"
+        />
+
+        <Input
           value={compileInput}
           onChange={(e) => setCompileInput(e.target.value)}
           placeholder="Enter compile instructions here..."
@@ -237,6 +290,46 @@ ${etiquetteGuidelines || "None provided."}
           <Button variant="outline" onClick={handleFreeCompile}>
             Compile without Tess
           </Button>
+
+          <Button
+            variant="default"
+            onClick={async () => {
+              try {
+                const { data } = await supabase.auth.getSession();
+                const userId = data.session?.user?.id;
+
+                if (!userId) {
+                  toast.error("Please sign in to create your agent.");
+                  return;
+                }
+
+                const oceanScores = {
+                  openness: profile.openness,
+                  conscientiousness: profile.conscientiousness,
+                  extraversion: profile.extraversion,
+                  agreeableness: profile.agreeableness,
+                  neuroticism: profile.neuroticism
+                };
+
+                const agent = await createAgent({
+                  name: compileInput || "Unnamed Agent",
+                  userId,
+                  oceanScores,
+                  goldbergTraits: goldbergResponses,
+                  description: compiledMessage || "No description provided.",
+                  skills: [], // You can pass this from another input if needed
+                  userOpenAiKey // ✅ pass the value
+                });
+
+                toast.success(`✅ Agent ${agent.name} created!`);
+              } catch (err: any) {
+                toast.error(err.message || "Agent creation failed.");
+              }
+            }}
+          >
+            Save Agent
+          </Button>
+
         </div>
 
         {compiledMessage && (
