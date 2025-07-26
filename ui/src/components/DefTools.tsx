@@ -270,14 +270,14 @@ ${etiquetteGuidelines || "None provided."}
         />
 
         <div className="flex flex-wrap gap-4">
-          <Button variant="secondary" onClick={handleCompileWithTess} disabled={compiling}>
+{/*}          <Button variant="secondary" onClick={handleCompileWithTess} disabled={compiling}>
             {compiling ? "Compiling with Tess..." : "Compile with Tess"}
           </Button>
 
           <Button variant="outline" onClick={handleFreeCompile}>
             Compile without Tess
           </Button>
-
+*/}
           <Button
             variant="default"
             onClick={async () => {
@@ -314,7 +314,7 @@ ${etiquetteGuidelines || "None provided."}
               }
             }}
           >
-            Save Agent
+            Create Agent
           </Button>
         </div>
 
