@@ -1,12 +1,17 @@
 // src/app/def-tools/page.tsx
-import { Suspense } from 'react';
-import DefTools from '@/components/DefTools';
+"use client";
+
+import dynamic from "next/dynamic";
+
+// dynamically import DefTools with SSR disabled and a loading fallback
+const DefTools = dynamic(
+  () => import("@/components/DefTools"),
+  {
+    ssr: false,
+    loading: () => <div>Loading Agent Personality Builder…</div>,
+  }
+);
 
 export default function DefToolsPage() {
-  return (
-    <Suspense fallback={<div>Loading...</div>}>
-      <DefTools />
-    </Suspense>
-  );
+  return <DefTools />;
 }
-
