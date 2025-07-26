@@ -384,7 +384,9 @@ ${etiquetteGuidelines || "None provided."}
                   }
 
                   // 3. Redirect to swarm
-                  router.push(`/?swarm_id=${swarmId}`);
+                  //router.push(`/?swarm_id=${swarmId}`);
+                  // ✅ Robust redirect
+                  window.location.href = `https://kairoswarm.com/?swarm_id=${swarmId}`;
                 } catch (err) {
                   console.error(err);
                   toast.error("⚠️ Failed to meet agent");
