@@ -1,8 +1,8 @@
 // src/app/def-tools/page.tsx
 import dynamic from "next/dynamic";
 
-// NO "use client" here → this stays a server component
-const DefTools = dynamic(
+// Import _only_ on the client
+const DefToolsClient = dynamic(
   () => import("@/components/DefTools"),
   {
     ssr: false,
@@ -11,5 +11,5 @@ const DefTools = dynamic(
 );
 
 export default function DefToolsPage() {
-  return <DefTools />;
+  return <DefToolsClient />;
 }
