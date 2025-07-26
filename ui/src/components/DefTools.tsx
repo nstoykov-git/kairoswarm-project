@@ -275,19 +275,19 @@ ${etiquetteGuidelines || "None provided."}
         />
 
         <Textarea
-          value={personalStories}
+          value={personalStories || ""}
           onChange={(e) => setPersonalStories(e.target.value)}
           placeholder="Enter personal stories..."
         />
 
         <Textarea
-          value={economicConsiderations}
+          value={economicConsiderations || ""}
           onChange={(e) => setEconomicConsiderations(e.target.value)}
           placeholder="Enter economic considerations..."
         />
 
         <Textarea
-          value={etiquetteGuidelines}
+          value={etiquetteGuidelines || ""}
           onChange={(e) => setEtiquetteGuidelines(e.target.value)}
           placeholder="Enter etiquette guidelines..."
         />
@@ -330,8 +330,9 @@ ${etiquetteGuidelines || "None provided."}
                   skills: [], // You can pass this from another input if needed
                   userOpenAiKey // ✅ pass the value
                 });
-
-                toast.success(`✅ Agent ${agent.name} created!`);
+                
+                console.log(agent)
+                toast.success(`✅ Agent ${agent?.name || "Unnamed Agent"} created!`);
               } catch (err: any) {
                 toast.error(err.message || "Agent creation failed.");
               }
