@@ -335,7 +335,11 @@ ${etiquetteGuidelines || "None provided."}
         {assistantId && (
           <Card className="bg-white text-black p-4 mt-4 border">
             <CardContent className="space-y-3">
-              <div><strong>Assistant ID:</strong> {assistantId}</div>
+              <div>
+                <strong title="Use it to add to swarms or publish on Kairoswarm">
+                  Assistant ID:
+                </strong> {assistantId}
+              </div>
               <Button variant="secondary" onClick={() => {
                 navigator.clipboard.writeText(assistantId);
                 toast.success("Assistant ID copied!");
