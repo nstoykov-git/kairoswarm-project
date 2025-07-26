@@ -155,7 +155,7 @@ export default function DefTools() {
 
   const handleFreeCompile = () => {
     const freePrompt = `
-Agent Name: ${compileInput || "Your Agent"}
+Agent Name: ${agentName || "Your Agent"}
 
 You are an AI agent defined by the following personality profile. Please act in accordance with these traits and the provided verbal instructions.
 
@@ -331,7 +331,6 @@ ${etiquetteGuidelines || "None provided."}
                   userOpenAiKey // ✅ pass the value
                 });
                 
-                console.log(agent)
                 toast.success(`✅ Agent ${agent?.name || "Unnamed Agent"} created!`);
               } catch (err: any) {
                 toast.error(err.message || "Agent creation failed.");
