@@ -358,30 +358,36 @@ ${etiquetteGuidelines || "None provided."}
               onClick={async () => {
                 setLaunching(true);
                 try {
-                  const res = await fetch(`${API_BASE_URL}/swarm/initiate`, {
+                  // 1. Create ephemeral swarm
+                  const createRes = await fetch(`${API_BASE_URL}/swarm/create`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ agent_ids: [assistantId] }),
+                    body: JSON.stringify({ name: agentName || "Unnamed Swarm" }),
                   });
 
-                  const data = await res.json();
-                  if (!data.swarm_id) throw new Error("No swarm_id returned");
+                  const createData = await createRes.json();
+                  const swarmId = createData.id;
 
-                  const swarmId = data.swarm_id;
+                  if (!swarmId) throw new Error("No swarm ID returned");
 
-                  await fetch(`${API_BASE_URL}/swarm/reload-agent`, {
+                  // 2. Add assistant (OpenAI) to swarm
+                  const addRes = await fetch(`${API_BASE_URL}/swarm/add-agent`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                      swarm_id: swarmId,
-                      agent_id: assistantId,
-                    }),
+                    body: JSON.stringify({ swarm_id: swarmId, agentId: assistantId }),
                   });
 
+                  const addData = await addRes.json();
+
+                  if (addData?.error) {
+                    throw new Error(addData.error || "Agent failed to join swarm");
+                  }
+
+                  // 3. Redirect to swarm
                   router.push(`/?swarm_id=${swarmId}`);
                 } catch (err) {
                   console.error(err);
-                  toast.error("⚠️ Failed to initiate swarm");
+                  toast.error("⚠️ Failed to meet agent");
                 } finally {
                   setLaunching(false);
                 }
