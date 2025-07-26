@@ -64,6 +64,7 @@ export default function DefTools() {
 
   const [userOpenAiKey, setUserOpenAiKey] = useState("");
 
+  const [agentName, setAgentName] = useState("");
   const [compileInput, setCompileInput] = useState("");
   const [personalStories, setPersonalStories] = useState("");
   const [economicConsiderations, setEconomicConsiderations] = useState("");
@@ -108,7 +109,7 @@ export default function DefTools() {
       }
 
       if (!token) {
-        toast.error("You must be signed in to compile.");
+        toast.error("You must be signed in to compile with Tess.");
         return;
       }
 
@@ -194,6 +195,15 @@ ${etiquetteGuidelines || "None provided."}
     <div className="p-6 space-y-6">
       <h1 className="text-2xl font-bold text-black">Agent Personality Builder</h1>
       <Button variant="secondary" onClick={() => router.push("/")}>⬅ Back to Dashboard</Button>
+
+      <Input
+        value={agentName}
+        onChange={(e) => setAgentName(e.target.value)}
+        placeholder="Agent name"
+        className="mt-4"
+        required
+      />
+
 
       <div className="space-y-4">
         {["openness", "conscientiousness", "extraversion", "agreeableness", "neuroticism"].map((trait) => (
@@ -312,7 +322,7 @@ ${etiquetteGuidelines || "None provided."}
                 };
 
                 const agent = await createAgent({
-                  name: compileInput || "Unnamed Agent",
+                  name: agentName || "Unnamed Agent",
                   userId,
                   oceanScores,
                   goldbergTraits: goldbergResponses,
