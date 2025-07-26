@@ -1,14 +1,19 @@
 // src/app/def-tools/page.tsx
 "use client";
-
 import dynamic from "next/dynamic";
+import { Suspense } from "react";
 
-// this component will never be server‑rendered
-const DefTools = dynamic(() => import("@/components/DefTools"), {
-  ssr: false,
-  loading: () => <div>Loading Agent Personality Builder…</div>,
-});
+// tell Next “this is a client‑only import, and I’ll handle loading via Suspense”
+const DefTools = dynamic(
+  () => import("@/components/DefTools"),
+  // @ts-ignore
+  { ssr: false, suspense: true }
+);
 
 export default function DefToolsPage() {
-  return <DefTools />;
+  return (
+    <Suspense fallback={<div>Loading Agent Personality Builder…</div>}>
+      <DefTools />
+    </Suspense>
+  );
 }
