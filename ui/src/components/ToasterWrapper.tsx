@@ -1,4 +1,4 @@
-// app/toaster-wrapper.tsx
+// components/ToasterWrapper.tsx
 "use client";
 
 import { Toaster } from "react-hot-toast";

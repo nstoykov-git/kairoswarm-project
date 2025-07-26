@@ -1,7 +1,5 @@
 // app/layout.tsx (✅ server-only)
 
-// app/layout.tsx (✅ server-only)
-
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
@@ -24,6 +22,8 @@ export const metadata: Metadata = {
   description: "Swarms of humans and AI collaborating in real time",
 };
 
+import ToasterWrapper from "@/components/ToasterWrapper";
+
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
@@ -31,6 +31,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <UserProvider>
           {children}
           <Footer />
+          <ToasterWrapper />
         </UserProvider>
       </body>
     </html>
