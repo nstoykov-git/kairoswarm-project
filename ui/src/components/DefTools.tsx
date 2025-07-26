@@ -23,7 +23,6 @@ async function createAgent({
   goldbergTraits,
   description,
   skills,
-  userOpenAiKey, // ✅ NEW
 }: {
   name: string;
   userId: string;
@@ -31,22 +30,20 @@ async function createAgent({
   goldbergTraits: { trait: string; score: number | null }[];
   description: string;
   skills: string[];
-  userOpenAiKey?: string; // ✅ Make it optional
 }) {
   const res = await fetch(`${API_BASE_URL}/swarm/create-agent`, {
     method: "POST",
     headers: {
-    "Content-Type": "application/json",
-    ...(userOpenAiKey && { "X-OpenAI-Key": userOpenAiKey })
-  },
+      "Content-Type": "application/json",
+    },
     body: JSON.stringify({
       name,
       user_id: userId,
       ocean: oceanScores,
       goldberg_traits: goldbergTraits,
       description,
-      skills
-    })
+      skills,
+    }),
   });
 
   if (!res.ok) {
@@ -57,12 +54,9 @@ async function createAgent({
   return await res.json(); // { status: "ok", assistant_id, name }
 }
 
-
 export default function DefTools() {
   const router = useRouter();
   const searchParams = useSearchParams();
-
-  const [userOpenAiKey, setUserOpenAiKey] = useState("");
 
   const [agentName, setAgentName] = useState("");
   const [compileInput, setCompileInput] = useState("");
@@ -71,6 +65,7 @@ export default function DefTools() {
   const [etiquetteGuidelines, setEtiquetteGuidelines] = useState("");
   const [compiledMessage, setCompiledMessage] = useState("");
   const [compiling, setCompiling] = useState(false);
+  const [assistantId, setAssistantId] = useState("");
 
   const [profile, setProfile] = useState({
     openness: 0.5,
@@ -123,7 +118,6 @@ export default function DefTools() {
           etiquette_guidelines: etiquetteGuidelines,
           profile,
           goldberg_responses: goldbergResponses,
-          openai_key: userOpenAiKey || undefined,  // <- only passes if provided
         }),
       });
 
@@ -196,14 +190,14 @@ ${etiquetteGuidelines || "None provided."}
       <h1 className="text-2xl font-bold text-black">Agent Personality Builder</h1>
       <Button variant="secondary" onClick={() => router.push("/")}>⬅ Back to Dashboard</Button>
 
+      <label className="text-black font-semibold text-lg">Agent Name (required)</label>
       <Input
         value={agentName}
         onChange={(e) => setAgentName(e.target.value)}
         placeholder="Agent name"
-        className="mt-4"
+        className="mt-2"
         required
       />
-
 
       <div className="space-y-4">
         {["openness", "conscientiousness", "extraversion", "agreeableness", "neuroticism"].map((trait) => (
@@ -232,24 +226,15 @@ ${etiquetteGuidelines || "None provided."}
           </CardContent>
         </Card>
 
-        <Button
-          variant="outline"
-          onClick={() => {
-            setTempGoldbergResponses(goldbergResponses); // ← prefill form
-            setShowGoldberg(true);
-          }}
-        >
-          Add Goldberg Traits
-        </Button>
-
+        <Button variant="outline" onClick={() => {
+          setTempGoldbergResponses(goldbergResponses);
+          setShowGoldberg(true);
+        }}>Add Goldberg Traits</Button>
 
         {showGoldberg && (
           <div className="border rounded-xl p-4 space-y-4 bg-white">
             <h2 className="text-xl font-bold text-black">Goldberg Trait Survey</h2>
-            <GoldbergTraits
-              onChange={setTempGoldbergResponses}
-              initialResponses={tempGoldbergResponses}
-            />
+            <GoldbergTraits onChange={setTempGoldbergResponses} initialResponses={tempGoldbergResponses} />
             <div className="flex justify-end gap-4 pt-4">
               <Button variant="outline" onClick={() => setShowGoldberg(false)}>Cancel</Button>
               <Button onClick={() => {
@@ -259,14 +244,6 @@ ${etiquetteGuidelines || "None provided."}
             </div>
           </div>
         )}
-
-        <Input
-          type="password"
-          placeholder="Optional: Your OpenAI API Key"
-          value={userOpenAiKey}
-          onChange={(e) => setUserOpenAiKey(e.target.value)}
-          className="mt-4"
-        />
 
         <Input
           value={compileInput}
@@ -327,11 +304,11 @@ ${etiquetteGuidelines || "None provided."}
                   oceanScores,
                   goldbergTraits: goldbergResponses,
                   description: compiledMessage || "No description provided.",
-                  skills: [], // You can pass this from another input if needed
-                  userOpenAiKey // ✅ pass the value
+                  skills: []
                 });
-                
-                toast.success(`✅ Agent ${agent?.name || "Unnamed Agent"} created!`);
+
+                setAssistantId(agent?.assistant_id || "");
+                toast.success(`Agent ${agent?.name || "Unnamed Agent"} created!`);
               } catch (err: any) {
                 toast.error(err.message || "Agent creation failed.");
               }
@@ -339,21 +316,31 @@ ${etiquetteGuidelines || "None provided."}
           >
             Save Agent
           </Button>
-
         </div>
 
         {compiledMessage && (
           <Card className="bg-gray-800 text-white p-4 mt-4">
             <CardContent className="space-y-3">
               <div className="whitespace-pre-wrap">{compiledMessage}</div>
-              <Button
-                variant="secondary"
-                onClick={() => {
-                  navigator.clipboard.writeText(compiledMessage);
-                  toast.success("System prompt copied!");
-                }}
-              >
+              <Button variant="secondary" onClick={() => {
+                navigator.clipboard.writeText(compiledMessage);
+                toast.success("System prompt copied!");
+              }}>
                 Copy System Prompt
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        {assistantId && (
+          <Card className="bg-white text-black p-4 mt-4 border">
+            <CardContent className="space-y-3">
+              <div><strong>Assistant ID:</strong> {assistantId}</div>
+              <Button variant="secondary" onClick={() => {
+                navigator.clipboard.writeText(assistantId);
+                toast.success("Assistant ID copied!");
+              }}>
+                Copy Assistant ID
               </Button>
             </CardContent>
           </Card>
