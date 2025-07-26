@@ -66,6 +66,7 @@ export default function DefTools() {
   const [compiledMessage, setCompiledMessage] = useState("");
   const [compiling, setCompiling] = useState(false);
   const [assistantId, setAssistantId] = useState("");
+  const [launching, setLaunching] = useState(false);
 
   const [profile, setProfile] = useState({
     openness: 0.5,
@@ -333,22 +334,64 @@ ${etiquetteGuidelines || "None provided."}
         )}
 
         {assistantId && (
-          <Card className="bg-white text-black p-4 mt-4 border">
-            <CardContent className="space-y-3">
-              <div>
-                <strong title="Use it to add to swarms or publish on Kairoswarm">
-                  Assistant ID:
-                </strong> {assistantId}
-              </div>
-              <Button variant="secondary" onClick={() => {
-                navigator.clipboard.writeText(assistantId);
-                toast.success("Assistant ID copied!");
-              }}>
-                Copy Assistant ID
-              </Button>
-            </CardContent>
-          </Card>
+          <>
+            <Card className="bg-white text-black p-4 mt-4 border">
+              <CardContent className="space-y-3">
+                <div>
+                  <strong title="Use it to add to swarms or publish on Kairoswarm">
+                    Assistant ID:
+                  </strong> {assistantId}
+                </div>
+                <Button variant="secondary" onClick={() => {
+                  navigator.clipboard.writeText(assistantId);
+                  toast.success("Assistant ID copied!");
+                }}>
+                  Copy Assistant ID
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Button
+              variant="default"
+              disabled={launching}
+              className="mt-4"
+              onClick={async () => {
+                setLaunching(true);
+                try {
+                  const res = await fetch(`${API_BASE_URL}/swarm/initiate`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ agent_ids: [assistantId] }),
+                  });
+
+                  const data = await res.json();
+                  if (!data.swarm_id) throw new Error("No swarm_id returned");
+
+                  const swarmId = data.swarm_id;
+
+                  await fetch(`${API_BASE_URL}/swarm/reload-agent`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      swarm_id: swarmId,
+                      agent_id: assistantId,
+                    }),
+                  });
+
+                  router.push(`/?swarm_id=${swarmId}`);
+                } catch (err) {
+                  console.error(err);
+                  toast.error("⚠️ Failed to initiate swarm");
+                } finally {
+                  setLaunching(false);
+                }
+              }}
+            >
+              {launching ? "🚀 Launching..." : "🚀 Meet Agent"}
+            </Button>
+          </>
         )}
+
       </div>
     </div>
   );
