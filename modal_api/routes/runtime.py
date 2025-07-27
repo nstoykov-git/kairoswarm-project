@@ -98,11 +98,15 @@ async def speak(request: Request):
                 thread_id = agent_data["thread_id"]
                 assistant_id = agent_data["agent_id"]
 
+                user_name = part.get("name", "User")
+                message_with_name = f"{user_name}: {message}"
+
                 await client.beta.threads.messages.create(
                     thread_id=thread_id,
                     role="user",
-                    content=message
+                    content=message_with_name
                 )
+
                 run = await client.beta.threads.runs.create_and_poll(
                     thread_id=thread_id,
                     assistant_id=assistant_id
@@ -131,11 +135,15 @@ async def speak(request: Request):
         thread_id = agent_data["thread_id"]
         assistant_id = agent_data["agent_id"]
 
+        user_name = part.get("name", "User")
+        message_with_name = f"{user_name}: {message}"
+
         await client.beta.threads.messages.create(
             thread_id=thread_id,
             role="user",
-            content=message
+            content=message_with_name
         )
+
 
         run = await client.beta.threads.runs.create_and_poll(
             thread_id=thread_id,
