@@ -84,90 +84,51 @@ async def speak(request: Request):
             return {"error": "Participant not found."}
 
         part = json.loads(part_raw)
-        entry = {"from": part["name"], "type": part["type"], "message": message}
+        user_name = part.get("name", "User")
+        entry = {"from": user_name, "type": part["type"], "message": message}
         await r.rpush(f"{sid}:conversation_tape", json.dumps(entry))
 
-        if part["type"] == "human":
-            agent_ids = await r.hkeys(f"{sid}:agents")
-            for aid in agent_ids:
-                agent_json = await r.hget(f"{sid}:agents", aid)
-                if not agent_json:
-                    continue
-                agent_data = json.loads(agent_json)
+        # Broadcast message to all agents (regardless of who spoke)
+        agent_ids = await r.hkeys(f"{sid}:agents")
+        for aid in agent_ids:
+            agent_json = await r.hget(f"{sid}:agents", aid)
+            if not agent_json:
+                continue
+            agent_data = json.loads(agent_json)
 
-                thread_id = agent_data["thread_id"]
-                assistant_id = agent_data["agent_id"]
+            thread_id = agent_data["thread_id"]
+            assistant_id = agent_data["agent_id"]
 
-                user_name = part.get("name", "User")
-                message_with_name = f"{user_name}: {message}"
+            message_with_name = f"{user_name}: {message}"
 
-                await client.beta.threads.messages.create(
-                    thread_id=thread_id,
-                    role="user",
-                    content=message_with_name
-                )
+            await client.beta.threads.messages.create(
+                thread_id=thread_id,
+                role="user",
+                content=message_with_name
+            )
 
-                run = await client.beta.threads.runs.create_and_poll(
-                    thread_id=thread_id,
-                    assistant_id=assistant_id
-                )
-                messages = (await client.beta.threads.messages.list(thread_id=thread_id)).data
-                reply = next(
-                    (m for m in reversed(messages)
-                     if m.role == "assistant" and m.run_id == run.id),
-                    None
-                )
-                if reply:
-                    response_text = reply.content[0].text.value.strip()
-                    agent_entry = {
-                        "from": agent_data.get("name", "Agent"),
-                        "type": "agent",
-                        "message": response_text
-                    }
-                    await r.rpush(f"{sid}:conversation_tape", json.dumps(agent_entry))
-            return {"status": "ok", "entry": entry}
+            run = await client.beta.threads.runs.create_and_poll(
+                thread_id=thread_id,
+                assistant_id=assistant_id
+            )
 
-        # Agent initiator flow
-        agent_data = await r.hgetall(f"{sid}:agent:{pid}")
-        if not agent_data:
-            return {"status": "ok", "entry": entry}
+            messages = (await client.beta.threads.messages.list(thread_id=thread_id)).data
+            reply = next(
+                (m for m in reversed(messages)
+                 if m.role == "assistant" and m.run_id == run.id),
+                None
+            )
 
-        thread_id = agent_data["thread_id"]
-        assistant_id = agent_data["agent_id"]
+            if reply:
+                response_text = reply.content[0].text.value.strip()
+                agent_entry = {
+                    "from": agent_data.get("name", "Agent"),
+                    "type": "agent",
+                    "message": response_text
+                }
+                await r.rpush(f"{sid}:conversation_tape", json.dumps(agent_entry))
 
-        user_name = part.get("name", "User")
-        message_with_name = f"{user_name}: {message}"
-
-        await client.beta.threads.messages.create(
-            thread_id=thread_id,
-            role="user",
-            content=message_with_name
-        )
-
-
-        run = await client.beta.threads.runs.create_and_poll(
-            thread_id=thread_id,
-            assistant_id=assistant_id
-        )
-
-        messages = (await client.beta.threads.messages.list(thread_id=thread_id)).data
-        reply = next(
-            (m for m in reversed(messages)
-             if m.role == "assistant" and m.run_id == run.id),
-            None
-        )
-
-        if reply:
-            response_text = reply.content[0].text.value.strip()
-            agent_entry = {
-                "from": part["name"],
-                "type": "agent",
-                "message": response_text
-            }
-            await r.rpush(f"{sid}:conversation_tape", json.dumps(agent_entry))
-            return {"status": "ok", "entry": agent_entry}
-        else:
-            return {"status": "ok", "entry": entry}
+        return {"status": "ok", "entry": entry}
 
 @router.get("/participants-full")
 async def participants_full(request: Request):
