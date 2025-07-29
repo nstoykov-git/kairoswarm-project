@@ -279,8 +279,13 @@ ${etiquetteGuidelines || "None provided."}
             Compile without Tess
           </Button>
 */}
+
+          {!agentName.trim() && (
+            <p className="text-red-500 text-sm">Please enter a name for your agent.</p>
+          )}
           <Button
             variant="default"
+            disabled={!agentName.trim() || launching}
             onClick={async () => {
               try {
                 const { data } = await supabase.auth.getSession();
