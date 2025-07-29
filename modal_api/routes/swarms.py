@@ -145,15 +145,19 @@ async def add_agent(request: Request):
 
         # 💾 Save agent + participant in Redis using Kairoswarm UUID
         await redis.hset(f"{sid}:agents", agent_id, json.dumps({
-            "agent_id": agent_id,
+            "agent_id": agent_id,              # Kairoswarm UUID
+            "assistant_id": openai_id,         # OpenAI assistant ID (for OpenAI API)
             "thread_id": thread.id,
             "name": name
         }))
+
         await redis.hset(f"{sid}:agent:{agent_id}", mapping={
             "agent_id": agent_id,
+            "assistant_id": openai_id,
             "thread_id": thread.id,
             "name": name
         })
+
         await redis.hset(f"{sid}:participants", pid, json.dumps({
             "id": pid,
             "name": name,
@@ -212,14 +216,18 @@ async def reload_agent(request: Request):
 
             await r.hset(f"{swarm_id}:agents", agent_id, json.dumps({
                 "agent_id": agent_id,
+                "assistant_id": agent_id,  # This is the OpenAI assistant ID in this case
                 "thread_id": thread.id,
                 "name": assistant.name
             }))
+
             await r.hset(f"{swarm_id}:agent:{agent_id}", mapping={
                 "agent_id": agent_id,
+                "assistant_id": agent_id,
                 "thread_id": thread.id,
                 "name": assistant.name
             })
+
             await r.hset(f"{swarm_id}:participants", pid, json.dumps({
                 "id": pid,
                 "name": assistant.name,
