@@ -130,7 +130,7 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
   };
 
   const handleAddAgent = async () => {
-    const agentId = prompt("Enter OpenAI Assistant ID:");
+    const agentId = prompt("Enter Kairoswarm Agent ID:");
     if (!agentId) return;
 
     const res = await fetch(`${API_BASE_URL}/swarm/add-agent`, {
