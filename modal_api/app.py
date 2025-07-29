@@ -13,6 +13,7 @@ from modal_api.routes.autoregister import router as autoregister_router
 from modal_api.routes.swarms import router as swarms_router
 from kairoswarm_core.routes.persistent_runtime import router as persistent_runtime_router
 from kairoswarm_core.routes.ephemeral_runtime import router as ephemeral_runtime_router
+from kairoswarm_core.routes.conversation_runtime import router as conversation_runtime_router
 from kairoswarm_core.routes.payments import router as payments_router
 from kairoswarm_core.routes.accounts import router as accounts_router
 from kairoswarm_core.routes.personalities import router as personalities_router
@@ -45,6 +46,7 @@ api.include_router(autoregister_router)
 api.include_router(swarms_router, prefix="/swarm", tags=["swarms"])
 api.include_router(persistent_runtime_router, prefix="/persistent", tags=["persistent"])
 api.include_router(ephemeral_runtime_router, prefix="/swarm", tags=["swarms"])
+api.include_router(conversation_runtime_router, tags=["conversations"])
 api.include_router(payments_router, prefix="/payments", tags=["payments"])
 api.include_router(accounts_router, prefix="/accounts", tags=["accounts"])
 api.include_router(personalities_router, prefix="/personalities", tags=["personalities"])

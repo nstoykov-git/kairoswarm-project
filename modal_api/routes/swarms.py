@@ -120,48 +120,61 @@ async def add_agent(request: Request):
         if not agent_id:
             return {"status": "skipped", "reason": "No agent ID provided"}
 
-        # Create OpenAI assistant + thread
-        assistant = openai.beta.assistants.retrieve(agent_id)
+        sb = get_supabase()
+        redis = await get_redis()
+
+        # 🔍 Look up agent in Supabase by Kairoswarm UUID
+        agent_resp = sb.table("agents").select("name", "openai_id").eq("id", agent_id).single().execute()
+
+        if not agent_resp.data:
+            return JSONResponse(status_code=404, content={"error": f"Agent {agent_id} not found."})
+
+        openai_id = agent_resp.data["openai_id"]
+        name = agent_resp.data["name"]
+
+        if not openai_id:
+            return JSONResponse(status_code=400, content={"error": "Agent does not have an OpenAI assistant ID."})
+
+        # ✅ Create new OpenAI thread
         thread = openai.beta.threads.create()
         pid = str(uuid.uuid4())
 
-        async with get_redis() as r:
-            ttl = await r.ttl(f"{sid}:conversation_tape")
-            if ttl <= 0 and ttl != -1:
-                return JSONResponse(status_code=400, content={"error": "Swarm expired or not found"})
+        ttl = await redis.ttl(f"{sid}:conversation_tape")
+        if ttl <= 0 and ttl != -1:
+            return JSONResponse(status_code=400, content={"error": "Swarm expired or not found"})
 
-            # Add agent to Redis
-            await r.hset(f"{sid}:agents", assistant.id, json.dumps({
-                "agent_id": assistant.id,
-                "thread_id": thread.id,
-                "name": assistant.name
-            }))
-            await r.hset(f"{sid}:agent:{assistant.id}", mapping={
-                "agent_id": assistant.id,
-                "thread_id": thread.id,
-                "name": assistant.name
-            })
-            await r.hset(f"{sid}:participants", pid, json.dumps({
-                "id": pid,
-                "name": assistant.name,
-                "type": "agent",
-                "metadata": {
-                    "agent_id": assistant.id,
-                    "thread_id": thread.id
-                }
-            }))
+        # 💾 Save agent + participant in Redis using Kairoswarm UUID
+        await redis.hset(f"{sid}:agents", agent_id, json.dumps({
+            "agent_id": agent_id,
+            "thread_id": thread.id,
+            "name": name
+        }))
+        await redis.hset(f"{sid}:agent:{agent_id}", mapping={
+            "agent_id": agent_id,
+            "thread_id": thread.id,
+            "name": name
+        })
+        await redis.hset(f"{sid}:participants", pid, json.dumps({
+            "id": pid,
+            "name": name,
+            "type": "agent",
+            "metadata": {
+                "agent_id": agent_id,
+                "thread_id": thread.id
+            }
+        }))
 
-            if ttl > 0:
-                await r.expire(f"{sid}:agents", ttl)
-                await r.expire(f"{sid}:agent:{assistant.id}", ttl)
-                await r.expire(f"{sid}:participants", ttl)
+        if ttl > 0:
+            await redis.expire(f"{sid}:agents", ttl)
+            await redis.expire(f"{sid}:agent:{agent_id}", ttl)
+            await redis.expire(f"{sid}:participants", ttl)
 
-        return {"name": assistant.name, "thread_id": thread.id}
+        return {"name": name, "thread_id": thread.id}
 
     except Exception as e:
-        logging.exception("Failed to add agent")
+        logging.exception("❌ Failed to add agent to swarm")
         return {"error": str(e)}
-    
+
 
 # --- Reload Agent ---
     
@@ -245,7 +258,9 @@ class PublishAgentRequest(BaseModel):
 @router.post("/publish-agent")
 async def publish_agent(payload: PublishAgentRequest):
     try:
-        # Generate embedding from agent data
+        agent_id = payload.assistant_id  # This is now the Kairoswarm UUID
+
+        # 1. Generate embedding
         text_for_embedding = f"{payload.name} {payload.description} {' '.join(payload.skills)}"
         response = openai.embeddings.create(
             input=text_for_embedding.strip(),
@@ -253,28 +268,27 @@ async def publish_agent(payload: PublishAgentRequest):
         )
         embedding = response.data[0].embedding
 
-        # Insert into Supabase
+        # 2. Update existing agent in Supabase
         sb = get_supabase()
-        result = sb.table("agents").insert({
-            "id": payload.assistant_id,
-            "name": payload.name,
-            "user_id": payload.user_id,
-            "model": "gpt-4o-mini",
+
+        update_data = {
+            "description": payload.description,
+            "skills": payload.skills,
             "has_free_tier": payload.has_free_tier,
             "price": payload.price,
             "is_negotiable": payload.is_negotiable,
-            "description": payload.description,
-            "skills": payload.skills,
             "vector_embedding": embedding,
-            "personality": None,
-            "system_prompt": None
-        }).execute()
+            "is_published": True
+        }
 
-        return {"status": "ok", "id": payload.assistant_id}
+        sb.table("agents").update(update_data).eq("id", agent_id).execute()
+
+        return {"status": "ok", "id": agent_id}
 
     except Exception as e:
         logging.exception("❌ Failed to publish agent")
         raise HTTPException(status_code=500, detail=f"Agent publish failed: {str(e)}")
+
 
 
 @router.post("/unpublish-agent")
