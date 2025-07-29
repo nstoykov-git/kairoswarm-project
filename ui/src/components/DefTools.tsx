@@ -65,7 +65,7 @@ export default function DefTools() {
   const [etiquetteGuidelines, setEtiquetteGuidelines] = useState("");
   const [compiledMessage, setCompiledMessage] = useState("");
   const [compiling, setCompiling] = useState(false);
-  const [assistantId, setAssistantId] = useState("");
+  const [agentID, setAgentID] = useState("");
   const [launching, setLaunching] = useState(false);
 
   const [profile, setProfile] = useState({
@@ -308,7 +308,7 @@ ${etiquetteGuidelines || "None provided."}
                   skills: []
                 });
 
-                setAssistantId(agent?.assistant_id || "");
+                setAgentID(agent?.agent_id || "");
                 toast.success(`Agent ${agent?.name || "Unnamed Agent"} created!`);
               } catch (err: any) {
                 toast.error(err.message || "Agent creation failed.");
@@ -333,18 +333,18 @@ ${etiquetteGuidelines || "None provided."}
           </Card>
         )}
 
-        {assistantId && (
+        {agentID && (
           <>
             <Card className="bg-white text-black p-4 mt-4 border">
               <CardContent className="space-y-3">
                 <div>
                   <strong title="Use it to add to swarms or publish on Kairoswarm">
                     Assistant ID:
-                  </strong> {assistantId}
+                  </strong> {agentID}
                 </div>
                 <Button variant="secondary" onClick={() => {
-                  navigator.clipboard.writeText(assistantId);
-                  toast.success("Assistant ID copied!");
+                  navigator.clipboard.writeText(agentID);
+                  toast.success("Agent ID copied!");
                 }}>
                   Copy Assistant ID
                 </Button>
@@ -374,7 +374,7 @@ ${etiquetteGuidelines || "None provided."}
                   const addRes = await fetch(`${API_BASE_URL}/swarm/add-agent`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ swarm_id: swarmId, agentId: assistantId }),
+                    body: JSON.stringify({ swarm_id: swarmId, agentId: agentID }),
                   });
 
                   const addData = await addRes.json();
