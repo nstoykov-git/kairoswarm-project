@@ -286,7 +286,8 @@ async def publish_agent(payload: PublishAgentRequest):
             "price": payload.price,
             "is_negotiable": payload.is_negotiable,
             "vector_embedding": embedding,
-            "is_published": True
+            "is_published": True,
+            "user_id": payload.user_id
         }
 
         sb.table("agents").update(update_data).eq("id", agent_id).execute()
