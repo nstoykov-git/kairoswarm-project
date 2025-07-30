@@ -254,7 +254,7 @@ async def generate_embedding_route(payload: EmbeddingRequest):
 # --- Publish Agent ---
 
 class PublishAgentRequest(BaseModel):
-    assistant_id: str
+    agent_id: str
     name: str
     description: str
     skills: list[str]
@@ -266,7 +266,7 @@ class PublishAgentRequest(BaseModel):
 @router.post("/publish-agent")
 async def publish_agent(payload: PublishAgentRequest):
     try:
-        agent_id = payload.assistant_id  # This is now the Kairoswarm UUID
+        agent_id = payload.agent_id  # This is now the Kairoswarm UUID
 
         # 1. Generate embedding
         text_for_embedding = f"{payload.name} {payload.description} {' '.join(payload.skills)}"
@@ -281,7 +281,7 @@ async def publish_agent(payload: PublishAgentRequest):
 
         update_data = {
             "description": payload.description,
-            "skills": payload.skills,
+            "skills": [s.strip() for s in payload.skills if s.strip()],
             "has_free_tier": payload.has_free_tier,
             "price": payload.price,
             "is_negotiable": payload.is_negotiable,

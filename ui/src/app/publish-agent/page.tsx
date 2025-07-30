@@ -67,7 +67,7 @@ const handleSubmit = async (e: React.FormEvent) => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        assistant_id: form.agentId,
+        agent_id: form.agentId,
         name: form.name,
         description: form.description,
         skills: form.skills.split(",").map((s) => s.trim()),
@@ -137,7 +137,7 @@ const handleSubmit = async (e: React.FormEvent) => {
       ) : (
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
-            <Label htmlFor="agentId">Assistant ID</Label>
+            <Label htmlFor="agentId">Agent ID</Label>
             <Input name="agentId" value={form.agentId} onChange={handleChange} required />
           </div>
           <div>
