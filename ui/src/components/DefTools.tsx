@@ -24,6 +24,8 @@ async function createAgent({
   description,
   skills,
   creatorEmail,
+  allowUserContact,
+  contactMode,
 }: {
   name: string;
   userId: string;
@@ -32,6 +34,8 @@ async function createAgent({
   description: string;
   skills: string[];
   creatorEmail?: string;
+  allowUserContact: boolean;
+  contactMode: "summary" | "verbatim";
 }) {
   const res = await fetch(`${API_BASE_URL}/swarm/create-agent`, {
     method: "POST",
@@ -46,6 +50,8 @@ async function createAgent({
       description,
       skills,
       creator_email: creatorEmail,
+      allow_user_contact: allowUserContact,
+      contact_mode: contactMode,
     }),
   });
 
@@ -63,6 +69,8 @@ export default function DefTools() {
 
   const [agentName, setAgentName] = useState("");
   const [creatorEmail, setCreatorEmail] = useState("");
+  const [allowUserContact, setAllowUserContact] = useState(false);
+  const [contactMode, setContactMode] = useState<"summary" | "verbatim">("summary");
   const [compileInput, setCompileInput] = useState("");
   const [personalStories, setPersonalStories] = useState("");
   const [economicConsiderations, setEconomicConsiderations] = useState("");
@@ -292,6 +300,31 @@ ${etiquetteGuidelines || "None provided."}
           </Button>
 */}
 
+          <div className="mt-4 space-y-2">
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={allowUserContact}
+                onChange={() => setAllowUserContact(!allowUserContact)}
+              />
+              Allow users to contact me via email
+            </label>
+
+            {allowUserContact && (
+              <div>
+                <label className="text-black font-medium text-sm">Contact Mode</label>
+                <select
+                  value={contactMode}
+                  onChange={(e) => setContactMode(e.target.value as "summary" | "verbatim")}
+                  className="mt-1 border p-2 rounded text-sm"
+                >
+                  <option value="summary">Summary</option>
+                  <option value="verbatim">Verbatim Transcript</option>
+                </select>
+              </div>
+            )}
+          </div>
+
           {!agentName.trim() && (
             <p className="text-red-500 text-sm">Please enter a name for your agent.</p>
           )}
@@ -323,7 +356,9 @@ ${etiquetteGuidelines || "None provided."}
                   goldbergTraits: goldbergResponses,
                   description: compiledMessage || "No description provided.",
                   skills: [],
-                  creatorEmail
+                  creatorEmail,
+                  allowUserContact,
+                  contactMode
                 });
 
                 setAgentID(agent?.agent_id || "");
