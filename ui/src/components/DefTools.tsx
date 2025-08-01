@@ -23,6 +23,7 @@ async function createAgent({
   goldbergTraits,
   description,
   skills,
+  creatorEmail,
 }: {
   name: string;
   userId: string;
@@ -30,6 +31,7 @@ async function createAgent({
   goldbergTraits: { trait: string; score: number | null }[];
   description: string;
   skills: string[];
+  creatorEmail?: string;
 }) {
   const res = await fetch(`${API_BASE_URL}/swarm/create-agent`, {
     method: "POST",
@@ -43,6 +45,7 @@ async function createAgent({
       goldberg_traits: goldbergTraits,
       description,
       skills,
+      creator_email: creatorEmail,
     }),
   });
 
@@ -59,6 +62,7 @@ export default function DefTools() {
   const searchParams = useSearchParams();
 
   const [agentName, setAgentName] = useState("");
+  const [creatorEmail, setCreatorEmail] = useState("");
   const [compileInput, setCompileInput] = useState("");
   const [personalStories, setPersonalStories] = useState("");
   const [economicConsiderations, setEconomicConsiderations] = useState("");
@@ -200,6 +204,14 @@ ${etiquetteGuidelines || "None provided."}
         required
       />
 
+      <label className="text-black font-semibold text-lg mt-4">Creator Email (optional, to receive contact requests)</label>
+      <Input
+        value={creatorEmail}
+        onChange={(e) => setCreatorEmail(e.target.value)}
+        placeholder="you@example.com"
+        className="mt-2"
+      />
+
       <div className="space-y-4">
         {["openness", "conscientiousness", "extraversion", "agreeableness", "neuroticism"].map((trait) => (
           <div key={trait} className="space-y-2">
@@ -310,7 +322,8 @@ ${etiquetteGuidelines || "None provided."}
                   oceanScores,
                   goldbergTraits: goldbergResponses,
                   description: compiledMessage || "No description provided.",
-                  skills: []
+                  skills: [],
+                  creatorEmail
                 });
 
                 setAgentID(agent?.agent_id || "");

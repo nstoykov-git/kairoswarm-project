@@ -16,6 +16,7 @@ from kairoswarm_core.routes.ephemeral_runtime import router as ephemeral_runtime
 from kairoswarm_core.routes.conversation_runtime import router as conversation_runtime_router
 from kairoswarm_core.routes.payments import router as payments_router
 from kairoswarm_core.routes.accounts import router as accounts_router
+from kairoswarm_core.routes.alerts import router as alerts_router
 from kairoswarm_core.routes.personalities import router as personalities_router
 
 from kairoswarm_core.memory_core.memory_store import MemoryStore
@@ -49,6 +50,7 @@ api.include_router(ephemeral_runtime_router, prefix="/swarm", tags=["swarms"])
 api.include_router(conversation_runtime_router, tags=["conversations"])
 api.include_router(payments_router, prefix="/payments", tags=["payments"])
 api.include_router(accounts_router, prefix="/accounts", tags=["accounts"])
+api.include_router(alerts_router, tags=["alerts"])
 api.include_router(personalities_router, prefix="/personalities", tags=["personalities"])
 
 
@@ -89,7 +91,8 @@ app = App(
         Secret.from_name("stripe-prices"),
         Secret.from_name("stripe-live-credentials"),
         Secret.from_name("stripe-mode"),
-        Secret.from_name("platform-domain")
+        Secret.from_name("platform-domain"),
+        Secret.from_name("agent-alerts-email")
     ]
 )
 
