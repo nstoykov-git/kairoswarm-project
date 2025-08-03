@@ -317,7 +317,7 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
 
             <Button
               variant="secondary"
-              onClick={() => router.push("/agents/update-memories")}
+              onClick={() => router.push("/update-memories")}
             >
               🧠 Update Memories
             </Button>
