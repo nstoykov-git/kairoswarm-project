@@ -261,24 +261,32 @@ class PublishAgentRequest(BaseModel):
     has_free_tier: bool = True
     price: float = 0.0
     is_negotiable: bool = False
-    user_id: str
+    user_id: str  # Used only for record ownership, not in embedding
 
 @router.post("/publish-agent")
 async def publish_agent(payload: PublishAgentRequest):
     try:
         agent_id = payload.agent_id  # This is now the Kairoswarm UUID
 
-        # 1. Generate embedding
-        text_for_embedding = f"{payload.name} {payload.description} {' '.join(payload.skills)}"
+        # ✅ Build natural language embedding text
+        text_for_embedding = f"""
+        Agent Name: {payload.name}
+        Description: {payload.description}
+        Skills: {', '.join(payload.skills)}
+        Free Tier: {"Yes" if payload.has_free_tier else "No"}
+        Price: ${payload.price:.2f}
+        Negotiable: {"Yes" if payload.is_negotiable else "No"}
+        """.strip()
+
+        # 🧠 Generate embedding
         response = openai.embeddings.create(
-            input=text_for_embedding.strip(),
+            input=text_for_embedding,
             model="text-embedding-3-small"
         )
         embedding = response.data[0].embedding
 
-        # 2. Update existing agent in Supabase
+        # 🔄 Update agent record in Supabase
         sb = get_supabase()
-
         update_data = {
             "description": payload.description,
             "skills": [s.strip() for s in payload.skills if s.strip()],
@@ -297,7 +305,6 @@ async def publish_agent(payload: PublishAgentRequest):
     except Exception as e:
         logging.exception("❌ Failed to publish agent")
         raise HTTPException(status_code=500, detail=f"Agent publish failed: {str(e)}")
-
 
 
 @router.post("/unpublish-agent")
