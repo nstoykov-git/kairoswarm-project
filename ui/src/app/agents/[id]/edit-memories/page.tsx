@@ -24,7 +24,7 @@ export default function EditMemoriesPage() {
       setLoading(true);
       try {
         const res = await fetch(`${API_BASE_URL}/swarm/agents/by-ids`, {
-          method: 'PATCH',
+          method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ agent_ids: [id] }),
         });
@@ -47,7 +47,7 @@ export default function EditMemoriesPage() {
     setSaving(true);
     try {
       const res = await fetch(`${API_BASE_URL}/swarm/agents/${id}/recent-memories`, {
-        method: 'POST',
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ recent_memories: memories }),
       });
@@ -67,8 +67,7 @@ export default function EditMemoriesPage() {
     <div className="p-6 max-w-2xl mx-auto space-y-4">
       <h1 className="text-2xl font-bold">Update Memories</h1>
       <p className="text-gray-600">
-        Add or edit what’s recently true or top-of-mind for this agent. These will be shown in the
-        system prompt under a [MEMORIES] block.
+        Add or edit what’s recently true or top-of-mind for this agent.
       </p>
       {loading ? (
         <p>Loading...</p>
