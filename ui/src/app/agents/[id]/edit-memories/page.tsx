@@ -8,7 +8,12 @@ import { toast } from "react-hot-toast";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_MODAL_API_URL;
 
-export default function EditMemoriesPage({ params }: { params: { id: string } }) {
+interface PageProps {
+  params: { id: string };
+}
+
+export default function EditMemoriesPage({ params }: PageProps) {
+
   const router = useRouter();
   const id = params.id;
 
