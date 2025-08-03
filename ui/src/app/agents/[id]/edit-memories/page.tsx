@@ -1,18 +1,21 @@
+"use client";
+
 import { useEffect, useState } from "react";
-import { useRouter } from "next/router";
+import { useRouter } from "next/navigation";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { toast } from "react-hot-toast";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_MODAL_API_URL;
 
-export default function EditMemoriesPage() {
+export default function EditMemoriesPage({ params }: { params: { id: string } }) {
   const router = useRouter();
-  const { id } = router.query;
+  const id = params.id;
 
   const [loading, setLoading] = useState(true);
   const [memories, setMemories] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
+
 
   useEffect(() => {
     if (!id) return;
