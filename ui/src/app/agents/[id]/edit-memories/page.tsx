@@ -1,20 +1,17 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation'; // ✅ Correct for App Router
+import { useParams, useRouter } from 'next/navigation';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { toast } from 'react-hot-toast';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_MODAL_API_URL;
 
-interface PageProps {
-  params: { id: string };
-}
-
-export default function EditMemoriesPage({ params }: PageProps) {
-  const id = params.id;
+export default function EditMemoriesPage() {
   const router = useRouter();
+  const params = useParams();
+  const id = params?.id as string;
 
   const [loading, setLoading] = useState(true);
   const [memories, setMemories] = useState<string[]>([]);
@@ -70,7 +67,8 @@ export default function EditMemoriesPage({ params }: PageProps) {
     <div className="p-6 max-w-2xl mx-auto space-y-4">
       <h1 className="text-2xl font-bold">Update Memories</h1>
       <p className="text-gray-600">
-        Add or edit what’s recently true or top-of-mind for this agent. These will be shown in the system prompt under a [MEMORIES] block.
+        Add or edit what’s recently true or top-of-mind for this agent. These will be shown in the
+        system prompt under a [MEMORIES] block.
       </p>
       {loading ? (
         <p>Loading...</p>
