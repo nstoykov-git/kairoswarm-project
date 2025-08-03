@@ -1,10 +1,10 @@
-"use client";
+'use client';
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { Textarea } from "@/components/ui/textarea";
-import { Button } from "@/components/ui/button";
-import { toast } from "react-hot-toast";
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation'; // ✅ Correct for App Router
+import { Textarea } from '@/components/ui/textarea';
+import { Button } from '@/components/ui/button';
+import { toast } from 'react-hot-toast';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_MODAL_API_URL;
 
@@ -13,14 +13,12 @@ interface PageProps {
 }
 
 export default function EditMemoriesPage({ params }: PageProps) {
-
-  const router = useRouter();
   const id = params.id;
+  const router = useRouter();
 
   const [loading, setLoading] = useState(true);
   const [memories, setMemories] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
-
 
   useEffect(() => {
     if (!id) return;
@@ -29,8 +27,8 @@ export default function EditMemoriesPage({ params }: PageProps) {
       setLoading(true);
       try {
         const res = await fetch(`${API_BASE_URL}/swarm/agents/by-ids`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ agent_ids: [id] }),
         });
         const data = await res.json();
@@ -39,7 +37,7 @@ export default function EditMemoriesPage({ params }: PageProps) {
           setMemories(agent.recent_memories);
         }
       } catch (err) {
-        toast.error("Failed to load memories");
+        toast.error('Failed to load memories');
       } finally {
         setLoading(false);
       }
@@ -52,17 +50,17 @@ export default function EditMemoriesPage({ params }: PageProps) {
     setSaving(true);
     try {
       const res = await fetch(`${API_BASE_URL}/swarm/agents/${id}/recent-memories`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ recent_memories: memories }),
       });
 
-      if (!res.ok) throw new Error("Save failed");
+      if (!res.ok) throw new Error('Save failed');
 
-      toast.success("Memories updated!");
-      router.push("/dashboard");
+      toast.success('Memories updated!');
+      router.push('/dashboard');
     } catch (err) {
-      toast.error("Failed to save updates");
+      toast.error('Failed to save updates');
     } finally {
       setSaving(false);
     }
@@ -79,17 +77,16 @@ export default function EditMemoriesPage({ params }: PageProps) {
       ) : (
         <div className="space-y-2">
           <Textarea
-            value={memories.join("\n")}
-            onChange={(e) => setMemories(e.target.value.split("\n"))}
+            value={memories.join('\n')}
+            onChange={(e) => setMemories(e.target.value.split('\n'))}
             rows={10}
             placeholder="Got new shoes yesterday\nExcited about fall launch\nStarting to drink tea again"
           />
           <Button onClick={handleSave} disabled={saving}>
-            {saving ? "Saving..." : "Save Updates"}
+            {saving ? 'Saving...' : 'Save Updates'}
           </Button>
         </div>
       )}
     </div>
   );
 }
-
