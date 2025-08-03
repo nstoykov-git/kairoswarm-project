@@ -24,7 +24,7 @@ export default function EditMemoriesPage() {
       setLoading(true);
       try {
         const res = await fetch(`${API_BASE_URL}/swarm/agents/by-ids`, {
-          method: 'POST',
+          method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ agent_ids: [id] }),
         });
