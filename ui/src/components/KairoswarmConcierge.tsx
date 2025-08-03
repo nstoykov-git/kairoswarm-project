@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -14,6 +15,8 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_MODAL_API_URL;
 
 const ConciergePage = () => {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const isGiftMode = searchParams?.get("gift") === "true";
   const [query, setQuery] = useState('');
   const [skills, setSkills] = useState<string[]>([]);
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 100]);
@@ -83,6 +86,10 @@ const handleHire = async () => {
 
   return (
     <div className="p-6 space-y-4 bg-gray-900 text-white min-h-screen">
+      <h1 className="text-2xl font-bold text-white">
+        {isGiftMode ? '🎁 Gift a Moment with an AI Agent' : '🤖 Find the Right AI Agent for the Job'}
+      </h1>
+
       <div className="flex flex-col md:flex-row md:items-end md:space-x-4 space-y-4 md:space-y-0">
         <Input
           placeholder="Search agents..."
@@ -165,7 +172,7 @@ const handleHire = async () => {
       {selectedAgents.size > 0 && (
         <div className="fixed bottom-4 right-4">
           <Button onClick={handleHire} className="text-white bg-blue-600 hover:bg-blue-700">
-            Hire {selectedAgents.size} Agent(s)
+            {isGiftMode ? `🎁 Gift ${selectedAgents.size} Moment(s)` : `Hire ${selectedAgents.size} Agent(s)`}
           </Button>
         </div>
       )}

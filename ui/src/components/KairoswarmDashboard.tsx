@@ -196,6 +196,14 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
     }
   };
 
+  const handleEditMemories = () => {
+    const inputId = window.prompt("Enter your Agent ID to update memories:");
+
+    if (inputId && inputId.trim().length > 0) {
+      router.push(`/agents/${inputId.trim()}/edit-memories`);
+    }
+  };
+
   const fetchSwarmData = async (id: string) => {
     const [tapeRes, participantsRes] = await Promise.all([
       fetch(`${API_BASE_URL}/tape?swarm_id=${id}`),
@@ -288,16 +296,30 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
               <PlusCircle className="w-4 h-4 mr-2" />
               Publish AI Agents
             </Button>
-            <Button variant="secondary" onClick={() => router.push("/concierge")}>
-              <PlusCircle className="w-4 h-4 mr-2" />
-              Hire AI Agents
-            </Button>
+            <div className="flex flex-col sm:flex-row gap-2 sm:col-span-2">
+              <Button variant="secondary" onClick={() => router.push("/concierge")}>
+                <PlusCircle className="w-4 h-4 mr-2" />
+                Hire AI Agents
+              </Button>
+              <Button variant="secondary" onClick={() => router.push("/concierge?gift=true")}>
+                🎁 Gift a Moment
+              </Button>
+            </div>
+
             <Button variant="secondary" onClick={() => router.push("/def-tools")}>
               <PlusCircle className="w-4 h-4 mr-2" />
-              Simulate the Boss
+              Create Agent
             </Button>
+            
             <Button variant="secondary" className="ml-auto md:hidden" onClick={() => setShowParticipants((prev) => !prev)}>
               {showParticipants ? <PanelRightClose className="w-4 h-4" /> : <PanelRightOpen className="w-4 h-4" />}
+            </Button>
+
+            <Button
+              variant="secondary"
+              onClick={() => router.push("/agents/update-memories")}
+            >
+              🧠 Update Memories
             </Button>
           </div>
         </div>
