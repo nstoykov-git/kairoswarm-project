@@ -55,7 +55,7 @@ export default function EditMemoriesPage() {
       if (!res.ok) throw new Error('Save failed');
 
       toast.success('Memories updated!');
-      router.push('/dashboard');
+      window.location.href = `https://kairoswarm.com`
     } catch (err) {
       toast.error('Failed to save updates');
     } finally {
