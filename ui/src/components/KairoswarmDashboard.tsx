@@ -279,10 +279,21 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
             </Button>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2">
+            <Button variant="secondary" onClick={() => router.push("/def-tools")}>
+              <PlusCircle className="w-4 h-4 mr-2" />
+              Create Agent
+            </Button>
             <Button variant="secondary" onClick={handleAddAgent}>
               <Bot className="w-4 h-4 mr-2" />
-              Add AI Agent
+              Add Agent
+            </Button>
+            <Button variant="secondary" onClick={() => router.push("/publish-agent")}>
+              <PlusCircle className="w-4 h-4 mr-2" />
+              Publish Agents
+            </Button>
+            <Button variant="secondary" onClick={() => router.push("/update-memories")}>
+              🧠 Update Memories
             </Button>
             <Button variant="secondary" onClick={handleCreateSwarm}>
               <PlusCircle className="w-4 h-4 mr-2" />
@@ -292,34 +303,12 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
               <Eye className="w-4 h-4 mr-2" />
               View Swarm
             </Button>
-            <Button variant="secondary" onClick={() => router.push("/publish-agent")}>
+            <Button variant="secondary" onClick={() => router.push("/concierge")}>
               <PlusCircle className="w-4 h-4 mr-2" />
-              Publish AI Agents
+              Hire Agents
             </Button>
-            <div className="flex flex-col sm:flex-row gap-2 sm:col-span-2">
-              <Button variant="secondary" onClick={() => router.push("/concierge")}>
-                <PlusCircle className="w-4 h-4 mr-2" />
-                Hire AI Agents
-              </Button>
-              <Button variant="secondary" onClick={() => router.push("/concierge?gift=true")}>
-                🎁 Gift a Moment
-              </Button>
-            </div>
-
-            <Button variant="secondary" onClick={() => router.push("/def-tools")}>
-              <PlusCircle className="w-4 h-4 mr-2" />
-              Create Agent
-            </Button>
-            
-            <Button variant="secondary" className="ml-auto md:hidden" onClick={() => setShowParticipants((prev) => !prev)}>
-              {showParticipants ? <PanelRightClose className="w-4 h-4" /> : <PanelRightOpen className="w-4 h-4" />}
-            </Button>
-
-            <Button
-              variant="secondary"
-              onClick={() => router.push("/update-memories")}
-            >
-              🧠 Update Memories
+            <Button variant="secondary" onClick={() => router.push("/concierge?gift=true")}>
+              🎁 Gift a Moment
             </Button>
           </div>
         </div>
