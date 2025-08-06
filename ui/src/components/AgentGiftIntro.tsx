@@ -30,7 +30,12 @@ export default function GiftAgentIntro() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!agentName || typeof agentName !== "string") return;
+    // If agentName is missing or not a string, set loading to false
+    if (!agentName || typeof agentName !== "string") {
+      setAgent(null);
+      setLoading(false);
+      return;
+    }
 
     const fetchAgent = async () => {
       try {
@@ -55,6 +60,9 @@ export default function GiftAgentIntro() {
             setAgent(null);
             console.warn(`Agent '${a?.name}' not found in VIDEO_MAP.`);
           }
+        } else {
+          setAgent(null);
+          console.warn("No agent found with the given name");
         }
       } catch (err) {
         setAgent(null);
