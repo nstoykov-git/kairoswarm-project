@@ -1,6 +1,11 @@
 import SingleAgentIntro from "@/components/SingleAgentIntro";
 
-export default function AgentPage({ params }: { params: { agentName: string } }) {
+type PageProps = {
+  params: {
+    agentName: string;
+  };
+};
+
+export default function AgentPage({ params }: PageProps) {
   return <SingleAgentIntro agentName={params.agentName} />;
 }
-
