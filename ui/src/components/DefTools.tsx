@@ -21,6 +21,9 @@ async function createAgent({
   userId,
   oceanScores,
   goldbergTraits,
+  personalStories,
+  economicConsiderations,
+  etiquetteGuidelines,
   description,
   skills,
   creatorEmail,
@@ -33,6 +36,9 @@ async function createAgent({
   userId: string;
   oceanScores: Record<string, number>;
   goldbergTraits: { trait: string; score: number | null }[];
+  personalStories?: string;
+  economicConsiderations?: string;
+  etiquetteGuidelines?: string;
   description: string;
   skills: string[];
   creatorEmail?: string;
@@ -40,7 +46,8 @@ async function createAgent({
   contactMode: "summary" | "verbatim";
   videoUrl?: string | null;
   mediaMimeType?: string | null;
-}) {
+})
+ {
   const res = await fetch(`${API_BASE_URL}/swarm/create-agent`, {
     method: "POST",
     headers: {
@@ -51,6 +58,9 @@ async function createAgent({
       user_id: userId,
       ocean: oceanScores,
       goldberg_traits: goldbergTraits,
+      personal_stories: personalStories,
+      economic_considerations: economicConsiderations,
+      etiquette_guidelines: etiquetteGuidelines,
       description,
       skills,
       creator_email: creatorEmail,
@@ -439,6 +449,9 @@ ${etiquetteGuidelines || "None provided."}
                   userId,
                   oceanScores,
                   goldbergTraits: goldbergResponses,
+                  personalStories,
+                  economicConsiderations,
+                  etiquetteGuidelines,
                   description: compiledMessage || "No description provided.",
                   skills: [],
                   creatorEmail,
@@ -446,7 +459,7 @@ ${etiquetteGuidelines || "None provided."}
                   contactMode,
                   videoUrl: uploadedVideoUrl,       // NEW
                   mediaMimeType: uploadedMimeType,  // NEW
-                } as any); // <-- quick type bypass for now
+                } as any);
 
                 setAgentID(agent?.agent_id || "");
                 toast.success(`Agent ${agent?.name || "Unnamed Agent"} created!`);
