@@ -26,6 +26,8 @@ async function createAgent({
   creatorEmail,
   allowUserContact,
   contactMode,
+  videoUrl,
+  mediaMimeType,
 }: {
   name: string;
   userId: string;
@@ -36,6 +38,8 @@ async function createAgent({
   creatorEmail?: string;
   allowUserContact: boolean;
   contactMode: "summary" | "verbatim";
+  videoUrl?: string | null;
+  mediaMimeType?: string | null;
 }) {
   const res = await fetch(`${API_BASE_URL}/swarm/create-agent`, {
     method: "POST",
@@ -52,6 +56,8 @@ async function createAgent({
       creator_email: creatorEmail,
       allow_user_contact: allowUserContact,
       contact_mode: contactMode,
+      video_url: videoUrl || null,
+      media_mime_type: mediaMimeType || null,
     }),
   });
 
@@ -66,6 +72,9 @@ async function createAgent({
 export default function DefTools() {
   const router = useRouter();
   const searchParams = useSearchParams();
+
+  const [videoFile, setVideoFile] = useState<File | null>(null);
+  const [videoUrl, setVideoUrl] = useState<string | null>(null);
 
   const [agentName, setAgentName] = useState("");
   const [creatorEmail, setCreatorEmail] = useState("");
@@ -212,6 +221,56 @@ ${etiquetteGuidelines || "None provided."}
         required
       />
 
+      {/* ✅ Insert this video upload block here */}
+      <div className="space-y-2 mt-4">
+        <label className="text-black font-semibold text-lg">Agent Video (optional)</label>
+        <input
+          type="file"
+          accept="video/mp4,image/jpeg,image/png,image/webp,image/gif"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) {
+              if (file.size > 10 * 1024 * 1024) {
+                toast.error("File must be under 10MB.");
+                return;
+              }
+
+              const allowedTypes = [
+                "video/mp4",
+                "image/jpeg",
+                "image/png",
+                "image/webp",
+                "image/gif",
+              ];
+
+              if (!allowedTypes.includes(file.type)) {
+                toast.error("Only MP4 videos or common image formats are allowed.");
+                return;
+              }
+
+              setVideoFile(file);
+            }
+          }}
+        />
+
+        {videoFile && (
+          videoFile.type.startsWith("video/") ? (
+            <video
+              src={URL.createObjectURL(videoFile)}
+              controls
+              className="w-full max-w-md mt-2 rounded"
+            />
+          ) : (
+            <img
+              src={URL.createObjectURL(videoFile)}
+              alt="Agent preview"
+              className="w-full max-w-md mt-2 rounded"
+            />
+          )
+        )}
+
+      </div>
+
       <label className="text-black font-semibold text-lg mt-4">Creator Email (optional, to receive contact requests)</label>
       <Input
         value={creatorEmail}
@@ -341,14 +400,40 @@ ${etiquetteGuidelines || "None provided."}
                   return;
                 }
 
+                let uploadedVideoUrl: string | null = null;
+                let uploadedMimeType: string | null = null;
+
+                // ✅ Step 1: Upload video first (if selected)
+                if (videoFile) {
+                  const formData = new FormData();
+                  formData.append("user_id", userId);
+                  formData.append("agent_name", agentName);
+                  formData.append("video", videoFile);
+
+                  const uploadRes = await fetch(`${API_BASE_URL}/swarm/upload-agent-video`, {
+                    method: "POST",
+                    body: formData,
+                  });
+
+                  if (!uploadRes.ok) {
+                    const err = await uploadRes.json();
+                    throw new Error(err.detail || "Video upload failed");
+                  }
+
+                  const uploadData = await uploadRes.json();
+                  uploadedVideoUrl = uploadData.public_url || null;
+                  uploadedMimeType = uploadData.mime_type || null;
+                }
+
                 const oceanScores = {
                   openness: profile.openness,
                   conscientiousness: profile.conscientiousness,
                   extraversion: profile.extraversion,
                   agreeableness: profile.agreeableness,
-                  neuroticism: profile.neuroticism
+                  neuroticism: profile.neuroticism,
                 };
 
+                // ✅ Step 2: Create agent with video_url + mime_type
                 const agent = await createAgent({
                   name: agentName || "Unnamed Agent",
                   userId,
@@ -358,8 +443,10 @@ ${etiquetteGuidelines || "None provided."}
                   skills: [],
                   creatorEmail,
                   allowUserContact,
-                  contactMode
-                });
+                  contactMode,
+                  videoUrl: uploadedVideoUrl,       // NEW
+                  mediaMimeType: uploadedMimeType,  // NEW
+                } as any); // <-- quick type bypass for now
 
                 setAgentID(agent?.agent_id || "");
                 toast.success(`Agent ${agent?.name || "Unnamed Agent"} created!`);
@@ -370,6 +457,7 @@ ${etiquetteGuidelines || "None provided."}
           >
             Create Agent
           </Button>
+
         </div>
 
         {compiledMessage && (

@@ -68,6 +68,7 @@ image = (
         copy=True
     )
     .run_commands(
+        "pip install python-multipart",
         "pip install redis fastapi[standard] openai aiohttp asyncpg",
         "pip install supabase",
         "pip install stripe",
