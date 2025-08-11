@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 
 interface Agent {
   id: string;
@@ -11,6 +11,7 @@ interface Agent {
 }
 
 const API_INTERNAL_URL = process.env.NEXT_PUBLIC_MODAL_API_URL;
+const MAX_RECORDING_MS = 30000; // 30 seconds cap
 
 // Gradients to choose from
 const GRADIENTS = [
@@ -33,7 +34,15 @@ function gradientForName(name: string) {
 export default function SingleAgentIntro({ agentName }: { agentName: string }) {
   const [agent, setAgent] = useState<Agent | null>(null);
   const [loading, setLoading] = useState(true);
+  const [swarmId, setSwarmId] = useState<string | null>(null);
+  const [participantId, setParticipantId] = useState<string | null>(null);
+  const [recording, setRecording] = useState(false);
 
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const recordingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // 1️⃣ Fetch agent details
   useEffect(() => {
     if (!agentName) return;
     const fetchAgent = async () => {
@@ -63,22 +72,92 @@ export default function SingleAgentIntro({ agentName }: { agentName: string }) {
     fetchAgent();
   }, [agentName]);
 
-  const handleSelect = async (agent: Agent) => {
-    try {
-      const res = await fetch(`${API_INTERNAL_URL}/swarm/initiate`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ agent_ids: [agent.id] }),
-      });
+  // 2️⃣ Auto-initiate swarm + join as Guest
+  useEffect(() => {
+    if (!agent) return;
+    const initAndJoin = async () => {
+      try {
+        const res = await fetch(`${API_INTERNAL_URL}/swarm/initiate`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ agent_ids: [agent.id] }),
+        });
+        const data = await res.json();
+        if (!data.swarm_id) throw new Error("No swarm_id returned");
+        setSwarmId(data.swarm_id);
 
-      const data = await res.json();
-      if (!data.swarm_id) throw new Error("No swarm_id returned");
+        // Join as Guest
+        const joinRes = await fetch(`${API_INTERNAL_URL}/join`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ swarm_id: data.swarm_id, name: "Guest" }),
+        });
+        const joinData = await joinRes.json();
+        setParticipantId(joinData.participant_id);
+      } catch (err) {
+        console.error("Failed to auto-initiate swarm", err);
+      }
+    };
+    initAndJoin();
+  }, [agent]);
 
-      window.location.href = `https://kairoswarm.com/?swarm_id=${data.swarm_id}`;
-    } catch (err) {
-      console.error(err);
-      alert("⚠️ Failed to initiate swarm");
+  // ⏹ Stop recording helper
+  const stopRecording = () => {
+    mediaRecorderRef.current?.stop();
+    setRecording(false);
+    if (recordingTimeoutRef.current) {
+      clearTimeout(recordingTimeoutRef.current);
+      recordingTimeoutRef.current = null;
     }
+  };
+
+  // 🎤 Toggle recording
+  const toggleRecording = async () => {
+    if (recording) {
+      stopRecording();
+      return;
+    }
+    // Start recording
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const mediaRecorder = new MediaRecorder(stream);
+    audioChunksRef.current = [];
+    mediaRecorderRef.current = mediaRecorder;
+
+    mediaRecorder.ondataavailable = (event) => {
+      if (event.data.size > 0) {
+        audioChunksRef.current.push(event.data);
+      }
+    };
+
+    mediaRecorder.onstop = async () => {
+      const blob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+      const formData = new FormData();
+      formData.append("audio", blob, "audio.webm");
+      formData.append("participant_id", participantId || "");
+      formData.append("swarm_id", swarmId || "default");
+
+      try {
+        const res = await fetch(`${API_INTERNAL_URL}/voice`, {
+          method: "POST",
+          body: formData,
+        });
+        const data = await res.json();
+        if (data.audioBase64) {
+          const audio = new Audio(`data:audio/mp3;base64,${data.audioBase64}`);
+          audio.play();
+        }
+      } catch (err) {
+        console.error("Voice request failed", err);
+      }
+    };
+
+    mediaRecorder.start();
+    setRecording(true);
+
+    // Auto-stop after MAX_RECORDING_MS
+    recordingTimeoutRef.current = setTimeout(() => {
+      stopRecording();
+    }, MAX_RECORDING_MS);
   };
 
   if (loading) {
@@ -164,19 +243,33 @@ export default function SingleAgentIntro({ agentName }: { agentName: string }) {
           </div>
         )}
 
-        <div className="absolute bottom-24 text-center">
+        <div className="absolute bottom-24 text-center space-y-3">
           <h1 className="text-white text-4xl font-semibold mb-2 drop-shadow-lg">
             {agent.name}
           </h1>
-          <button
-            onClick={() => handleSelect(agent)}
-            className="text-white text-lg underline hover:opacity-80"
-          >
-            Talk to me
-          </button>
+          <div className="flex justify-center gap-4">
+            <button
+              onClick={() =>
+                window.open(
+                  `https://kairoswarm.com/?swarm_id=${swarmId}`,
+                  "_blank"
+                )
+              }
+              className="text-white text-lg underline hover:opacity-80"
+            >
+              View Transcript
+            </button>
+            <button
+              onClick={toggleRecording}
+              className={`rounded-full p-4 ${
+                recording ? "bg-red-600" : "bg-green-600"
+              } text-white shadow-lg`}
+            >
+              {recording ? "⏹ Stop" : "🎤 Talk"}
+            </button>
+          </div>
         </div>
       </div>
     </div>
   );
 }
-

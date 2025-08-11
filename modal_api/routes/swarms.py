@@ -63,7 +63,7 @@ async def create_ephemeral_swarm(payload: CreateEphemeralRequest):
 async def join_ephemeral_swarm(request: Request):
     body = await request.json()
     swarm_id = body.get("swarm_id", "default")
-    name = body.get("name", "Anonymous")
+    name = body.get("name", "Guest")
     user_id = body.get("user_id")  # may be None
     now = datetime.utcnow().isoformat()
 
