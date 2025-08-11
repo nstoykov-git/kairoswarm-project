@@ -59,6 +59,9 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
   const [participants, setParticipants] = useState<any[]>([]);
   const [tape, setTape] = useState<any[]>([]);
   const [showParticipants, setShowParticipants] = useState(true);
+  const [isRecording, setIsRecording] = useState(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const participantsScrollRef = useRef<HTMLDivElement | null>(null);
@@ -114,6 +117,58 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
       setParticipantId(data.participant_id);
     }
   };
+
+  const handleToggleVoice = async () => {
+    if (!participantId) return;
+
+    if (!isRecording) {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorderRef.current = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs=opus' });
+      chunksRef.current = [];
+
+      mediaRecorderRef.current.ondataavailable = e => chunksRef.current.push(e.data);
+      mediaRecorderRef.current.onstop = async () => {
+        const blob = new Blob(chunksRef.current, { type: 'audio/webm;codecs=opus' });
+        const formData = new FormData();
+        formData.append('audio', blob, 'voice-input.webm');
+        formData.append('participant_id', participantId);
+        formData.append('swarm_id', swarmId);
+
+        const res = await fetch(`${API_BASE_URL}/voice`, { method: 'POST', body: formData });
+        const data = await res.json();
+
+        // Append agent reply to tape
+        if (data.entry) setTape(prev => [...prev, data.entry]);
+
+        // Play TTS reply if available
+        if (data.audioBase64) {
+          const audioBlob = b64ToBlob(data.audioBase64, 'audio/mpeg');
+          const audioUrl = URL.createObjectURL(audioBlob);
+          new Audio(audioUrl).play();
+        }
+      };
+
+      mediaRecorderRef.current.start();
+      setIsRecording(true);
+    } else {
+      mediaRecorderRef.current?.stop();
+      setIsRecording(false);
+    }
+  };
+
+  function b64ToBlob(b64Data: string, contentType = '', sliceSize = 512) {
+    const byteChars = atob(b64Data);
+    const byteArrays = [];
+    for (let offset = 0; offset < byteChars.length; offset += sliceSize) {
+      const slice = byteChars.slice(offset, offset + sliceSize);
+      const byteNumbers = new Array(slice.length);
+      for (let i = 0; i < slice.length; i++) {
+        byteNumbers[i] = slice.charCodeAt(i);
+      }
+      byteArrays.push(new Uint8Array(byteNumbers));
+    }
+    return new Blob(byteArrays, { type: contentType });
+  }
 
   const handleSpeak = async () => {
     if (!participantId || !input.trim()) return;
@@ -259,7 +314,7 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
             </div>
           </ScrollArea>
 
-          <div className="flex gap-2">
+          <div className="flex gap-2 items-center">
             <Input
               type="text"
               name="chat-message"
@@ -267,17 +322,30 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
               autoCorrect="off"
               autoCapitalize="off"
               spellCheck={false}
-              className="text-white placeholder-gray-400"
+              className="text-white placeholder-gray-400 flex-1"
               value={input}
               placeholder="Say something..."
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleSpeak()}
-              disabled={!participantId}
+              disabled={!participantId || isRecording} // ⬅ disables input while recording
             />
-            <Button onClick={handleSpeak} disabled={!participantId}>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleToggleVoice}
+              disabled={!participantId}
+              title={isRecording ? "Stop recording" : "Start voice message"}
+            >
+              {isRecording ? "⏹" : "🎙"}
+            </Button>
+            <Button
+              onClick={handleSpeak}
+              disabled={!participantId || isRecording} // ⬅ disables send while recording
+            >
               <Send className="w-4 h-4" />
             </Button>
           </div>
+
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2">
             <Button variant="secondary" onClick={() => router.push("/def-tools")}>
