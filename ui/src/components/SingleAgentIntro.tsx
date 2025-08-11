@@ -86,16 +86,26 @@ export default function SingleAgentIntro({ agentName }: { agentName: string }) {
         if (!data.swarm_id) throw new Error("No swarm_id returned");
         setSwarmId(data.swarm_id);
 
-        // Join as Guest
-        const joinRes = await fetch(`${API_INTERNAL_URL}/join`, {
+        // Join as Guest with explicit null user_id
+        const joinRes = await fetch(`${API_INTERNAL_URL}/swarm/join`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ swarm_id: data.swarm_id, name: "Guest" }),
+          body: JSON.stringify({
+            swarm_id: data.swarm_id,
+            name: "Guest",
+            user_id: null,
+          }),
         });
+
+        if (!joinRes.ok) {
+          throw new Error(`Join swarm failed with status ${joinRes.status}`);
+        }
+
         const joinData = await joinRes.json();
+        console.log("✅ Joined swarm as Guest:", joinData);
         setParticipantId(joinData.participant_id);
       } catch (err) {
-        console.error("Failed to auto-initiate swarm", err);
+        console.error("Failed to auto-initiate or join swarm", err);
       }
     };
     initAndJoin();
