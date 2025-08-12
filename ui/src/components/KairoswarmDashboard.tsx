@@ -63,6 +63,8 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
   const [isRecording, setIsRecording] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
+  const audioUnlockedRef = useRef(false);
+
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const participantsScrollRef = useRef<HTMLDivElement | null>(null);
@@ -129,9 +131,6 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
 
       mediaRecorderRef.current.ondataavailable = e => chunksRef.current.push(e.data);
       
-      // Keep track if we've unlocked audio context
-      const audioUnlockedRef = useRef(false);
-
       mediaRecorderRef.current.onstart = async () => {
         // Unlock audio context on first push
         if (!audioUnlockedRef.current) {
