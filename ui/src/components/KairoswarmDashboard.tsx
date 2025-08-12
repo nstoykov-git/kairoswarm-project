@@ -63,8 +63,6 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
   const [isRecording, setIsRecording] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
-  const audioUnlockedRef = useRef(false);
-
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const participantsScrollRef = useRef<HTMLDivElement | null>(null);
@@ -124,23 +122,38 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
   const handleToggleVoice = async () => {
     if (!participantId) return;
 
+    // Keep unlock state for audio context
+    let localAudioContext: any = null;
+    let audioUnlocked = false;
+
     if (!isRecording) {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       mediaRecorderRef.current = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs=opus' });
       chunksRef.current = [];
 
       mediaRecorderRef.current.ondataavailable = e => chunksRef.current.push(e.data);
-      
+
       mediaRecorderRef.current.onstart = async () => {
-        // Unlock audio context on first push
-        if (!audioUnlockedRef.current) {
+        if (!audioUnlocked) {
           try {
-            const silentAudio = new Audio(
-              "data:audio/mp3;base64,//uQxAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAACcQCA"
-            );
-            await silentAudio.play();
-            audioUnlockedRef.current = true;
-            console.debug("[TTS] Audio context unlocked");
+            const AudioContextClass =
+              window.AudioContext || (window as any).webkitAudioContext;
+            if (!localAudioContext) {
+              localAudioContext = new AudioContextClass();
+            }
+
+            // Create a 1-frame silent buffer to unlock audio
+            const buffer = localAudioContext.createBuffer(1, 1, 22050);
+            const source = localAudioContext.createBufferSource();
+            source.buffer = buffer;
+            source.connect(localAudioContext.destination);
+            source.start(0);
+
+            // Resume for Safari
+            await localAudioContext.resume();
+
+            audioUnlocked = true;
+            console.debug("[TTS] Audio context unlocked via Web Audio API");
           } catch (err) {
             console.warn("[TTS] Failed to unlock audio context:", err);
           }
@@ -168,7 +181,7 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
             const audioBlob = b64ToBlob(data.audioBase64, 'audio/mpeg');
             console.debug(`[TTS] Decoded MP3 blob size: ${audioBlob.size} bytes`);
             const audioUrl = URL.createObjectURL(audioBlob);
-            console.debug(audioUrl);
+            console.debug("[TTS] Audio URL:", audioUrl);
             const audioEl = new Audio(audioUrl);
             try {
               await audioEl.play();
@@ -182,11 +195,9 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
         } catch (err) {
           console.error('[Voice] Error during onstop processing:', err);
         } finally {
-          // Reset chunks for the next recording
           chunksRef.current = [];
         }
       };
-
 
       mediaRecorderRef.current.start();
       setIsRecording(true);
@@ -195,6 +206,7 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
       setIsRecording(false);
     }
   };
+
 
   function b64ToBlob(b64Data: string, contentType = '', sliceSize = 512) {
     const byteChars = atob(b64Data);
