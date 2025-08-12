@@ -128,25 +128,44 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
 
       mediaRecorderRef.current.ondataavailable = e => chunksRef.current.push(e.data);
       mediaRecorderRef.current.onstop = async () => {
-        const blob = new Blob(chunksRef.current, { type: 'audio/webm;codecs=opus' });
-        const formData = new FormData();
-        formData.append('audio', blob, 'voice-input.webm');
-        formData.append('participant_id', participantId);
-        formData.append('swarm_id', swarmId);
+        try {
+          const blob = new Blob(chunksRef.current, { type: 'audio/webm;codecs=opus' });
+          const formData = new FormData();
+          formData.append('audio', blob, 'voice-input.webm');
+          formData.append('participant_id', participantId);
+          formData.append('swarm_id', swarmId);
 
-        const res = await fetch(`${API_BASE_URL}/voice`, { method: 'POST', body: formData });
-        const data = await res.json();
+          const res = await fetch(`${API_BASE_URL}/voice`, { method: 'POST', body: formData });
+          const data = await res.json();
 
-        // Append agent reply to tape
-        if (data.entry) setTape(prev => [...prev, data.entry]);
+          // Append agent reply to tape
+          if (data.entry) {
+            setTape(prev => [...prev, data.entry]);
+          }
 
-        // Play TTS reply if available
-        if (data.audioBase64) {
-          const audioBlob = b64ToBlob(data.audioBase64, 'audio/mpeg');
-          const audioUrl = URL.createObjectURL(audioBlob);
-          new Audio(audioUrl).play();
+          // Play TTS reply if available
+          if (data.audioBase64) {
+            const audioBlob = b64ToBlob(data.audioBase64, 'audio/mpeg');
+            console.debug(`[TTS] Decoded MP3 blob size: ${audioBlob.size} bytes`);
+            const audioUrl = URL.createObjectURL(audioBlob);
+            const audioEl = new Audio(audioUrl);
+            try {
+              await audioEl.play();
+              console.debug('[TTS] Playback started successfully');
+            } catch (err) {
+              console.error('[TTS] Playback failed:', err);
+            }
+          } else {
+            console.warn('[TTS] No audioBase64 returned from /voice');
+          }
+        } catch (err) {
+          console.error('[Voice] Error during onstop processing:', err);
+        } finally {
+          // Reset chunks for the next recording
+          chunksRef.current = [];
         }
       };
+
 
       mediaRecorderRef.current.start();
       setIsRecording(true);
