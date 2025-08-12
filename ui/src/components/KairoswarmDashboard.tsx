@@ -149,7 +149,7 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
             const audioBlob = b64ToBlob(data.audioBase64, 'audio/mpeg');
             console.debug(`[TTS] Decoded MP3 blob size: ${audioBlob.size} bytes`);
             const audioUrl = URL.createObjectURL(audioBlob);
-            console.debug("DEBUG:AUDIO URL: ${audioURL}");
+            console.debug(audioUrl);
             const audioEl = new Audio(audioUrl);
             try {
               await audioEl.play();
