@@ -128,6 +128,26 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
       chunksRef.current = [];
 
       mediaRecorderRef.current.ondataavailable = e => chunksRef.current.push(e.data);
+      
+      // Keep track if we've unlocked audio context
+      const audioUnlockedRef = useRef(false);
+
+      mediaRecorderRef.current.onstart = async () => {
+        // Unlock audio context on first push
+        if (!audioUnlockedRef.current) {
+          try {
+            const silentAudio = new Audio(
+              "data:audio/mp3;base64,//uQxAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAACcQCA"
+            );
+            await silentAudio.play();
+            audioUnlockedRef.current = true;
+            console.debug("[TTS] Audio context unlocked");
+          } catch (err) {
+            console.warn("[TTS] Failed to unlock audio context:", err);
+          }
+        }
+      };
+
       mediaRecorderRef.current.onstop = async () => {
         try {
           const blob = new Blob(chunksRef.current, { type: 'audio/webm;codecs=opus' });
