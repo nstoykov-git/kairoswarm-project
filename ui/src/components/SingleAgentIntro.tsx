@@ -191,20 +191,25 @@ const toggleRecording = async () => {
       }
 
       if (data.audioBase64) {
-        const audioBlob = b64ToBlob(data.audioBase64, "audio/mpeg");
-        console.debug(`[TTS] Decoded MP3 blob size: ${audioBlob.size} bytes`);
-        const audioUrl = URL.createObjectURL(audioBlob);
-        console.debug("[TTS] Audio URL:", audioUrl);
-        const audioEl = new Audio(audioUrl);
         try {
-          await audioEl.play();
-          console.debug("[TTS] Playback started successfully");
+          const audioBytes = Uint8Array.from(atob(data.audioBase64), (c) => c.charCodeAt(0));
+          if (!audioCtxRef.current) {
+            const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+            audioCtxRef.current = new AudioContextClass();
+          }
+          const audioBuffer = await audioCtxRef.current.decodeAudioData(audioBytes.buffer);
+          const source = audioCtxRef.current.createBufferSource();
+          source.buffer = audioBuffer;
+          source.connect(audioCtxRef.current.destination);
+          source.start(0);
+          console.debug("[TTS] Playback started via Web Audio API");
         } catch (err) {
-          console.error("[TTS] Playback failed:", err);
+          console.error("[TTS] Playback via Web Audio API failed:", err);
         }
       } else {
         console.warn("[TTS] No audioBase64 returned from /voice");
       }
+
     } catch (err) {
       console.error("[Voice] Error during onstop processing:", err);
     } finally {
