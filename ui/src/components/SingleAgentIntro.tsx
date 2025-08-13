@@ -125,7 +125,7 @@ const stopRecording = () => {
   }
 };
 
-// 🎤 Toggle recording
+// 🎤 Toggle recording (Dashboard behavior)
 const toggleRecording = async () => {
   if (!participantId || !swarmId) {
     console.warn("[Voice] Missing participantId or swarmId");
@@ -137,6 +137,27 @@ const toggleRecording = async () => {
     return;
   }
 
+  // Unlock audio context on first button press (Safari requirement)
+  if (!audioUnlockedRef.current) {
+    try {
+      const AudioContextClass =
+        window.AudioContext || (window as any).webkitAudioContext;
+      if (!audioCtxRef.current) {
+        audioCtxRef.current = new AudioContextClass();
+      }
+      const buffer = audioCtxRef.current.createBuffer(1, 1, 22050);
+      const source = audioCtxRef.current.createBufferSource();
+      source.buffer = buffer;
+      source.connect(audioCtxRef.current.destination);
+      source.start(0);
+      await audioCtxRef.current.resume();
+      audioUnlockedRef.current = true;
+      console.debug("[TTS] Audio context unlocked");
+    } catch (err) {
+      console.warn("[TTS] Failed to unlock audio context:", err);
+    }
+  }
+
   const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
   mediaRecorderRef.current = new MediaRecorder(stream, {
     mimeType: "audio/webm;codecs=opus",
@@ -146,29 +167,6 @@ const toggleRecording = async () => {
   mediaRecorderRef.current.ondataavailable = (event) => {
     if (event.data.size > 0) {
       audioChunksRef.current.push(event.data);
-    }
-  };
-
-  // Unlock audio context on first start (Safari)
-  mediaRecorderRef.current.onstart = async () => {
-    if (!audioUnlockedRef.current) {
-      try {
-        const AudioContextClass =
-          window.AudioContext || (window as any).webkitAudioContext;
-        if (!audioCtxRef.current) {
-          audioCtxRef.current = new AudioContextClass();
-        }
-        const buffer = audioCtxRef.current.createBuffer(1, 1, 22050);
-        const source = audioCtxRef.current.createBufferSource();
-        source.buffer = buffer;
-        source.connect(audioCtxRef.current.destination);
-        source.start(0);
-        await audioCtxRef.current.resume();
-        audioUnlockedRef.current = true;
-        console.debug("[TTS] Audio context unlocked");
-      } catch (err) {
-        console.warn("[TTS] Failed to unlock audio context:", err);
-      }
     }
   };
 
