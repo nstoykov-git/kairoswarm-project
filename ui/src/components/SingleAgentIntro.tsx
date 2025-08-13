@@ -121,12 +121,41 @@ export default function SingleAgentIntro({ agentName }: { agentName: string }) {
     }
   };
 
-  // 🎤 Toggle recording
+  // Keep unlock state for audio context
+  let localAudioContext: AudioContext | null = null;
+  let audioUnlocked = false;
+
   const toggleRecording = async () => {
     if (recording) {
       stopRecording();
       return;
     }
+
+    // Unlock audio context on first press
+    if (!audioUnlocked) {
+      try {
+        const AudioContextClass =
+          window.AudioContext || (window as any).webkitAudioContext;
+        if (!localAudioContext) {
+          localAudioContext = new AudioContextClass();
+        }
+
+        // Create a 1-frame silent buffer to unlock audio
+        const buffer = localAudioContext.createBuffer(1, 1, 22050);
+        const source = localAudioContext.createBufferSource();
+        source.buffer = buffer;
+        source.connect(localAudioContext.destination);
+        source.start(0);
+
+        await localAudioContext.resume(); // Safari requirement
+
+        audioUnlocked = true;
+        console.debug("[TTS] Audio context unlocked via Web Audio API");
+      } catch (err) {
+        console.warn("[TTS] Failed to unlock audio context:", err);
+      }
+    }
+
     // Start recording
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     const mediaRecorder = new MediaRecorder(stream);
@@ -152,9 +181,22 @@ export default function SingleAgentIntro({ agentName }: { agentName: string }) {
           body: formData,
         });
         const data = await res.json();
-        if (data.audioBase64) {
-          const audio = new Audio(`data:audio/mp3;base64,${data.audioBase64}`);
-          audio.play();
+
+        if (data.audioBase64 && localAudioContext) {
+          const audioBytes = Uint8Array.from(
+            atob(data.audioBase64),
+            (c) => c.charCodeAt(0)
+          );
+          const audioBuffer = await localAudioContext.decodeAudioData(
+            audioBytes.buffer
+          );
+          const source = localAudioContext.createBufferSource();
+          source.buffer = audioBuffer;
+          source.connect(localAudioContext.destination);
+          source.start(0);
+          console.debug("[TTS] Playback started via Web Audio API");
+        } else {
+          console.warn("[TTS] No audioBase64 returned from /voice");
         }
       } catch (err) {
         console.error("Voice request failed", err);
