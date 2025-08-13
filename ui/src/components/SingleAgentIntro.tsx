@@ -111,106 +111,132 @@ export default function SingleAgentIntro({ agentName }: { agentName: string }) {
     initAndJoin();
   }, [agent]);
 
-  // ⏹ Stop recording helper
-  const stopRecording = () => {
-    mediaRecorderRef.current?.stop();
-    setRecording(false);
-    if (recordingTimeoutRef.current) {
-      clearTimeout(recordingTimeoutRef.current);
-      recordingTimeoutRef.current = null;
+// --- Safari/Web Audio API unlock ---
+const audioUnlockedRef = useRef(false);
+const audioCtxRef = useRef<AudioContext | null>(null);
+
+// Stop recording helper
+const stopRecording = () => {
+  mediaRecorderRef.current?.stop();
+  setRecording(false);
+  if (recordingTimeoutRef.current) {
+    clearTimeout(recordingTimeoutRef.current);
+    recordingTimeoutRef.current = null;
+  }
+};
+
+// 🎤 Toggle recording
+const toggleRecording = async () => {
+  if (!participantId || !swarmId) {
+    console.warn("[Voice] Missing participantId or swarmId");
+    return;
+  }
+
+  if (recording) {
+    stopRecording();
+    return;
+  }
+
+  const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  mediaRecorderRef.current = new MediaRecorder(stream, {
+    mimeType: "audio/webm;codecs=opus",
+  });
+  audioChunksRef.current = [];
+
+  mediaRecorderRef.current.ondataavailable = (event) => {
+    if (event.data.size > 0) {
+      audioChunksRef.current.push(event.data);
     }
   };
 
-  // Keep unlock state for audio context
-  let localAudioContext: AudioContext | null = null;
-  let audioUnlocked = false;
-
-  const toggleRecording = async () => {
-    if (recording) {
-      stopRecording();
-      return;
-    }
-
-    // Unlock audio context on first press
-    if (!audioUnlocked) {
+  // Unlock audio context on first start (Safari)
+  mediaRecorderRef.current.onstart = async () => {
+    if (!audioUnlockedRef.current) {
       try {
         const AudioContextClass =
           window.AudioContext || (window as any).webkitAudioContext;
-        if (!localAudioContext) {
-          localAudioContext = new AudioContextClass();
+        if (!audioCtxRef.current) {
+          audioCtxRef.current = new AudioContextClass();
         }
-
-        // Create a 1-frame silent buffer to unlock audio
-        const buffer = localAudioContext.createBuffer(1, 1, 22050);
-        const source = localAudioContext.createBufferSource();
+        const buffer = audioCtxRef.current.createBuffer(1, 1, 22050);
+        const source = audioCtxRef.current.createBufferSource();
         source.buffer = buffer;
-        source.connect(localAudioContext.destination);
+        source.connect(audioCtxRef.current.destination);
         source.start(0);
-
-        await localAudioContext.resume(); // Safari requirement
-
-        audioUnlocked = true;
-        console.debug("[TTS] Audio context unlocked via Web Audio API");
+        await audioCtxRef.current.resume();
+        audioUnlockedRef.current = true;
+        console.debug("[TTS] Audio context unlocked");
       } catch (err) {
         console.warn("[TTS] Failed to unlock audio context:", err);
       }
     }
-
-    // Start recording
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    const mediaRecorder = new MediaRecorder(stream);
-    audioChunksRef.current = [];
-    mediaRecorderRef.current = mediaRecorder;
-
-    mediaRecorder.ondataavailable = (event) => {
-      if (event.data.size > 0) {
-        audioChunksRef.current.push(event.data);
-      }
-    };
-
-    mediaRecorder.onstop = async () => {
-      const blob = new Blob(audioChunksRef.current, { type: "audio/webm" });
-      const formData = new FormData();
-      formData.append("audio", blob, "audio.webm");
-      formData.append("participant_id", participantId || "");
-      formData.append("swarm_id", swarmId || "default");
-
-      try {
-        const res = await fetch(`${API_INTERNAL_URL}/voice`, {
-          method: "POST",
-          body: formData,
-        });
-        const data = await res.json();
-
-        if (data.audioBase64 && localAudioContext) {
-          const audioBytes = Uint8Array.from(
-            atob(data.audioBase64),
-            (c) => c.charCodeAt(0)
-          );
-          const audioBuffer = await localAudioContext.decodeAudioData(
-            audioBytes.buffer
-          );
-          const source = localAudioContext.createBufferSource();
-          source.buffer = audioBuffer;
-          source.connect(localAudioContext.destination);
-          source.start(0);
-          console.debug("[TTS] Playback started via Web Audio API");
-        } else {
-          console.warn("[TTS] No audioBase64 returned from /voice");
-        }
-      } catch (err) {
-        console.error("Voice request failed", err);
-      }
-    };
-
-    mediaRecorder.start();
-    setRecording(true);
-
-    // Auto-stop after MAX_RECORDING_MS
-    recordingTimeoutRef.current = setTimeout(() => {
-      stopRecording();
-    }, MAX_RECORDING_MS);
   };
+
+  mediaRecorderRef.current.onstop = async () => {
+    try {
+      const blob = new Blob(audioChunksRef.current, {
+        type: "audio/webm;codecs=opus",
+      });
+      const formData = new FormData();
+      formData.append("audio", blob, "voice-input.webm");
+      formData.append("participant_id", participantId);
+      formData.append("swarm_id", swarmId);
+
+      const res = await fetch(`${API_INTERNAL_URL}/voice`, {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json();
+
+      if (data.entry) {
+        console.debug("[TTS] Agent replied:", data.entry.message);
+      }
+
+      if (data.audioBase64) {
+        const audioBlob = b64ToBlob(data.audioBase64, "audio/mpeg");
+        console.debug(`[TTS] Decoded MP3 blob size: ${audioBlob.size} bytes`);
+        const audioUrl = URL.createObjectURL(audioBlob);
+        console.debug("[TTS] Audio URL:", audioUrl);
+        const audioEl = new Audio(audioUrl);
+        try {
+          await audioEl.play();
+          console.debug("[TTS] Playback started successfully");
+        } catch (err) {
+          console.error("[TTS] Playback failed:", err);
+        }
+      } else {
+        console.warn("[TTS] No audioBase64 returned from /voice");
+      }
+    } catch (err) {
+      console.error("[Voice] Error during onstop processing:", err);
+    } finally {
+      audioChunksRef.current = [];
+    }
+  };
+
+  mediaRecorderRef.current.start();
+  setRecording(true);
+
+  // Auto-stop after MAX_RECORDING_MS
+  recordingTimeoutRef.current = setTimeout(() => {
+    stopRecording();
+  }, MAX_RECORDING_MS);
+};
+
+// Helper for base64 → Blob
+function b64ToBlob(b64Data: string, contentType = "", sliceSize = 512) {
+  const byteCharacters = atob(b64Data);
+  const byteArrays = [];
+  for (let offset = 0; offset < byteCharacters.length; offset += sliceSize) {
+    const slice = byteCharacters.slice(offset, offset + sliceSize);
+    const byteNumbers = new Array(slice.length);
+    for (let i = 0; i < slice.length; i++) {
+      byteNumbers[i] = slice.charCodeAt(i);
+    }
+    byteArrays.push(new Uint8Array(byteNumbers));
+  }
+  return new Blob(byteArrays, { type: contentType });
+}
 
   if (loading) {
     return (
