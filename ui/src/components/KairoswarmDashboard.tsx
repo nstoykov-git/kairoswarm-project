@@ -123,7 +123,7 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
     if (!participantId) return;
 
     // Keep unlock state for audio context
-    let localAudioContext: any = null;
+    let localAudioContext: AudioContext | null = null;
     let audioUnlocked = false;
 
     if (!isRecording) {
@@ -178,17 +178,32 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
 
           // Play TTS reply if available
           if (data.audioBase64) {
-            const audioBlob = b64ToBlob(data.audioBase64, 'audio/mpeg');
-            console.debug(`[TTS] Decoded MP3 blob size: ${audioBlob.size} bytes`);
-            const audioUrl = URL.createObjectURL(audioBlob);
-            console.debug("[TTS] Audio URL:", audioUrl);
-            const audioEl = new Audio(audioUrl);
-            try {
-              await audioEl.play();
-              console.debug('[TTS] Playback started successfully');
-            } catch (err) {
-              console.error('[TTS] Playback failed:', err);
+            if (!localAudioContext) {
+              const AudioContextClass =
+                window.AudioContext || (window as any).webkitAudioContext;
+              localAudioContext = new AudioContextClass();
+              await localAudioContext.resume();
             }
+
+            const audioArrayBuffer = Uint8Array.from(
+              atob(data.audioBase64),
+              c => c.charCodeAt(0)
+            ).buffer;
+
+            localAudioContext.decodeAudioData(
+              audioArrayBuffer,
+              buffer => {
+                const source = localAudioContext!.createBufferSource();
+                source.buffer = buffer;
+                source.connect(localAudioContext!.destination);
+                source.start(0);
+                console.debug('[TTS] Playback started via Web Audio API');
+              },
+              err => {
+                console.error('[TTS] decodeAudioData failed:', err);
+              }
+            );
+
           } else {
             console.warn('[TTS] No audioBase64 returned from /voice');
           }
