@@ -92,7 +92,37 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
       ]);
       const tapeData = await tapeRes.json();
       const participantsData = await participantsRes.json();
-      if (Array.isArray(tapeData)) setTape(tapeData);
+      if (Array.isArray(tapeData)) {
+        setTape(prev => {
+          // Remove any optimistic messages that have already arrived from server
+          const cleanedPrev = prev.filter(
+            m =>
+              !m.optimistic ||
+              !tapeData.some(
+                s => s.from === m.from && s.message === m.message
+              )
+          );
+
+          // Merge in new server messages without duplication
+          const merged = [...cleanedPrev];
+          tapeData.forEach(serverMsg => {
+            const exists = merged.some(
+              m =>
+                m.from === serverMsg.from &&
+                m.message === serverMsg.message &&
+                m.timestamp === serverMsg.timestamp
+            );
+            if (!exists) merged.push(serverMsg);
+          });
+
+          // Keep sorted by time
+          return merged.sort(
+            (a, b) =>
+              new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+          );
+        });
+      }
+
       if (Array.isArray(participantsData)) setParticipants(participantsData);
     }, 2000);
     return () => clearInterval(poll);
@@ -239,16 +269,40 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
 
   const handleSpeak = async () => {
     if (!participantId || !input.trim()) return;
-    await fetch(`${API_BASE_URL}/speak`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        participant_id: participantId,
-        swarm_id: swarmId,
-        message: input,
-      }),
-    });
+
+    const tempId = `local-${Date.now()}`;
+    const senderName = participants.find(p => p.id === participantId)?.name || "Me";
+
+    const tempMessage = {
+      id: tempId,
+      from: senderName,
+      type: "human",
+      message: input,
+      timestamp: new Date().toISOString()
+    };
+
+    // Optimistic UI update
+    setTape(prev => [...prev, tempMessage]);
+
+    const messageToSend = input;
     setInput("");
+
+    try {
+      await fetch(`${API_BASE_URL}/speak`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          participant_id: participantId,
+          swarm_id: swarmId,
+          message: messageToSend,
+        }),
+      });
+    } catch (err) {
+      console.error("[Speak] Error:", err);
+      // Roll back on error
+      setTape(prev => prev.filter(m => m.id !== tempId));
+      setInput(messageToSend); // put it back so user can retry
+    }
   };
 
   const handleAddAgent = async () => {
@@ -300,7 +354,20 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
       const tapeData = await tapeRes.json();
       const participantsData = await participantsRes.json();
 
-      if (Array.isArray(tapeData)) setTape(tapeData);
+      if (Array.isArray(tapeData)) {
+        setTape(prev => {
+          const seen = new Set();
+          const merged = [...prev, ...tapeData]
+            .filter(msg => {
+              const key = (msg.timestamp || "") + msg.message;
+              if (seen.has(key)) return false;
+              seen.add(key);
+              return true;
+            })
+            .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+          return merged;
+        });
+      }
       if (Array.isArray(participantsData)) setParticipants(participantsData);
 
       for (const p of participantsData) {
@@ -383,6 +450,7 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
 
           <div className="flex gap-2 items-center">
             <Input
+              key={tape.length} // ⬅ forces DOM remount when tape updates
               type="text"
               name="chat-message"
               autoComplete="off"
@@ -394,8 +462,9 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
               placeholder="Say something..."
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleSpeak()}
-              disabled={!participantId || isRecording} // ⬅ disables input while recording
+              disabled={!participantId || isRecording}
             />
+
             <Button
               variant="ghost"
               size="icon"
