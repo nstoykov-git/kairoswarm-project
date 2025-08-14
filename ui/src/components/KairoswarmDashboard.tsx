@@ -92,7 +92,37 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
       ]);
       const tapeData = await tapeRes.json();
       const participantsData = await participantsRes.json();
-      if (Array.isArray(tapeData)) setTape(tapeData);
+      if (Array.isArray(tapeData)) {
+        setTape(prev => {
+          // Remove any optimistic messages that have already arrived from server
+          const cleanedPrev = prev.filter(
+            m =>
+              !m.optimistic ||
+              !tapeData.some(
+                s => s.from === m.from && s.message === m.message
+              )
+          );
+
+          // Merge in new server messages without duplication
+          const merged = [...cleanedPrev];
+          tapeData.forEach(serverMsg => {
+            const exists = merged.some(
+              m =>
+                m.from === serverMsg.from &&
+                m.message === serverMsg.message &&
+                m.timestamp === serverMsg.timestamp
+            );
+            if (!exists) merged.push(serverMsg);
+          });
+
+          // Keep sorted by time
+          return merged.sort(
+            (a, b) =>
+              new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+          );
+        });
+      }
+
       if (Array.isArray(participantsData)) setParticipants(participantsData);
     }, 2000);
     return () => clearInterval(poll);
