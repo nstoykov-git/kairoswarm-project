@@ -85,54 +85,48 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
   }, [swarmId]);
 
   useEffect(() => {
-  const poll = setInterval(async () => {
-    const [tapeRes, participantsRes] = await Promise.all([
-      fetch(`${API_BASE_URL}/tape?swarm_id=${swarmId}`),
-      fetch(`${API_BASE_URL}/participants-full?swarm_id=${swarmId}`)
-    ]);
-    const tapeData = await tapeRes.json();
-    const participantsData = await participantsRes.json();
-
-    if (Array.isArray(tapeData)) {
-      setTape(prev => {
-        // Remove any optimistic messages that have already arrived from server
-        const cleanedPrev = prev.filter(
-          m =>
-            !m.optimistic ||
-            !tapeData.some(
-              s => s.from === m.from && s.message === m.message
-            )
-        );
-
-        // Merge in new server messages without duplication
-        const merged = [...cleanedPrev];
-        tapeData.forEach(serverMsg => {
-          const exists = merged.some(
+    const poll = setInterval(async () => {
+      const [tapeRes, participantsRes] = await Promise.all([
+        fetch(`${API_BASE_URL}/tape?swarm_id=${swarmId}`),
+        fetch(`${API_BASE_URL}/participants-full?swarm_id=${swarmId}`)
+      ]);
+      const tapeData = await tapeRes.json();
+      const participantsData = await participantsRes.json();
+      if (Array.isArray(tapeData)) {
+        setTape(prev => {
+          // Remove any optimistic messages that have already arrived from server
+          const cleanedPrev = prev.filter(
             m =>
-              m.from === serverMsg.from &&
-              m.message === serverMsg.message &&
-              m.timestamp === serverMsg.timestamp
+              !m.optimistic ||
+              !tapeData.some(
+                s => s.from === m.from && s.message === m.message
+              )
           );
-          if (!exists) merged.push(serverMsg);
+
+          // Merge in new server messages without duplication
+          const merged = [...cleanedPrev];
+          tapeData.forEach(serverMsg => {
+            const exists = merged.some(
+              m =>
+                m.from === serverMsg.from &&
+                m.message === serverMsg.message &&
+                m.timestamp === serverMsg.timestamp
+            );
+            if (!exists) merged.push(serverMsg);
+          });
+
+          // Keep sorted by time
+          return merged.sort(
+            (a, b) =>
+              new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+          );
         });
+      }
 
-        // Keep sorted by time
-        return merged.sort(
-          (a, b) =>
-            new Date(a.timestamp).getTime() -
-            new Date(b.timestamp).getTime()
-        );
-      });
-    }
-
-    if (Array.isArray(participantsData)) {
-      setParticipants(participantsData);
-    }
-  }, 2000);
-
-  return () => clearInterval(poll);
-}, [swarmId]); // ✅ only restart polling when swarm changes
-
+      if (Array.isArray(participantsData)) setParticipants(participantsData);
+    }, 2000);
+    return () => clearInterval(poll);
+  }, [swarmId]);
 
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -276,25 +270,25 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
   const handleSpeak = async () => {
     if (!participantId || !input.trim()) return;
 
-    const messageToSend = input.trim();
-    const tempId = Date.now();
+    const tempId = `local-${Date.now()}`;
+    const senderName = participants.find(p => p.id === participantId)?.name || "Me";
+
     const tempMessage = {
       id: tempId,
-      from: "You",
+      from: senderName,
       type: "human",
-      message: messageToSend,
-      optimistic: true,
+      message: input,
       timestamp: new Date().toISOString()
     };
 
-    // 1️⃣ Clear input immediately so it doesn't flash back
-    setInput("");
-
-    // 2️⃣ Optimistic UI update
+    // Optimistic UI update
     setTape(prev => [...prev, tempMessage]);
 
+    const messageToSend = input;
+    setInput("");
+
     try {
-      const res = await fetch(`${API_BASE_URL}/speak`, {
+      await fetch(`${API_BASE_URL}/speak`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -303,13 +297,6 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
           message: messageToSend,
         }),
       });
-
-      // Only restore if network truly failed
-      if (!res.ok) {
-        console.error("[Speak] Network or server error:", await res.text());
-        setTape(prev => prev.filter(m => m.id !== tempId));
-        setInput(messageToSend); // put back for retry
-      }
     } catch (err) {
       console.error("[Speak] Error:", err);
       // Roll back on error
