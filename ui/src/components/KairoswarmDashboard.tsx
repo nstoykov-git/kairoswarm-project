@@ -85,48 +85,54 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
   }, [swarmId]);
 
   useEffect(() => {
-    const poll = setInterval(async () => {
-      const [tapeRes, participantsRes] = await Promise.all([
-        fetch(`${API_BASE_URL}/tape?swarm_id=${swarmId}`),
-        fetch(`${API_BASE_URL}/participants-full?swarm_id=${swarmId}`)
-      ]);
-      const tapeData = await tapeRes.json();
-      const participantsData = await participantsRes.json();
-      if (Array.isArray(tapeData)) {
-        setTape(prev => {
-          // Remove any optimistic messages that have already arrived from server
-          const cleanedPrev = prev.filter(
+  const poll = setInterval(async () => {
+    const [tapeRes, participantsRes] = await Promise.all([
+      fetch(`${API_BASE_URL}/tape?swarm_id=${swarmId}`),
+      fetch(`${API_BASE_URL}/participants-full?swarm_id=${swarmId}`)
+    ]);
+    const tapeData = await tapeRes.json();
+    const participantsData = await participantsRes.json();
+
+    if (Array.isArray(tapeData)) {
+      setTape(prev => {
+        // Remove any optimistic messages that have already arrived from server
+        const cleanedPrev = prev.filter(
+          m =>
+            !m.optimistic ||
+            !tapeData.some(
+              s => s.from === m.from && s.message === m.message
+            )
+        );
+
+        // Merge in new server messages without duplication
+        const merged = [...cleanedPrev];
+        tapeData.forEach(serverMsg => {
+          const exists = merged.some(
             m =>
-              !m.optimistic ||
-              !tapeData.some(
-                s => s.from === m.from && s.message === m.message
-              )
+              m.from === serverMsg.from &&
+              m.message === serverMsg.message &&
+              m.timestamp === serverMsg.timestamp
           );
-
-          // Merge in new server messages without duplication
-          const merged = [...cleanedPrev];
-          tapeData.forEach(serverMsg => {
-            const exists = merged.some(
-              m =>
-                m.from === serverMsg.from &&
-                m.message === serverMsg.message &&
-                m.timestamp === serverMsg.timestamp
-            );
-            if (!exists) merged.push(serverMsg);
-          });
-
-          // Keep sorted by time
-          return merged.sort(
-            (a, b) =>
-              new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-          );
+          if (!exists) merged.push(serverMsg);
         });
-      }
 
-      if (Array.isArray(participantsData)) setParticipants(participantsData);
-    }, 2000);
-    return () => clearInterval(poll);
-  }, [swarmId]);
+        // Keep sorted by time
+        return merged.sort(
+          (a, b) =>
+            new Date(a.timestamp).getTime() -
+            new Date(b.timestamp).getTime()
+        );
+      });
+    }
+
+    if (Array.isArray(participantsData)) {
+      setParticipants(participantsData);
+    }
+  }, 2000);
+
+  return () => clearInterval(poll);
+}, [swarmId]); // ✅ only restart polling when swarm changes
+
 
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
