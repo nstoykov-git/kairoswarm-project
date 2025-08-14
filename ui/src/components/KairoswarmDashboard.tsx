@@ -276,25 +276,25 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
   const handleSpeak = async () => {
     if (!participantId || !input.trim()) return;
 
-    const tempId = `local-${Date.now()}`;
-    const senderName = participants.find(p => p.id === participantId)?.name || "Me";
-
+    const messageToSend = input.trim();
+    const tempId = Date.now();
     const tempMessage = {
       id: tempId,
-      from: senderName,
+      from: "You",
       type: "human",
-      message: input,
+      message: messageToSend,
+      optimistic: true,
       timestamp: new Date().toISOString()
     };
 
-    // Optimistic UI update
-    setTape(prev => [...prev, tempMessage]);
-
-    const messageToSend = input;
+    // 1️⃣ Clear input immediately so it doesn't flash back
     setInput("");
 
+    // 2️⃣ Optimistic UI update
+    setTape(prev => [...prev, tempMessage]);
+
     try {
-      await fetch(`${API_BASE_URL}/speak`, {
+      const res = await fetch(`${API_BASE_URL}/speak`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -303,6 +303,13 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
           message: messageToSend,
         }),
       });
+
+      // Only restore if network truly failed
+      if (!res.ok) {
+        console.error("[Speak] Network or server error:", await res.text());
+        setTape(prev => prev.filter(m => m.id !== tempId));
+        setInput(messageToSend); // put back for retry
+      }
     } catch (err) {
       console.error("[Speak] Error:", err);
       // Roll back on error
