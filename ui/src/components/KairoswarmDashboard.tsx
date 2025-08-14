@@ -301,7 +301,6 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
       console.error("[Speak] Error:", err);
       // Roll back on error
       setTape(prev => prev.filter(m => m.id !== tempId));
-      setInput(messageToSend); // put it back so user can retry
     }
   };
 
