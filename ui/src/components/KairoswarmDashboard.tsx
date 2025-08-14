@@ -239,16 +239,26 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
 
   const handleSpeak = async () => {
     if (!participantId || !input.trim()) return;
-    await fetch(`${API_BASE_URL}/speak`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        participant_id: participantId,
-        swarm_id: swarmId,
-        message: input,
-      }),
-    });
+
+    // Clear immediately so polling can't bring it back
+    const currentInput = input;
     setInput("");
+
+    try {
+      await fetch(`${API_BASE_URL}/speak`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          participant_id: participantId,
+          swarm_id: swarmId,
+          message: currentInput,
+        }),
+      });
+    } catch (err) {
+      console.error("[Speak] Error sending message:", err);
+      // Optional: restore text on error
+      setInput(currentInput);
+    }
   };
 
   const handleAddAgent = async () => {
