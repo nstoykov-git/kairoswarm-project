@@ -94,30 +94,31 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
       const participantsData = await participantsRes.json();
       if (Array.isArray(tapeData)) {
         setTape(prev => {
-          // First, remove optimistic messages if their real version arrived
+          // Remove any optimistic messages that have already arrived from server
           const cleanedPrev = prev.filter(m => {
             if (!m.optimistic) return true;
 
             return !tapeData.some(s =>
               s.from === m.from &&
               s.message === m.message &&
-              Math.abs(new Date(s.timestamp).getTime() - new Date(m.timestamp).getTime()) < 10000 // 10s grace
+              Math.abs(new Date(s.timestamp).getTime() - new Date(m.timestamp).getTime()) < 5000 // 5s grace
             );
           });
 
-          // Then, merge in new messages from server (but skip true duplicates)
+
+          // Merge in new server messages without duplication
           const merged = [...cleanedPrev];
           tapeData.forEach(serverMsg => {
             const exists = merged.some(
               m =>
                 m.from === serverMsg.from &&
                 m.message === serverMsg.message &&
-                Math.abs(new Date(m.timestamp).getTime() - new Date(serverMsg.timestamp).getTime()) < 500
+                m.timestamp === serverMsg.timestamp
             );
             if (!exists) merged.push(serverMsg);
           });
 
-          // Keep tape sorted chronologically
+          // Keep sorted by time
           return merged.sort(
             (a, b) =>
               new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
@@ -433,10 +434,10 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
             style={{ height: '400px' }} // 👈 Adjust this height as needed
             ref={scrollRef}
           >
-            
+
             <div className="space-y-2">
-              {tape.map((msg) => (
-                <div key={`${msg.timestamp}-${msg.from}-${msg.message}`} className="flex flex-col space-y-0.5">
+              {tape.map((msg, idx) => (
+                <div key={msg.timestamp || idx} className="flex flex-col space-y-0.5">
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-white">{msg.from}:</span>
                     {msg.timestamp && (
@@ -449,6 +450,7 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
                 </div>
               ))}
             </div>
+
           </ScrollArea>
 
           <div className="flex gap-2 items-center">
