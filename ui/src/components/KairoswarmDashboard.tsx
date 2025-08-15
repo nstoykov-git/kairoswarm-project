@@ -95,13 +95,15 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
       if (Array.isArray(tapeData)) {
         setTape(prev => {
           // Remove any optimistic messages that have already arrived from server
-          const cleanedPrev = prev.filter(
-            m =>
-              !m.optimistic ||
-              !tapeData.some(
-                s => s.from === m.from && s.message === m.message
-              )
-          );
+          const cleanedPrev = prev.filter(m => {
+            if (!m.optimistic) return true;
+
+            return !tapeData.some(s =>
+              s.from === m.from &&
+              s.message === m.message &&
+              Math.abs(new Date(s.timestamp).getTime() - new Date(m.timestamp).getTime()) < 5000 // 5s grace
+            );
+          });
 
           // Merge in new server messages without duplication
           const merged = [...cleanedPrev];
@@ -278,8 +280,10 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
       from: senderName,
       type: "human",
       message: input,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      optimistic: true,
     };
+
 
     // Optimistic UI update
     setTape(prev => [...prev, tempMessage]);
