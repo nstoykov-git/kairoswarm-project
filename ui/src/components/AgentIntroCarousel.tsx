@@ -99,7 +99,7 @@ export default function AgentIntroCarousel() {
 
       // Push to dashboard with swarm_id
       //router.push(`/dashboard?swarm_id=${swarmId}`);
-      window.location.href = `https://kairoswarm.com/?swarm_id=${swarmId}`;
+      window.location.href = `https://kairoswarm.com/single-agent-intro?swarm_id=${swarmId}`;
 
     } catch (err) {
       console.error(err);
