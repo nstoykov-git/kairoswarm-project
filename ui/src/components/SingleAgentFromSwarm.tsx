@@ -16,7 +16,7 @@ const MAX_RECORDING_MS = 30000;
 
 export default function SingleAgentFromSwarm() {
   const searchParams = useSearchParams();
-  const swarmIdParam = searchParams.get("swarm_id");
+  const swarmId = searchParams.get("swarm_id");
 
   const [agent, setAgent] = useState<Agent | null>(null);
   const [loading, setLoading] = useState(true);
@@ -29,14 +29,15 @@ export default function SingleAgentFromSwarm() {
   const audioUnlockedRef = useRef(false);
   const audioCtxRef = useRef<AudioContext | null>(null);
 
-  // Fetch agent metadata & join swarm
+  // Fetch agent & join swarm
   useEffect(() => {
-    if (!swarmIdParam) return;
+    if (!swarmId) return;
 
-    const fetchAgentFromSwarm = async () => {
+    const fetchAndJoin = async () => {
       try {
+        // 1️⃣ Get participants
         const participantsRes = await fetch(
-          `${API_INTERNAL_URL}/participants-full?swarm_id=${swarmIdParam}`
+          `${API_INTERNAL_URL}/participants-full?swarm_id=${swarmId}`
         );
         const participants = await participantsRes.json();
         const agentParticipant = participants.find((p: any) => p.type === "agent");
@@ -51,26 +52,29 @@ export default function SingleAgentFromSwarm() {
           orientation: metadata.orientation || "landscape",
         });
 
+        // 2️⃣ Join swarm as Guest
         const joinRes = await fetch(`${API_INTERNAL_URL}/swarm/join`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            swarm_id: swarmIdParam,
+            swarm_id: swarmId,
             name: "Guest",
             user_id: null,
           }),
         });
+
+        if (!joinRes.ok) throw new Error(`Join failed: ${joinRes.status}`);
         const joinData = await joinRes.json();
         setParticipantId(joinData.participant_id);
       } catch (err) {
-        console.error("Failed to fetch agent from swarm", err);
+        console.error("❌ Failed to load agent from swarm:", err);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchAgentFromSwarm();
-  }, [swarmIdParam]);
+    fetchAndJoin();
+  }, [swarmId]);
 
   const stopRecording = () => {
     mediaRecorderRef.current?.stop();
@@ -82,13 +86,14 @@ export default function SingleAgentFromSwarm() {
   };
 
   const toggleRecording = async () => {
-    if (!participantId || !swarmIdParam) return;
+    if (!participantId || !swarmId) return;
 
     if (recording) {
       stopRecording();
       return;
     }
 
+    // Unlock audio context (Safari fix)
     if (!audioUnlockedRef.current) {
       try {
         const AudioContextClass =
@@ -128,7 +133,7 @@ export default function SingleAgentFromSwarm() {
         const formData = new FormData();
         formData.append("audio", blob, "voice-input.webm");
         formData.append("participant_id", participantId);
-        formData.append("swarm_id", swarmIdParam);
+        formData.append("swarm_id", swarmId);
 
         const res = await fetch(`${API_INTERNAL_URL}/voice`, {
           method: "POST",
@@ -215,7 +220,7 @@ export default function SingleAgentFromSwarm() {
           <div className="flex justify-center gap-4">
             <button
               onClick={() =>
-                window.open(`https://kairoswarm.com/?swarm_id=${swarmIdParam}`, "_blank")
+                window.open(`https://kairoswarm.com/?swarm_id=${swarmId}`, "_blank")
               }
               className="text-white text-lg underline hover:opacity-80"
             >
@@ -235,4 +240,3 @@ export default function SingleAgentFromSwarm() {
     </div>
   );
 }
-
