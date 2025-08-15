@@ -1,73 +1,163 @@
-// src/components/SingleAgentFromSwarm.tsx
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_MODAL_API_URL;
+interface Agent {
+  id: string;
+  name: string;
+  video_url?: string;
+  media_mime_type?: string;
+  orientation: "portrait" | "landscape";
+}
 
-const VIDEO_MAP: Record<string, { videoUrl: string; orientation: 'portrait' | 'landscape' }> = {
-  'Marin': { videoUrl: '/videos/Marin.mp4', orientation: 'landscape' },
-  'Max': { videoUrl: '/videos/Max.mp4', orientation: 'landscape' },
-  'Logan': { videoUrl: '/videos/Logan.mp4', orientation: 'landscape' },
-  'Lumen': { videoUrl: '/videos/Lumen.mp4', orientation: 'landscape' },
-  'Iris': { videoUrl: '/videos/Iris.mp4', orientation: 'landscape' },
-};
+const API_INTERNAL_URL = process.env.NEXT_PUBLIC_MODAL_API_URL;
+const MAX_RECORDING_MS = 30000;
 
 export default function SingleAgentFromSwarm() {
-  const router = useRouter();
-  const searchParams = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
-  const swarmId = searchParams?.get("swarm_id") || "";
+  const searchParams = useSearchParams();
+  const swarmIdParam = searchParams.get("swarm_id");
 
-  const [agent, setAgent] = useState<{ id: string; name: string; videoUrl: string; orientation: 'portrait' | 'landscape' } | null>(null);
+  const [agent, setAgent] = useState<Agent | null>(null);
   const [loading, setLoading] = useState(true);
+  const [participantId, setParticipantId] = useState<string | null>(null);
+  const [recording, setRecording] = useState(false);
 
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const recordingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const audioUnlockedRef = useRef(false);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+
+  // Fetch agent metadata & join swarm
   useEffect(() => {
-    if (!swarmId) return;
+    if (!swarmIdParam) return;
 
-    const fetchData = async () => {
+    const fetchAgentFromSwarm = async () => {
       try {
-        // Fetch participants and tape (dashboard style)
-        const [tapeRes, participantsRes] = await Promise.all([
-          fetch(`${API_BASE_URL}/tape?swarm_id=${swarmId}`),
-          fetch(`${API_BASE_URL}/participants-full?swarm_id=${swarmId}`)
-        ]);
+        const participantsRes = await fetch(
+          `${API_INTERNAL_URL}/participants-full?swarm_id=${swarmIdParam}`
+        );
+        const participants = await participantsRes.json();
+        const agentParticipant = participants.find((p: any) => p.type === "agent");
+        if (!agentParticipant) throw new Error("No agent participant found");
 
-        const participantsData = await participantsRes.json();
+        const metadata = agentParticipant.metadata || {};
+        setAgent({
+          id: agentParticipant.id,
+          name: metadata.name,
+          video_url: metadata.video_url || undefined,
+          media_mime_type: metadata.media_mime_type || undefined,
+          orientation: metadata.orientation || "landscape",
+        });
 
-        // Reload agents (dashboard style)
-        for (const p of participantsData) {
-          if (p.type === "agent") {
-            await fetch(`${API_BASE_URL}/swarm/reload-agent`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                swarm_id: swarmId,
-                agent_id: p.metadata?.agent_id || p.id,
-              }),
-            });
-          }
-        }
-
-        // Pick the first agent
-        const agentParticipant = participantsData.find((p: any) => p.type === "agent");
-        if (agentParticipant && VIDEO_MAP[agentParticipant.name]) {
-          setAgent({
-            id: agentParticipant.metadata?.agent_id || agentParticipant.id,
-            name: agentParticipant.name,
-            videoUrl: VIDEO_MAP[agentParticipant.name].videoUrl,
-            orientation: VIDEO_MAP[agentParticipant.name].orientation
-          });
-        }
+        const joinRes = await fetch(`${API_INTERNAL_URL}/swarm/join`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            swarm_id: swarmIdParam,
+            name: "Guest",
+            user_id: null,
+          }),
+        });
+        const joinData = await joinRes.json();
+        setParticipantId(joinData.participant_id);
       } catch (err) {
-        console.error("Error loading swarm data", err);
+        console.error("Failed to fetch agent from swarm", err);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchData();
-  }, [swarmId]);
+    fetchAgentFromSwarm();
+  }, [swarmIdParam]);
+
+  const stopRecording = () => {
+    mediaRecorderRef.current?.stop();
+    setRecording(false);
+    if (recordingTimeoutRef.current) {
+      clearTimeout(recordingTimeoutRef.current);
+      recordingTimeoutRef.current = null;
+    }
+  };
+
+  const toggleRecording = async () => {
+    if (!participantId || !swarmIdParam) return;
+
+    if (recording) {
+      stopRecording();
+      return;
+    }
+
+    if (!audioUnlockedRef.current) {
+      try {
+        const AudioContextClass =
+          window.AudioContext || (window as any).webkitAudioContext;
+        if (!audioCtxRef.current) {
+          audioCtxRef.current = new AudioContextClass();
+        }
+        const buffer = audioCtxRef.current.createBuffer(1, 1, 22050);
+        const source = audioCtxRef.current.createBufferSource();
+        source.buffer = buffer;
+        source.connect(audioCtxRef.current.destination);
+        source.start(0);
+        await audioCtxRef.current.resume();
+        audioUnlockedRef.current = true;
+      } catch (err) {
+        console.warn("[TTS] Failed to unlock audio context:", err);
+      }
+    }
+
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    mediaRecorderRef.current = new MediaRecorder(stream, {
+      mimeType: "audio/webm;codecs=opus",
+    });
+    audioChunksRef.current = [];
+
+    mediaRecorderRef.current.ondataavailable = (event) => {
+      if (event.data.size > 0) {
+        audioChunksRef.current.push(event.data);
+      }
+    };
+
+    mediaRecorderRef.current.onstop = async () => {
+      try {
+        const blob = new Blob(audioChunksRef.current, {
+          type: "audio/webm;codecs=opus",
+        });
+        const formData = new FormData();
+        formData.append("audio", blob, "voice-input.webm");
+        formData.append("participant_id", participantId);
+        formData.append("swarm_id", swarmIdParam);
+
+        const res = await fetch(`${API_INTERNAL_URL}/voice`, {
+          method: "POST",
+          body: formData,
+        });
+        const data = await res.json();
+
+        if (data.audioBase64 && audioCtxRef.current) {
+          const audioBytes = Uint8Array.from(
+            atob(data.audioBase64),
+            (c) => c.charCodeAt(0)
+          );
+          const audioBuffer = await audioCtxRef.current.decodeAudioData(audioBytes.buffer);
+          const source = audioCtxRef.current.createBufferSource();
+          source.buffer = audioBuffer;
+          source.connect(audioCtxRef.current.destination);
+          source.start(0);
+        }
+      } catch (err) {
+        console.error("[Voice] Error during onstop:", err);
+      } finally {
+        audioChunksRef.current = [];
+      }
+    };
+
+    mediaRecorderRef.current.start();
+    setRecording(true);
+    recordingTimeoutRef.current = setTimeout(stopRecording, MAX_RECORDING_MS);
+  };
 
   if (loading) {
     return (
@@ -80,53 +170,69 @@ export default function SingleAgentFromSwarm() {
   if (!agent) {
     return (
       <div className="flex items-center justify-center h-screen bg-black text-white">
-        <span className="text-lg">No agent found in this swarm.</span>
+        <span className="text-lg">Agent not found.</span>
       </div>
     );
   }
 
   const isPortrait = agent.orientation === "portrait";
+  const hasMedia = agent.video_url && agent.media_mime_type;
 
   return (
     <div className="relative w-full h-screen bg-black overflow-hidden">
-      {/* Background Video */}
-      <video
-        key={`bg-${agent.id}`}
-        src={agent.videoUrl}
-        className="absolute w-full h-full object-cover filter blur-2xl brightness-50"
-        autoPlay
-        loop
-        muted
-        playsInline
-      />
-
-      {/* Foreground Video */}
-      <div className="relative z-10 flex flex-col items-center justify-center h-full">
+      {/* Background */}
+      {hasMedia && agent.media_mime_type!.startsWith("video/") && (
         <video
-          key={`fg-${agent.id}`}
-          src={agent.videoUrl}
-          className={`rounded-xl shadow-2xl object-cover ${
-            isPortrait
-              ? 'h-full w-auto object-top transform scale-150'
-              : 'w-full max-w-screen-xl'
-          }`}
+          src={agent.video_url}
+          className="absolute w-full h-full object-cover filter blur-2xl brightness-50"
           autoPlay
           loop
           muted
           playsInline
         />
-        <div className="absolute bottom-24 text-center">
+      )}
+
+      {/* Foreground */}
+      <div className="relative z-10 flex flex-col items-center justify-center h-full">
+        {hasMedia && agent.media_mime_type!.startsWith("video/") && (
+          <video
+            src={agent.video_url}
+            className={`rounded-xl shadow-2xl object-cover ${
+              isPortrait
+                ? "h-full w-auto object-top transform scale-150"
+                : "w-full max-w-screen-xl"
+            }`}
+            autoPlay
+            loop
+            muted
+            playsInline
+          />
+        )}
+        <div className="absolute bottom-24 text-center space-y-3">
           <h1 className="text-white text-4xl font-semibold mb-2 drop-shadow-lg">
             {agent.name}
           </h1>
-          <button
-            onClick={() => router.push(`/dashboard?swarm_id=${swarmId}`)}
-            className="text-white text-lg underline hover:opacity-80"
-          >
-            Talk to me
-          </button>
+          <div className="flex justify-center gap-4">
+            <button
+              onClick={() =>
+                window.open(`https://kairoswarm.com/?swarm_id=${swarmIdParam}`, "_blank")
+              }
+              className="text-white text-lg underline hover:opacity-80"
+            >
+              View Transcript
+            </button>
+            <button
+              onClick={toggleRecording}
+              className={`rounded-full p-4 ${
+                recording ? "bg-red-600" : "bg-green-600"
+              } text-white shadow-lg`}
+            >
+              {recording ? "⏹ Stop" : "🎤 Talk"}
+            </button>
+          </div>
         </div>
       </div>
     </div>
   );
 }
+
