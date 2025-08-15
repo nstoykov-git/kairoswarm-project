@@ -433,7 +433,7 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
             style={{ height: '400px' }} // 👈 Adjust this height as needed
             ref={scrollRef}
           >
-
+            
             <div className="space-y-2">
               {tape.map((msg) => (
                 <div key={`${msg.timestamp}-${msg.from}-${msg.message}`} className="flex flex-col space-y-0.5">
