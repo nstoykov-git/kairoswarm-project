@@ -94,30 +94,30 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
       const participantsData = await participantsRes.json();
       if (Array.isArray(tapeData)) {
         setTape(prev => {
-          // Remove any optimistic messages that have already arrived from server
+          // First, remove optimistic messages if their real version arrived
           const cleanedPrev = prev.filter(m => {
             if (!m.optimistic) return true;
 
             return !tapeData.some(s =>
               s.from === m.from &&
               s.message === m.message &&
-              Math.abs(new Date(s.timestamp).getTime() - new Date(m.timestamp).getTime()) < 5000 // 5s grace
+              Math.abs(new Date(s.timestamp).getTime() - new Date(m.timestamp).getTime()) < 10000 // 10s grace
             );
           });
 
-          // Merge in new server messages without duplication
+          // Then, merge in new messages from server (but skip true duplicates)
           const merged = [...cleanedPrev];
           tapeData.forEach(serverMsg => {
             const exists = merged.some(
               m =>
                 m.from === serverMsg.from &&
                 m.message === serverMsg.message &&
-                m.timestamp === serverMsg.timestamp
+                Math.abs(new Date(m.timestamp).getTime() - new Date(serverMsg.timestamp).getTime()) < 500
             );
             if (!exists) merged.push(serverMsg);
           });
 
-          // Keep sorted by time
+          // Keep tape sorted chronologically
           return merged.sort(
             (a, b) =>
               new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
