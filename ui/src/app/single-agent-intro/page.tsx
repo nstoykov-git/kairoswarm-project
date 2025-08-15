@@ -1,10 +1,13 @@
 //app/single-agent-intro/page.tsx
 "use client";
 
-export const dynamic = "force-dynamic";
-
+import { Suspense } from "react";
 import SingleAgentFromSwarm from "@/components/SingleAgentFromSwarm";
 
 export default function SingleAgentIntroPage() {
-  return <SingleAgentFromSwarm />;
+  return (
+    <Suspense fallback={<div className="text-white">Loading...</div>}>
+      <SingleAgentFromSwarm />
+    </Suspense>
+  );
 }
