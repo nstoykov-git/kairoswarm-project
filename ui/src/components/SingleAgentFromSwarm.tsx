@@ -14,14 +14,33 @@ interface Agent {
 const API_INTERNAL_URL = process.env.NEXT_PUBLIC_MODAL_API_URL;
 const MAX_RECORDING_MS = 30000;
 
+// 🎨 Gradients for no-media fallback
+const GRADIENTS = [
+  ["from-pink-800", "to-purple-900"],
+  ["from-indigo-900", "to-blue-800"],
+  ["from-teal-900", "to-emerald-800"],
+  ["from-amber-900", "to-red-800"],
+  ["from-sky-900", "to-cyan-800"],
+  ["from-fuchsia-900", "to-rose-800"],
+];
+
+function gradientForName(name: string) {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return GRADIENTS[Math.abs(hash) % GRADIENTS.length];
+}
+
 export default function SingleAgentFromSwarm() {
   const searchParams = useSearchParams();
-  const swarmId = searchParams.get("swarm_id");
+  const swarmIdParam = searchParams.get("swarm_id");
 
   const [agent, setAgent] = useState<Agent | null>(null);
   const [loading, setLoading] = useState(true);
   const [participantId, setParticipantId] = useState<string | null>(null);
   const [recording, setRecording] = useState(false);
+  const [swarmId, setSwarmId] = useState<string | null>(null);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -29,53 +48,65 @@ export default function SingleAgentFromSwarm() {
   const audioUnlockedRef = useRef(false);
   const audioCtxRef = useRef<AudioContext | null>(null);
 
-  // Fetch agent & join swarm
+  // 1️⃣ Fetch agent ID from participants, then load details via /by-ids
   useEffect(() => {
-    if (!swarmId) return;
+    if (!swarmIdParam) return;
 
-    const fetchAndJoin = async () => {
+    const init = async () => {
       try {
-        // 1️⃣ Get participants
         const participantsRes = await fetch(
-          `${API_INTERNAL_URL}/participants-full?swarm_id=${swarmId}`
+          `${API_INTERNAL_URL}/participants-full?swarm_id=${swarmIdParam}`
         );
         const participants = await participantsRes.json();
+
         const agentParticipant = participants.find((p: any) => p.type === "agent");
         if (!agentParticipant) throw new Error("No agent participant found");
 
-        const metadata = agentParticipant.metadata || {};
-        setAgent({
-          id: agentParticipant.id,
-          name: metadata.name,
-          video_url: metadata.video_url || undefined,
-          media_mime_type: metadata.media_mime_type || undefined,
-          orientation: metadata.orientation || "landscape",
-        });
+        const agentId = agentParticipant.metadata?.agent_id || agentParticipant.id;
 
-        // 2️⃣ Join swarm as Guest
+        // Fetch authoritative agent data via /by-ids
+        const agentRes = await fetch(`${API_INTERNAL_URL}/swarm/agents/by-ids`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ids: [agentId] }),
+        });
+        const agentData = await agentRes.json();
+
+        if (Array.isArray(agentData.agents) && agentData.agents.length > 0) {
+          const a = agentData.agents[0];
+          setAgent({
+            id: a.id,
+            name: a.name,
+            video_url: a.video_url || undefined,
+            media_mime_type: a.media_mime_type || undefined,
+            orientation: a.orientation || "landscape",
+          });
+        }
+
+        // Join swarm as Guest
         const joinRes = await fetch(`${API_INTERNAL_URL}/swarm/join`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            swarm_id: swarmId,
+            swarm_id: swarmIdParam,
             name: "Guest",
             user_id: null,
           }),
         });
-
-        if (!joinRes.ok) throw new Error(`Join failed: ${joinRes.status}`);
         const joinData = await joinRes.json();
         setParticipantId(joinData.participant_id);
+        setSwarmId(swarmIdParam);
       } catch (err) {
-        console.error("❌ Failed to load agent from swarm:", err);
+        console.error("Failed to init SingleAgentFromSwarm", err);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchAndJoin();
-  }, [swarmId]);
+    init();
+  }, [swarmIdParam]);
 
+  // Stop recording helper
   const stopRecording = () => {
     mediaRecorderRef.current?.stop();
     setRecording(false);
@@ -85,6 +116,7 @@ export default function SingleAgentFromSwarm() {
     }
   };
 
+  // 🎤 Toggle recording (matches Dashboard behavior)
   const toggleRecording = async () => {
     if (!participantId || !swarmId) return;
 
@@ -93,7 +125,7 @@ export default function SingleAgentFromSwarm() {
       return;
     }
 
-    // Unlock audio context (Safari fix)
+    // Unlock audio context (Safari requirement)
     if (!audioUnlockedRef.current) {
       try {
         const AudioContextClass =
@@ -164,6 +196,7 @@ export default function SingleAgentFromSwarm() {
     recordingTimeoutRef.current = setTimeout(stopRecording, MAX_RECORDING_MS);
   };
 
+  // UI
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen bg-black text-white">
@@ -182,37 +215,71 @@ export default function SingleAgentFromSwarm() {
 
   const isPortrait = agent.orientation === "portrait";
   const hasMedia = agent.video_url && agent.media_mime_type;
+  const [fromColor, toColor] = gradientForName(agent.name);
 
   return (
-    <div className="relative w-full h-screen bg-black overflow-hidden">
+    <div className="relative w-full h-screen bg-black overflow-hidden animate-fadeIn">
       {/* Background */}
-      {hasMedia && agent.media_mime_type!.startsWith("video/") && (
-        <video
-          src={agent.video_url}
-          className="absolute w-full h-full object-cover filter blur-2xl brightness-50"
-          autoPlay
-          loop
-          muted
-          playsInline
-        />
-      )}
-
-      {/* Foreground */}
-      <div className="relative z-10 flex flex-col items-center justify-center h-full">
-        {hasMedia && agent.media_mime_type!.startsWith("video/") && (
+      {hasMedia ? (
+        agent.media_mime_type!.startsWith("video/") ? (
           <video
             src={agent.video_url}
-            className={`rounded-xl shadow-2xl object-cover ${
-              isPortrait
-                ? "h-full w-auto object-top transform scale-150"
-                : "w-full max-w-screen-xl"
-            }`}
+            className="absolute w-full h-full object-cover filter blur-2xl brightness-50"
             autoPlay
             loop
             muted
             playsInline
           />
+        ) : (
+          <img
+            src={agent.video_url}
+            className="absolute w-full h-full object-cover filter blur-2xl brightness-50"
+          />
+        )
+      ) : (
+        <div
+          className={`absolute w-full h-full bg-gradient-to-br ${fromColor} ${toColor} filter blur-2xl brightness-75`}
+        />
+      )}
+
+      {/* Foreground */}
+      <div className="relative z-10 flex flex-col items-center justify-center h-full">
+        {hasMedia ? (
+          agent.media_mime_type!.startsWith("video/") ? (
+            <video
+              src={agent.video_url}
+              className={`rounded-xl shadow-2xl object-cover ${
+                isPortrait
+                  ? "h-full w-auto object-top transform scale-150"
+                  : "w-full max-w-screen-xl"
+              }`}
+              autoPlay
+              loop
+              muted
+              playsInline
+            />
+          ) : (
+            <img
+              src={agent.video_url}
+              className={`rounded-xl shadow-2xl object-cover ${
+                isPortrait
+                  ? "h-full w-auto object-top transform scale-150"
+                  : "w-full max-w-screen-xl"
+              }`}
+            />
+          )
+        ) : (
+          <div
+            className={`rounded-xl shadow-2xl flex items-center justify-center bg-gradient-to-br ${fromColor} ${toColor} text-white text-3xl font-semibold ${
+              isPortrait
+                ? "h-full w-auto px-12 py-24"
+                : "w-full max-w-screen-xl h-96"
+            }`}
+          >
+            {agent.name}
+          </div>
         )}
+
         <div className="absolute bottom-24 text-center space-y-3">
           <h1 className="text-white text-4xl font-semibold mb-2 drop-shadow-lg">
             {agent.name}
