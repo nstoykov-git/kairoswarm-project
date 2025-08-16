@@ -204,6 +204,11 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
           const res = await fetch(`${API_BASE_URL}/voice`, { method: 'POST', body: formData });
           const data = await res.json();
 
+          // Append agent reply to tape
+          if (data.entry) {
+            setTape(prev => [...prev, data.entry]);
+          }
+
           // Play TTS reply if available
           if (data.audioBase64) {
             if (!localAudioContext) {
