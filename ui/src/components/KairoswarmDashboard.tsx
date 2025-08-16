@@ -274,7 +274,7 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
   if (!participantId || !input.trim()) return;
 
   const messageToSend = input;
-  setInput(""); // ✅ clear input immediately for feedback
+  setInput(""); // Clear input immediately for user feedback
 
   try {
     await fetch(`${API_BASE_URL}/speak`, {
@@ -286,11 +286,12 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
         message: messageToSend,
       }),
     });
-    // No tape update here — let polling bring in the message
+    // No local tape update — rely solely on /tape polling to render messages
   } catch (err) {
     console.error("[Speak] Error:", err);
   }
 };
+
 
   const handleAddAgent = async () => {
     const agentId = prompt("Enter Kairoswarm Agent ID:");
