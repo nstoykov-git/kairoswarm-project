@@ -271,43 +271,26 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
   }
 
   const handleSpeak = async () => {
-    if (!participantId || !input.trim()) return;
+  if (!participantId || !input.trim()) return;
 
-    const tempId = `local-${Date.now()}`;
-    const senderName = participants.find(p => p.id === participantId)?.name || "Me";
+  const messageToSend = input;
+  setInput(""); // ✅ clear input immediately for feedback
 
-    const tempMessage = {
-      id: tempId,
-      from: senderName,
-      type: "human",
-      message: input,
-      timestamp: new Date().toISOString(),
-      optimistic: true,
-    };
-
-
-    // Optimistic UI update
-    setTape(prev => [...prev, tempMessage]);
-
-    const messageToSend = input;
-    setInput("");
-
-    try {
-      await fetch(`${API_BASE_URL}/speak`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          participant_id: participantId,
-          swarm_id: swarmId,
-          message: messageToSend,
-        }),
-      });
-    } catch (err) {
-      console.error("[Speak] Error:", err);
-      // Roll back on error
-      setTape(prev => prev.filter(m => m.id !== tempId));
-    }
-  };
+  try {
+    await fetch(`${API_BASE_URL}/speak`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        participant_id: participantId,
+        swarm_id: swarmId,
+        message: messageToSend,
+      }),
+    });
+    // No tape update here — let polling bring in the message
+  } catch (err) {
+    console.error("[Speak] Error:", err);
+  }
+};
 
   const handleAddAgent = async () => {
     const agentId = prompt("Enter Kairoswarm Agent ID:");
