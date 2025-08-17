@@ -16,6 +16,68 @@ import GoldbergTraits, { TraitResponse } from "@/components/GoldbergTraits";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_MODAL_API_URL;
 
+// ✅ Control function schema
+const AGENT_CONTROL_SCHEMA = [
+  {
+    type: "function",
+    function: {
+      name: "mouse_move",
+      description: "Move the mouse pointer to the specified screen coordinates.",
+      parameters: {
+        type: "object",
+        properties: {
+          x: { type: "integer", description: "X coordinate on the screen." },
+          y: { type: "integer", description: "Y coordinate on the screen." }
+        },
+        required: ["x", "y"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "mouse_click",
+      description: "Click the mouse at the current pointer location.",
+      parameters: {
+        type: "object",
+        properties: {
+          button: {
+            type: "string",
+            enum: ["left", "right", "middle"],
+            default: "left",
+            description: "Which mouse button to click."
+          }
+        }
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "key_press",
+      description: "Press a key on the keyboard.",
+      parameters: {
+        type: "object",
+        properties: {
+          key: { type: "string", description: "The key to press, e.g. 'enter', 'a', 'ctrl+c'." }
+        },
+        required: ["key"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "take_screenshot",
+      description: "Capture the current screen and return an image URL.",
+      parameters: {
+        type: "object",
+        properties: {}
+      }
+    }
+  }
+];
+
 async function createAgent({
   name,
   userId,
@@ -31,6 +93,8 @@ async function createAgent({
   contactMode,
   videoUrl,
   mediaMimeType,
+  voice,              // ✅ voice prop
+  functions,          // ✅ control schema prop
 }: {
   name: string;
   userId: string;
@@ -46,8 +110,9 @@ async function createAgent({
   contactMode: "summary" | "verbatim";
   videoUrl?: string | null;
   mediaMimeType?: string | null;
-})
- {
+  voice: string;
+  functions?: any[];
+}) {
   const res = await fetch(`${API_BASE_URL}/swarm/create-agent`, {
     method: "POST",
     headers: {
@@ -68,6 +133,8 @@ async function createAgent({
       contact_mode: contactMode,
       video_url: videoUrl || null,
       media_mime_type: mediaMimeType || null,
+      voice,              // ✅ include voice
+      functions,          // ✅ include control schema
     }),
   });
 
@@ -76,7 +143,7 @@ async function createAgent({
     throw new Error(err.detail || "Failed to create agent");
   }
 
-  return await res.json(); // { status: "ok", assistant_id, name }
+  return await res.json();
 }
 
 export default function DefTools() {
@@ -98,6 +165,10 @@ export default function DefTools() {
   const [compiling, setCompiling] = useState(false);
   const [agentID, setAgentID] = useState("");
   const [launching, setLaunching] = useState(false);
+
+  // ✅ voice selector state
+  const [selectedVoice, setSelectedVoice] = useState("coral");
+  const AVAILABLE_VOICES = ["coral", "nova", "alloy", "verse", "ballad"];
 
   const [profile, setProfile] = useState({
     openness: 0.5,
