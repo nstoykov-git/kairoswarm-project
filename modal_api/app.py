@@ -75,7 +75,8 @@ image = (
         "pip install redis fastapi[standard] openai aiohttp asyncpg",
         "pip install supabase",
         "pip install stripe",
-        "pip install -e /root/kairoswarm-internal"
+        "pip install -e /root/kairoswarm-internal",
+        "pip install websockets pillow"
     )
     .env({
            "PYTHONPATH": "/root/modal_api:/root/kairoswarm-internal"
