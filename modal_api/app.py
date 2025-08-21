@@ -54,7 +54,7 @@ api.include_router(payments_router, prefix="/payments", tags=["payments"])
 api.include_router(accounts_router, prefix="/accounts", tags=["accounts"])
 api.include_router(alerts_router, tags=["alerts"])
 api.include_router(personalities_router, prefix="/personalities", tags=["personalities"])
-api.include_router(ui_control_router, tags=["control"])
+api.include_router(ui_control_router, prefix="/control", tags=["control"])
 
 
 # --- Modal Image Definition ---
