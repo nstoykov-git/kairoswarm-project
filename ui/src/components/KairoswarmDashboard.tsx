@@ -503,6 +503,11 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
             <Button variant="secondary" onClick={() => router.push("/concierge?gift=true")}>
               🎁 Gift a Moment
             </Button>
+            <Button variant="secondary" onClick={() => router.push("/portal-tools")}>
+              <PlusCircle className="w-4 h-4 mr-2" />
+              Create Portal
+            </Button>
+
           </div>
         </div>
 
