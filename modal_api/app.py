@@ -23,6 +23,7 @@ from kairoswarm_core.memory_core.memory_store import MemoryStore
 from kairoswarm_core.agent_updater.update_assistants import reload_agent
 
 from kairoswarm_core.routes.ui_control import router as ui_control_router
+from kairoswarm_core.routes.portals import router as portals_router
 
 
 # --- FastAPI Setup ---
@@ -55,6 +56,7 @@ api.include_router(accounts_router, prefix="/accounts", tags=["accounts"])
 api.include_router(alerts_router, tags=["alerts"])
 api.include_router(personalities_router, prefix="/personalities", tags=["personalities"])
 api.include_router(ui_control_router, prefix="/control", tags=["control"])
+api.include_router(portals_router, prefix="/portals", tags=["portals"])
 
 
 # --- Modal Image Definition ---
