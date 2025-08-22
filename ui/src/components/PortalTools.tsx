@@ -21,7 +21,7 @@ async function createPortal({
   description?: string;
   actionSchema?: Record<string, any>;
 }) {
-  const res = await fetch(`${API_BASE_URL}/create-portal`, {
+  const res = await fetch(`${API_BASE_URL}/portals/create-portal`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ name, description, action_schema: actionSchema || {} }),
