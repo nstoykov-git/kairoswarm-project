@@ -10,10 +10,12 @@ from modal_api.routes.reload import router as reload_router
 from modal_api.routes.users import router as users_router
 from modal_api.routes.auth import router as auth_router
 from modal_api.routes.autoregister import router as autoregister_router
-from modal_api.routes.swarms_deprecated import router as swarms_router
+#from modal_api.routes.swarms_deprecated import router as swarms_router
+from kairoswarm_core.routes.swarms import router as swarms_router
 from kairoswarm_core.routes.persistent_runtime import router as persistent_runtime_router
 from kairoswarm_core.routes.ephemeral_runtime import router as ephemeral_runtime_router
-from kairoswarm_core.routes.conversation_runtime import router as conversation_runtime_router
+#from kairoswarm_core.routes.conversation_runtime import router as conversation_runtime_router
+from kairoswarm_core.routes.conversation_ws import router as conversation_runtime_router
 from kairoswarm_core.routes.conversation_ws import router as conversation_ws_router
 from kairoswarm_core.routes.payments import router as payments_router
 from kairoswarm_core.routes.accounts import router as accounts_router
@@ -52,7 +54,6 @@ api.include_router(swarms_router, prefix="/swarm", tags=["swarms"])
 api.include_router(persistent_runtime_router, prefix="/persistent", tags=["persistent"])
 api.include_router(ephemeral_runtime_router, prefix="/swarm", tags=["swarms"])
 api.include_router(conversation_runtime_router, tags=["conversations"])
-api.include_router(conversation_ws_router, prefix="/conversations/ws", tags=["conversations"])
 api.include_router(payments_router, prefix="/payments", tags=["payments"])
 api.include_router(accounts_router, prefix="/accounts", tags=["accounts"])
 api.include_router(alerts_router, tags=["alerts"])
