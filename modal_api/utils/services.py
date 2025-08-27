@@ -1,7 +1,7 @@
 # modal_api/utils/secrets.py
 import os
 from pydantic import BaseModel
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import HTTPException
 import logging
 import openai
 import redis.asyncio as redis

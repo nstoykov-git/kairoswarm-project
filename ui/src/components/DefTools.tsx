@@ -157,6 +157,7 @@ export default function DefTools() {
   const [creatorEmail, setCreatorEmail] = useState("");
   const [allowUserContact, setAllowUserContact] = useState(false);
   const [contactMode, setContactMode] = useState<"summary" | "verbatim">("summary");
+  const [agentDescription, setAgentDescription] = useState("");
   const [compileInput, setCompileInput] = useState("");
   const [personalStories, setPersonalStories] = useState("");
   const [economicConsiderations, setEconomicConsiderations] = useState("");
@@ -360,6 +361,20 @@ ${etiquetteGuidelines || "None provided."}
         className="mt-2"
       />
 
+      <label className="text-black font-semibold text-lg mt-4">Agent Description (public, for marketplace)</label>
+      <Textarea
+        value={agentDescription}
+        onChange={(e) => setAgentDescription(e.target.value)}
+        placeholder="Write a short, human-facing description of your agent..."
+        className="mt-2"
+      />
+      <p className="text-sm text-gray-600">
+        Write 2–4 sentences that describe your agent’s vibe. 
+        Think of it as introducing a friend: highlight personality, 
+        add a vivid detail, and show how conversations with them feel. 
+        Avoid technical words like “AI” or “agent.”
+      </p>
+
       <div className="space-y-4">
         {["openness", "conscientiousness", "extraversion", "agreeableness", "neuroticism"].map((trait) => (
           <div key={trait} className="space-y-2">
@@ -523,8 +538,7 @@ ${etiquetteGuidelines || "None provided."}
                   personalStories,
                   economicConsiderations,
                   etiquetteGuidelines,
-                  description: compiledMessage || "No description provided.",
-                  skills: [],
+                  description: agentDescription || null,
                   creatorEmail,
                   allowUserContact,
                   contactMode,
