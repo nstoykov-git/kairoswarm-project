@@ -10,8 +10,8 @@ from modal_api.routes.reload import router as reload_router
 from modal_api.routes.users import router as users_router
 from modal_api.routes.auth import router as auth_router
 from modal_api.routes.autoregister import router as autoregister_router
-#from modal_api.routes.swarms_deprecated import router as swarms_router
-from kairoswarm_core.routes.swarms import router as swarms_router
+from modal_api.routes.swarms_deprecated import router as swarms_router
+#from kairoswarm_core.routes.swarms import router as swarms_router
 from kairoswarm_core.routes.persistent_runtime import router as persistent_runtime_router
 from kairoswarm_core.routes.ephemeral_runtime import router as ephemeral_runtime_router
 #from kairoswarm_core.routes.conversation_runtime import router as conversation_runtime_router
