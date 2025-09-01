@@ -33,7 +33,7 @@ export default function SingleAgentFromSwarm() {
   const audioCtxRef = useRef<AudioContext | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
 
-  // Fetch agent metadata & join swarm
+  // --- Fetch agent metadata & join swarm ---
   useEffect(() => {
     if (!swarmIdParam) return;
 
@@ -91,6 +91,7 @@ export default function SingleAgentFromSwarm() {
     fetchAgentFromSwarm();
   }, [swarmIdParam]);
 
+  // --- Stop recording ---
   const stopRecording = () => {
     mediaRecorderRef.current?.stop();
     setRecording(false);
@@ -103,6 +104,7 @@ export default function SingleAgentFromSwarm() {
     }
   };
 
+  // --- Toggle recording (start/stop) ---
   const toggleRecording = async () => {
     console.log("[VOICE] toggleRecording fired", { participantId, swarmIdParam });
     if (!participantId || !swarmIdParam) {
@@ -115,7 +117,7 @@ export default function SingleAgentFromSwarm() {
       return;
     }
 
-    // Unlock audio context (Safari)
+    // Unlock audio context (Safari, iOS)
     if (!audioUnlockedRef.current) {
       try {
         const AudioContextClass =
@@ -136,6 +138,7 @@ export default function SingleAgentFromSwarm() {
       }
     }
 
+    // Start mic stream
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     mediaRecorderRef.current = new MediaRecorder(stream, {
       mimeType: "audio/webm;codecs=opus",
@@ -162,7 +165,7 @@ export default function SingleAgentFromSwarm() {
       wsRef.current.onmessage = async (event) => {
         if (typeof event.data === "string") {
           const msg = JSON.parse(event.data);
-          console.log("[Agent reply]", msg.message);
+          console.log("[Agent reply]", msg.message || msg);
         } else {
           const audioBytes = new Uint8Array(event.data);
           const audioBuffer = await audioCtxRef.current!.decodeAudioData(
@@ -176,6 +179,7 @@ export default function SingleAgentFromSwarm() {
       };
     }
 
+    // Stream mic chunks into WS
     mediaRecorderRef.current.ondataavailable = async (event) => {
       if (event.data.size > 0 && wsRef.current?.readyState === WebSocket.OPEN) {
         const buf = await event.data.arrayBuffer();
@@ -188,6 +192,7 @@ export default function SingleAgentFromSwarm() {
     recordingTimeoutRef.current = setTimeout(stopRecording, MAX_RECORDING_MS);
   };
 
+  // --- UI states ---
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen bg-black text-white">
@@ -207,6 +212,7 @@ export default function SingleAgentFromSwarm() {
   const isPortrait = agent.orientation === "portrait";
   const hasMedia = agent.video_url && agent.media_mime_type;
 
+  // --- Render ---
   return (
     <div className="relative w-full h-screen bg-black overflow-hidden">
       {hasMedia && agent.media_mime_type!.startsWith("video/") && (
@@ -241,7 +247,10 @@ export default function SingleAgentFromSwarm() {
           <div className="flex justify-center gap-4">
             <button
               onClick={() =>
-                window.open(`https://kairoswarm.com/?swarm_id=${swarmIdParam}`, "_blank")
+                window.open(
+                  `https://kairoswarm.com/?swarm_id=${swarmIdParam}`,
+                  "_blank"
+                )
               }
               className="text-white text-lg underline hover:opacity-80"
             >
