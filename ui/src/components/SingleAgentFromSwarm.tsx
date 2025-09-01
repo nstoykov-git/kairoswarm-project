@@ -104,14 +104,19 @@ export default function SingleAgentFromSwarm() {
   };
 
   const toggleRecording = async () => {
-    if (!participantId || !swarmIdParam) return;
+    console.log("[VOICE] toggleRecording fired", { participantId, swarmIdParam });
+
+    if (!participantId || !swarmIdParam) {
+      console.warn("[VOICE] Missing IDs, aborting");
+      return;
+    }
 
     if (recording) {
       stopRecording();
       return;
     }
 
-    // Unlock audio context (Safari)
+    // Unlock audio context (Safari first-click issue)
     if (!audioUnlockedRef.current) {
       try {
         const AudioContextClass =
@@ -126,8 +131,9 @@ export default function SingleAgentFromSwarm() {
         source.start(0);
         await audioCtxRef.current.resume();
         audioUnlockedRef.current = true;
+        console.debug("[VOICE] Audio context unlocked");
       } catch (err) {
-        console.warn("[TTS] Failed to unlock audio context:", err);
+        console.warn("[VOICE] Failed to unlock audio context:", err);
       }
     }
 
@@ -140,6 +146,7 @@ export default function SingleAgentFromSwarm() {
     if (USE_WS) {
       // --- WebSocket path ---
       console.log("[VOICE MODE] Using WebSocket");
+
       if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
         const wsUrl = API_INTERNAL_URL!.replace(/^http/, "ws") + "/voice";
         wsRef.current = new WebSocket(wsUrl);
@@ -185,8 +192,9 @@ export default function SingleAgentFromSwarm() {
       recordingTimeoutRef.current = setTimeout(stopRecording, MAX_RECORDING_MS);
 
     } else {
-      // --- HTTP POST path (current behavior) ---
+      // --- HTTP POST path ---
       console.log("[VOICE MODE] Using HTTP POST");
+
       mediaRecorderRef.current.ondataavailable = (event) => {
         if (event.data.size > 0) {
           audioChunksRef.current.push(event.data);
@@ -214,7 +222,9 @@ export default function SingleAgentFromSwarm() {
               atob(data.audioBase64),
               (c) => c.charCodeAt(0)
             );
-            const audioBuffer = await audioCtxRef.current.decodeAudioData(audioBytes.buffer);
+            const audioBuffer = await audioCtxRef.current.decodeAudioData(
+              audioBytes.buffer
+            );
             const source = audioCtxRef.current.createBufferSource();
             source.buffer = audioBuffer;
             source.connect(audioCtxRef.current.destination);
