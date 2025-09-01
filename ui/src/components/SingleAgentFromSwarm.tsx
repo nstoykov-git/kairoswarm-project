@@ -139,6 +139,7 @@ export default function SingleAgentFromSwarm() {
 
     if (USE_WS) {
       // --- WebSocket path ---
+      console.log("[VOICE MODE] Using WebSocket");
       if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
         const wsUrl = API_INTERNAL_URL!.replace(/^http/, "ws") + "/voice";
         wsRef.current = new WebSocket(wsUrl);
@@ -185,6 +186,7 @@ export default function SingleAgentFromSwarm() {
 
     } else {
       // --- HTTP POST path (current behavior) ---
+      console.log("[VOICE MODE] Using HTTP POST");
       mediaRecorderRef.current.ondataavailable = (event) => {
         if (event.data.size > 0) {
           audioChunksRef.current.push(event.data);
