@@ -79,6 +79,7 @@ export default function SingleAgentFromSwarm() {
           }),
         });
         const joinData = await joinRes.json();
+        console.log("[JOIN DEBUG] Raw joinData:", joinData);
         setParticipantId(joinData.participant_id);
 
       } catch (err) {
