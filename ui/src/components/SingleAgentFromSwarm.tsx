@@ -14,6 +14,9 @@ interface Agent {
 const API_INTERNAL_URL = process.env.NEXT_PUBLIC_MODAL_API_URL;
 const MAX_RECORDING_MS = 30000;
 
+// 🔑 Toggle here
+const USE_WS = true; // flip to false to fall back to HTTP POST
+
 export default function SingleAgentFromSwarm() {
   const searchParams = useSearchParams();
   const swarmIdParam = searchParams.get("swarm_id");
@@ -28,6 +31,7 @@ export default function SingleAgentFromSwarm() {
   const recordingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const audioUnlockedRef = useRef(false);
   const audioCtxRef = useRef<AudioContext | null>(null);
+  const wsRef = useRef<WebSocket | null>(null);
 
   // Fetch agent metadata & join swarm
   useEffect(() => {
@@ -94,6 +98,9 @@ export default function SingleAgentFromSwarm() {
       clearTimeout(recordingTimeoutRef.current);
       recordingTimeoutRef.current = null;
     }
+    if (USE_WS && wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ event: "end_audio" }));
+    }
   };
 
   const toggleRecording = async () => {
@@ -104,6 +111,7 @@ export default function SingleAgentFromSwarm() {
       return;
     }
 
+    // Unlock audio context (Safari)
     if (!audioUnlockedRef.current) {
       try {
         const AudioContextClass =
@@ -129,49 +137,98 @@ export default function SingleAgentFromSwarm() {
     });
     audioChunksRef.current = [];
 
-    mediaRecorderRef.current.ondataavailable = (event) => {
-      if (event.data.size > 0) {
-        audioChunksRef.current.push(event.data);
-      }
-    };
+    if (USE_WS) {
+      // --- WebSocket path ---
+      if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+        const wsUrl = API_INTERNAL_URL!.replace(/^http/, "ws") + "/voice";
+        wsRef.current = new WebSocket(wsUrl);
+        wsRef.current.binaryType = "arraybuffer";
 
-    mediaRecorderRef.current.onstop = async () => {
-      try {
-        const blob = new Blob(audioChunksRef.current, {
-          type: "audio/webm;codecs=opus",
-        });
-        const formData = new FormData();
-        formData.append("audio", blob, "voice-input.webm");
-        formData.append("participant_id", participantId);
-        formData.append("swarm_id", swarmIdParam);
-
-        const res = await fetch(`${API_INTERNAL_URL}/voice`, {
-          method: "POST",
-          body: formData,
-        });
-        const data = await res.json();
-
-        if (data.audioBase64 && audioCtxRef.current) {
-          const audioBytes = Uint8Array.from(
-            atob(data.audioBase64),
-            (c) => c.charCodeAt(0)
+        wsRef.current.onopen = () => {
+          wsRef.current?.send(
+            JSON.stringify({
+              swarm_id: swarmIdParam,
+              participant_id: participantId,
+              type: "human",
+            })
           );
-          const audioBuffer = await audioCtxRef.current.decodeAudioData(audioBytes.buffer);
-          const source = audioCtxRef.current.createBufferSource();
-          source.buffer = audioBuffer;
-          source.connect(audioCtxRef.current.destination);
-          source.start(0);
-        }
-      } catch (err) {
-        console.error("[Voice] Error during onstop:", err);
-      } finally {
-        audioChunksRef.current = [];
-      }
-    };
+          console.debug("[WS] Connected to /voice");
+        };
 
-    mediaRecorderRef.current.start();
-    setRecording(true);
-    recordingTimeoutRef.current = setTimeout(stopRecording, MAX_RECORDING_MS);
+        wsRef.current.onmessage = async (event) => {
+          if (typeof event.data === "string") {
+            const msg = JSON.parse(event.data);
+            console.log("[Agent reply]", msg.message);
+          } else {
+            const audioBytes = new Uint8Array(event.data);
+            const audioBuffer = await audioCtxRef.current!.decodeAudioData(
+              audioBytes.buffer
+            );
+            const source = audioCtxRef.current!.createBufferSource();
+            source.buffer = audioBuffer;
+            source.connect(audioCtxRef.current!.destination);
+            source.start(0);
+          }
+        };
+      }
+
+      mediaRecorderRef.current.ondataavailable = async (event) => {
+        if (event.data.size > 0 && wsRef.current?.readyState === WebSocket.OPEN) {
+          const buf = await event.data.arrayBuffer();
+          wsRef.current.send(buf);
+        }
+      };
+
+      mediaRecorderRef.current.start(250); // stream every 250ms
+      setRecording(true);
+      recordingTimeoutRef.current = setTimeout(stopRecording, MAX_RECORDING_MS);
+
+    } else {
+      // --- HTTP POST path (current behavior) ---
+      mediaRecorderRef.current.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorderRef.current.onstop = async () => {
+        try {
+          const blob = new Blob(audioChunksRef.current, {
+            type: "audio/webm;codecs=opus",
+          });
+          const formData = new FormData();
+          formData.append("audio", blob, "voice-input.webm");
+          formData.append("participant_id", participantId);
+          formData.append("swarm_id", swarmIdParam);
+
+          const res = await fetch(`${API_INTERNAL_URL}/voice`, {
+            method: "POST",
+            body: formData,
+          });
+          const data = await res.json();
+
+          if (data.audioBase64 && audioCtxRef.current) {
+            const audioBytes = Uint8Array.from(
+              atob(data.audioBase64),
+              (c) => c.charCodeAt(0)
+            );
+            const audioBuffer = await audioCtxRef.current.decodeAudioData(audioBytes.buffer);
+            const source = audioCtxRef.current.createBufferSource();
+            source.buffer = audioBuffer;
+            source.connect(audioCtxRef.current.destination);
+            source.start(0);
+          }
+        } catch (err) {
+          console.error("[Voice] Error during onstop:", err);
+        } finally {
+          audioChunksRef.current = [];
+        }
+      };
+
+      mediaRecorderRef.current.start();
+      setRecording(true);
+      recordingTimeoutRef.current = setTimeout(stopRecording, MAX_RECORDING_MS);
+    }
   };
 
   if (loading) {
@@ -195,7 +252,6 @@ export default function SingleAgentFromSwarm() {
 
   return (
     <div className="relative w-full h-screen bg-black overflow-hidden">
-      {/* Background */}
       {hasMedia && agent.media_mime_type!.startsWith("video/") && (
         <video
           src={agent.video_url}
@@ -206,8 +262,6 @@ export default function SingleAgentFromSwarm() {
           playsInline
         />
       )}
-
-      {/* Foreground */}
       <div className="relative z-10 flex flex-col items-center justify-center h-full">
         {hasMedia && agent.media_mime_type!.startsWith("video/") && (
           <video
