@@ -15,7 +15,7 @@ const API_INTERNAL_URL = process.env.NEXT_PUBLIC_MODAL_API_URL;
 const MAX_RECORDING_MS = 30000;
 
 // 🚨 Force WebSocket path only
-const USE_WS = true;
+const USE_WS = false;
 
 export default function SingleAgentFromSwarm() {
   const searchParams = useSearchParams();

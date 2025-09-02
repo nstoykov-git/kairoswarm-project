@@ -14,8 +14,8 @@ from modal_api.routes.swarms_deprecated import router as swarms_router
 #from kairoswarm_core.routes.swarms import router as swarms_router
 from kairoswarm_core.routes.persistent_runtime import router as persistent_runtime_router
 from kairoswarm_core.routes.ephemeral_runtime import router as ephemeral_runtime_router
-#from kairoswarm_core.routes.conversation_runtime import router as conversation_runtime_router
-from kairoswarm_core.routes.conversation_ws import router as conversation_runtime_router
+from kairoswarm_core.routes.conversation_runtime import router as conversation_runtime_router
+#from kairoswarm_core.routes.conversation_ws import router as conversation_runtime_router
 from kairoswarm_core.routes.payments import router as payments_router
 from kairoswarm_core.routes.accounts import router as accounts_router
 from kairoswarm_core.routes.alerts import router as alerts_router
