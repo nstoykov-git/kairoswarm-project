@@ -187,11 +187,17 @@ export default function SingleAgentFromSwarm() {
 
     // 🛑 Ensure end_audio comes last
     mediaRecorderRef.current.onstop = () => {
-      console.log("[VOICE] MediaRecorder fully stopped, sending end_audio");
-      if (wsRef.current?.readyState === WebSocket.OPEN) {
-        wsRef.current.send(JSON.stringify({ event: "end_audio" }));
-      }
+      console.log("[VOICE] MediaRecorder fully stopped (waiting for last chunk...)");
+
+      // Delay end_audio until after the final dataavailable fires
+      setTimeout(() => {
+        console.log("[VOICE] Sending end_audio (after final chunk)");
+        if (wsRef.current?.readyState === WebSocket.OPEN) {
+          wsRef.current.send(JSON.stringify({ event: "end_audio" }));
+        }
+      }, 250); // small delay ensures the last chunk is flushed first
     };
+
 
     mediaRecorderRef.current.start(250); // stream every 250ms
     setRecording(true);
