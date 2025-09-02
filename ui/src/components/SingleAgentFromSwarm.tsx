@@ -25,17 +25,18 @@ export default function SingleAgentFromSwarm() {
   const [recording, setRecording] = useState(false);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const recordingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const audioUnlockedRef = useRef(false);
   const audioCtxRef = useRef<AudioContext | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
-  const audioUnlockedRef = useRef(false);
-  const recordingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // --- Fetch agent + join swarm ---
+  // Fetch agent metadata & join swarm
   useEffect(() => {
     if (!swarmIdParam) return;
 
     const fetchAgentFromSwarm = async () => {
       try {
+        // 1️⃣ Get participants so we know the agent's name
         const participantsRes = await fetch(
           `${API_INTERNAL_URL}/participants-full?swarm_id=${swarmIdParam}`
         );
@@ -44,8 +45,9 @@ export default function SingleAgentFromSwarm() {
         if (!agentParticipant) throw new Error("No agent participant found");
 
         const agentName = agentParticipant.name;
-        if (!agentName) throw new Error("Agent name missing");
+        if (!agentName) throw new Error("Agent name missing from participant");
 
+        // 2️⃣ Fetch agent details by name
         const agentRes = await fetch(`${API_INTERNAL_URL}/swarm/agents/by-names`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -63,10 +65,15 @@ export default function SingleAgentFromSwarm() {
           orientation: a.orientation || "landscape",
         });
 
+        // 3️⃣ Join swarm
         const joinRes = await fetch(`${API_INTERNAL_URL}/swarm/join`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ swarm_id: swarmIdParam, name: "Guest", user_id: null }),
+          body: JSON.stringify({
+            swarm_id: swarmIdParam,
+            name: "Guest",
+            user_id: null,
+          }),
         });
         const joinData = await joinRes.json();
         console.log("✅ Joined swarm as Guest:", joinData);
@@ -81,21 +88,29 @@ export default function SingleAgentFromSwarm() {
     fetchAgentFromSwarm();
   }, [swarmIdParam]);
 
-  // --- Stop recording ---
   const stopRecording = () => {
-    mediaRecorderRef.current?.stop();
+    if (!mediaRecorderRef.current) return;
+    console.log("[VOICE] stopRecording called");
+
+    // ✅ ensure "end_audio" fires only after flush
+    mediaRecorderRef.current.onstop = () => {
+      console.log("[VOICE] MediaRecorder stopped, sending end_audio");
+      if (wsRef.current?.readyState === WebSocket.OPEN) {
+        wsRef.current.send(JSON.stringify({ event: "end_audio" }));
+      }
+    };
+
+    mediaRecorderRef.current.stop();
     setRecording(false);
+
     if (recordingTimeoutRef.current) {
       clearTimeout(recordingTimeoutRef.current);
       recordingTimeoutRef.current = null;
     }
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({ event: "end_audio" }));
-    }
   };
 
-  // --- Toggle recording / setup WS ---
   const toggleRecording = async () => {
+    console.log("[VOICE] toggleRecording fired", { participantId, swarmIdParam });
     if (!participantId || !swarmIdParam) {
       console.warn("[Voice] Missing participantId or swarmId");
       return;
@@ -111,7 +126,9 @@ export default function SingleAgentFromSwarm() {
       try {
         const AudioContextClass =
           window.AudioContext || (window as any).webkitAudioContext;
-        audioCtxRef.current = new AudioContextClass();
+        if (!audioCtxRef.current) {
+          audioCtxRef.current = new AudioContextClass();
+        }
         const buffer = audioCtxRef.current.createBuffer(1, 1, 22050);
         const source = audioCtxRef.current.createBufferSource();
         source.buffer = buffer;
@@ -125,12 +142,13 @@ export default function SingleAgentFromSwarm() {
       }
     }
 
+    // 🎙️ get mic stream
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     mediaRecorderRef.current = new MediaRecorder(stream, {
       mimeType: "audio/webm;codecs=opus",
     });
 
-    // --- Open WS connection if not already ---
+    // --- Setup WS connection ---
     if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
       const wsUrl = API_INTERNAL_URL!.replace(/^http/, "ws") + "/voice";
       wsRef.current = new WebSocket(wsUrl);
@@ -149,20 +167,17 @@ export default function SingleAgentFromSwarm() {
 
       wsRef.current.onmessage = async (event) => {
         if (typeof event.data === "string") {
-          console.log("[Agent reply]", event.data);
+          const msg = JSON.parse(event.data);
+          console.log("[Agent reply]", msg);
         } else {
           const audioBytes = new Uint8Array(event.data);
-          try {
-            const audioBuffer = await audioCtxRef.current!.decodeAudioData(
-              audioBytes.buffer
-            );
-            const source = audioCtxRef.current!.createBufferSource();
-            source.buffer = audioBuffer;
-            source.connect(audioCtxRef.current!.destination);
-            source.start(0);
-          } catch (err) {
-            console.error("[WS] Failed to play audio chunk:", err);
-          }
+          const audioBuffer = await audioCtxRef.current!.decodeAudioData(
+            audioBytes.buffer
+          );
+          const source = audioCtxRef.current!.createBufferSource();
+          source.buffer = audioBuffer;
+          source.connect(audioCtxRef.current!.destination);
+          source.start(0);
         }
       };
     }
@@ -170,16 +185,16 @@ export default function SingleAgentFromSwarm() {
     mediaRecorderRef.current.ondataavailable = async (event) => {
       if (event.data.size > 0 && wsRef.current?.readyState === WebSocket.OPEN) {
         const buf = await event.data.arrayBuffer();
+        console.log(`[VOICE] Sending chunk of size: ${buf.byteLength}`);
         wsRef.current.send(buf);
       }
     };
 
-    mediaRecorderRef.current.start(250);
+    mediaRecorderRef.current.start(250); // stream every 250ms
     setRecording(true);
     recordingTimeoutRef.current = setTimeout(stopRecording, MAX_RECORDING_MS);
   };
 
-  // --- Render ---
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen bg-black text-white">
