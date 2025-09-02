@@ -96,6 +96,7 @@ export default function SingleAgentFromSwarm() {
     mediaRecorderRef.current.onstop = () => {
       console.log("[VOICE] MediaRecorder stopped, sending end_audio");
       if (wsRef.current?.readyState === WebSocket.OPEN) {
+        console.log("[VOICE] Sending end_audio")
         wsRef.current.send(JSON.stringify({ event: "end_audio" }));
       }
     };
