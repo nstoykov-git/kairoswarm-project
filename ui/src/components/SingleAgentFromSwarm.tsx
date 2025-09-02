@@ -1,4 +1,3 @@
-// Only WebSocket
 "use client";
 
 import { useEffect, useState, useRef } from "react";
@@ -14,6 +13,9 @@ interface Agent {
 
 const API_INTERNAL_URL = process.env.NEXT_PUBLIC_MODAL_API_URL;
 const MAX_RECORDING_MS = 30000;
+
+// 🚨 Force WebSocket path only
+const USE_WS = true;
 
 export default function SingleAgentFromSwarm() {
   const searchParams = useSearchParams();
@@ -89,19 +91,10 @@ export default function SingleAgentFromSwarm() {
   }, [swarmIdParam]);
 
   const stopRecording = () => {
-    if (!mediaRecorderRef.current) return;
     console.log("[VOICE] stopRecording called");
-
-    // ✅ ensure "end_audio" fires only after flush
-    mediaRecorderRef.current.onstop = () => {
-      console.log("[VOICE] MediaRecorder stopped, sending end_audio");
-      if (wsRef.current?.readyState === WebSocket.OPEN) {
-        console.log("[VOICE] Sending end_audio")
-        wsRef.current.send(JSON.stringify({ event: "end_audio" }));
-      }
-    };
-
-    mediaRecorderRef.current.stop();
+    if (mediaRecorderRef.current) {
+      mediaRecorderRef.current.stop();
+    }
     setRecording(false);
 
     if (recordingTimeoutRef.current) {
@@ -122,7 +115,7 @@ export default function SingleAgentFromSwarm() {
       return;
     }
 
-    // Unlock audio context (Safari fix)
+    // Unlock audio context (Safari)
     if (!audioUnlockedRef.current) {
       try {
         const AudioContextClass =
@@ -143,13 +136,13 @@ export default function SingleAgentFromSwarm() {
       }
     }
 
-    // 🎙️ get mic stream
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     mediaRecorderRef.current = new MediaRecorder(stream, {
       mimeType: "audio/webm;codecs=opus",
     });
 
-    // --- Setup WS connection ---
+    // --- Force WebSocket path ---
+    console.log("[VOICE MODE] FORCED WebSocket");
     if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
       const wsUrl = API_INTERNAL_URL!.replace(/^http/, "ws") + "/voice";
       wsRef.current = new WebSocket(wsUrl);
@@ -183,11 +176,20 @@ export default function SingleAgentFromSwarm() {
       };
     }
 
+    // 🔊 Handle chunks
     mediaRecorderRef.current.ondataavailable = async (event) => {
       if (event.data.size > 0 && wsRef.current?.readyState === WebSocket.OPEN) {
         const buf = await event.data.arrayBuffer();
         console.log(`[VOICE] Sending chunk of size: ${buf.byteLength}`);
         wsRef.current.send(buf);
+      }
+    };
+
+    // 🛑 Ensure end_audio comes last
+    mediaRecorderRef.current.onstop = () => {
+      console.log("[VOICE] MediaRecorder fully stopped, sending end_audio");
+      if (wsRef.current?.readyState === WebSocket.OPEN) {
+        wsRef.current.send(JSON.stringify({ event: "end_audio" }));
       }
     };
 
