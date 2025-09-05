@@ -190,7 +190,7 @@ export default function SingleAgentFromSwarm() {
         if (wsRef.current?.readyState === WebSocket.OPEN) {
           wsRef.current.send(JSON.stringify({ event: "end_audio" }));
         }
-      }, 50);
+      }, 250);
     };
 
     mediaRecorderRef.current.start(250); // send chunks every 250ms
