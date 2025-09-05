@@ -87,14 +87,6 @@ export default function SingleAgentFromSwarm() {
   const stopRecording = () => {
     console.log("[VOICE] stopRecording called");
     if (mediaRecorderRef.current) {
-      try {
-        // ✅ Flush final chunk before stopping
-        if (mediaRecorderRef.current.state !== "inactive") {
-          mediaRecorderRef.current.requestData();
-        }
-      } catch (err) {
-        console.warn("[VOICE] requestData failed:", err);
-      }
       mediaRecorderRef.current.stop();
     }
     setRecording(false);
@@ -103,7 +95,14 @@ export default function SingleAgentFromSwarm() {
       clearTimeout(recordingTimeoutRef.current);
       recordingTimeoutRef.current = null;
     }
+
+    // 🛑 Safety: force end_audio immediately
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      console.log("[VOICE] Sending end_audio (safety fallback)");
+      wsRef.current.send(JSON.stringify({ event: "end_audio" }));
+    }
   };
+
 
   const toggleRecording = async () => {
     console.log("[VOICE] toggleRecording fired", { participantId, swarmIdParam });
@@ -191,7 +190,7 @@ export default function SingleAgentFromSwarm() {
         if (wsRef.current?.readyState === WebSocket.OPEN) {
           wsRef.current.send(JSON.stringify({ event: "end_audio" }));
         }
-      }, 250);
+      }, 50);
     };
 
     mediaRecorderRef.current.start(250); // send chunks every 250ms
