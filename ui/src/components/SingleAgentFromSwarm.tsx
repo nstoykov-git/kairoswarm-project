@@ -181,12 +181,18 @@ export default function SingleAgentFromSwarm() {
       if (event.data.size > 0 && wsRef.current?.readyState === WebSocket.OPEN) {
         const buf = await event.data.arrayBuffer();
         console.log(`[VOICE] Captured chunk size: ${buf.byteLength}`);
-        wsRef.current.send(buf);
+
+        try {
+          // ✅ Prefer Blob, browsers handle this best
+          wsRef.current.send(new Blob([buf]));
+        } catch (err) {
+          console.warn("[VOICE] Blob send failed, falling back to Uint8Array:", err);
+          wsRef.current.send(new Uint8Array(buf));
+        }
       } else {
         console.warn("[VOICE] Empty audio blob");
       }
     };
-
 
     // 🛑 Ensure end_audio comes last
     mediaRecorderRef.current.onstop = () => {
