@@ -14,9 +14,6 @@ interface Agent {
 const API_INTERNAL_URL = process.env.NEXT_PUBLIC_MODAL_API_URL;
 const MAX_RECORDING_MS = 30000;
 
-// 🚨 Force WebSocket path only
-const USE_WS = true;
-
 export default function SingleAgentFromSwarm() {
   const searchParams = useSearchParams();
   const swarmIdParam = searchParams.get("swarm_id");
@@ -38,7 +35,6 @@ export default function SingleAgentFromSwarm() {
 
     const fetchAgentFromSwarm = async () => {
       try {
-        // 1️⃣ Get participants so we know the agent's name
         const participantsRes = await fetch(
           `${API_INTERNAL_URL}/participants-full?swarm_id=${swarmIdParam}`
         );
@@ -49,7 +45,6 @@ export default function SingleAgentFromSwarm() {
         const agentName = agentParticipant.name;
         if (!agentName) throw new Error("Agent name missing from participant");
 
-        // 2️⃣ Fetch agent details by name
         const agentRes = await fetch(`${API_INTERNAL_URL}/swarm/agents/by-names`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -67,7 +62,6 @@ export default function SingleAgentFromSwarm() {
           orientation: a.orientation || "landscape",
         });
 
-        // 3️⃣ Join swarm
         const joinRes = await fetch(`${API_INTERNAL_URL}/swarm/join`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -93,6 +87,14 @@ export default function SingleAgentFromSwarm() {
   const stopRecording = () => {
     console.log("[VOICE] stopRecording called");
     if (mediaRecorderRef.current) {
+      try {
+        // ✅ Flush final chunk before stopping
+        if (mediaRecorderRef.current.state !== "inactive") {
+          mediaRecorderRef.current.requestData();
+        }
+      } catch (err) {
+        console.warn("[VOICE] requestData failed:", err);
+      }
       mediaRecorderRef.current.stop();
     }
     setRecording(false);
@@ -115,7 +117,6 @@ export default function SingleAgentFromSwarm() {
       return;
     }
 
-    // Unlock audio context (Safari)
     if (!audioUnlockedRef.current) {
       try {
         const AudioContextClass =
@@ -141,7 +142,6 @@ export default function SingleAgentFromSwarm() {
       mimeType: "audio/webm;codecs=opus",
     });
 
-    // --- Force WebSocket path ---
     console.log("[VOICE MODE] FORCED WebSocket");
     if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
       const wsUrl = API_INTERNAL_URL!.replace(/^http/, "ws") + "/voice";
@@ -176,14 +176,16 @@ export default function SingleAgentFromSwarm() {
       };
     }
 
-    // 🔊 Handle chunks
-    mediaRecorderRef.current.onstop = async () => {
+    mediaRecorderRef.current.ondataavailable = async (event) => {
+      if (event.data.size > 0 && wsRef.current?.readyState === WebSocket.OPEN) {
+        const buf = await event.data.arrayBuffer();
+        console.log(`[VOICE] Captured chunk size: ${buf.byteLength}`);
+        wsRef.current.send(buf);
+      }
+    };
+
+    mediaRecorderRef.current.onstop = () => {
       console.log("[VOICE] MediaRecorder fully stopped (waiting for last chunk...)");
-
-      // Flush any last recorded data manually
-      mediaRecorderRef.current?.requestData();
-
-      // Then safely send end_audio
       setTimeout(() => {
         console.log("[VOICE] Sending end_audio (after final chunk)");
         if (wsRef.current?.readyState === WebSocket.OPEN) {
@@ -192,7 +194,7 @@ export default function SingleAgentFromSwarm() {
       }, 250);
     };
 
-    mediaRecorderRef.current.start(250); // stream every 250ms
+    mediaRecorderRef.current.start(250); // send chunks every 250ms
     setRecording(true);
     recordingTimeoutRef.current = setTimeout(stopRecording, MAX_RECORDING_MS);
   };
