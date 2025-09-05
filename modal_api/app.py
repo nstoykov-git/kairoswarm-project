@@ -80,7 +80,8 @@ image = (
         "pip install supabase",
         "pip install stripe",
         "pip install -e /root/kairoswarm-internal",
-        "pip install websockets pillow"
+        "pip install websockets>=10.4", 
+        "pip install pillow"
     )
     .env({
            "PYTHONPATH": "/root/modal_api:/root/kairoswarm-internal"
