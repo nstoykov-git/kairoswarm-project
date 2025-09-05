@@ -175,6 +175,7 @@ export default function SingleAgentFromSwarm() {
       };
     }
 
+    // 🔊 Handle audio chunks as they come in
     mediaRecorderRef.current.ondataavailable = async (event) => {
       if (event.data.size > 0 && wsRef.current?.readyState === WebSocket.OPEN) {
         const buf = await event.data.arrayBuffer();
@@ -183,17 +184,27 @@ export default function SingleAgentFromSwarm() {
       }
     };
 
+    // 🛑 Ensure final flush before ending
     mediaRecorderRef.current.onstop = () => {
-      console.log("[VOICE] MediaRecorder fully stopped (waiting for last chunk...)");
+      console.log("[VOICE] MediaRecorder fully stopped, forcing final flush");
+      try {
+        // Force out any buffered audio immediately
+        mediaRecorderRef.current?.requestData();
+      } catch (err) {
+        console.warn("[VOICE] requestData failed:", err);
+      }
+
+      // Small wait to ensure flush is processed, then send end_audio
       setTimeout(() => {
-        console.log("[VOICE] Sending end_audio (after final chunk)");
+        console.log("[VOICE] Sending end_audio (after final flush)");
         if (wsRef.current?.readyState === WebSocket.OPEN) {
           wsRef.current.send(JSON.stringify({ event: "end_audio" }));
         }
-      }, 250);
+      }, 50); // ⚡ minimal delay — was 250 ms, now just 50
     };
 
-    mediaRecorderRef.current.start(250); // send chunks every 250ms
+    // 🚀 Start recording, emit chunks every 50 ms instead of 250
+    mediaRecorderRef.current.start(50);
     setRecording(true);
     recordingTimeoutRef.current = setTimeout(stopRecording, MAX_RECORDING_MS);
   };
