@@ -177,31 +177,20 @@ export default function SingleAgentFromSwarm() {
     }
 
     // 🔊 Handle chunks
-    mediaRecorderRef.current.ondataavailable = async (event) => {
-      if (event.data.size > 0 && wsRef.current?.readyState === WebSocket.OPEN) {
-        const buf = await event.data.arrayBuffer();
-        console.log(`[VOICE] Captured chunk size: ${buf.byteLength}`);
-
-        // 👇 Force Uint8Array to ensure FastAPI receives raw bytes
-        wsRef.current.send(new Uint8Array(buf));
-      } else {
-        console.warn("[VOICE] Empty audio blob");
-      }
-    };
-
-    // 🛑 Ensure end_audio comes last
-    mediaRecorderRef.current.onstop = () => {
+    mediaRecorderRef.current.onstop = async () => {
       console.log("[VOICE] MediaRecorder fully stopped (waiting for last chunk...)");
 
-      // Delay end_audio until after the final dataavailable fires
+      // Flush any last recorded data manually
+      mediaRecorderRef.current?.requestData();
+
+      // Then safely send end_audio
       setTimeout(() => {
         console.log("[VOICE] Sending end_audio (after final chunk)");
         if (wsRef.current?.readyState === WebSocket.OPEN) {
           wsRef.current.send(JSON.stringify({ event: "end_audio" }));
         }
-      }, 250); // small delay ensures the last chunk is flushed first
+      }, 250);
     };
-
 
     mediaRecorderRef.current.start(250); // stream every 250ms
     setRecording(true);
