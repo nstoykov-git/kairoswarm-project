@@ -180,10 +180,13 @@ export default function SingleAgentFromSwarm() {
     mediaRecorderRef.current.ondataavailable = async (event) => {
       if (event.data.size > 0 && wsRef.current?.readyState === WebSocket.OPEN) {
         const buf = await event.data.arrayBuffer();
-        console.log(`[VOICE] Sending chunk of size: ${buf.byteLength}`);
+        console.log(`[VOICE] Captured chunk size: ${buf.byteLength}`);
         wsRef.current.send(buf);
+      } else {
+        console.warn("[VOICE] Empty audio blob");
       }
     };
+
 
     // 🛑 Ensure end_audio comes last
     mediaRecorderRef.current.onstop = () => {

@@ -80,7 +80,7 @@ image = (
         "pip install supabase",
         "pip install stripe",
         "pip install -e /root/kairoswarm-internal",
-        "pip install websockets>=10.4", 
+        "pip install --upgrade websockets", 
         "pip install pillow"
     )
     .env({
