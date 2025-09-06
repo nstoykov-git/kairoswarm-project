@@ -164,44 +164,60 @@ export default function SingleAgentFromSwarm() {
       };
 
       // --- Queue playback helper ---
-      function playNextInQueue(
+      async function playNextInQueue(
         audioCtx: AudioContext,
         audioQueueRef: React.MutableRefObject<Uint8Array[]>,
         isPlayingRef: React.MutableRefObject<boolean>
       ) {
-        if (isPlayingRef.current || audioQueueRef.current.length === 0) return;
-
-        const chunk = audioQueueRef.current.shift();
-        if (!chunk) return;
-
-        // Convert PCM16 → Float32
-        const float32 = new Float32Array(chunk.length / 2);
-        for (let i = 0; i < float32.length; i++) {
-          const int16 = (chunk[i * 2 + 1] << 8) | chunk[i * 2];
-          float32[i] = int16 / 0x8000;
-        }
-
-        // Create buffer
-        const audioBuffer = audioCtx.createBuffer(
-          1, // mono
-          float32.length,
-          24000 // Hz — must match ElevenLabs output
-        );
-        audioBuffer.copyToChannel(float32, 0);
-
-        // Create source + playback
-        const source = audioCtx.createBufferSource();
-        source.buffer = audioBuffer;
-        source.connect(audioCtx.destination);
+        if (isPlayingRef.current) return;
+        const nextChunk = audioQueueRef.current.shift();
+        if (!nextChunk) return;
 
         isPlayingRef.current = true;
-        source.start();
 
-        source.onended = () => {
+        try {
+          // Debug raw PCM16
+          console.log("🔎 Raw PCM16 chunk (first 20 bytes):", nextChunk.slice(0, 20));
+
+          // Convert PCM16 → Float32
+          const buffer = new ArrayBuffer(nextChunk.length);
+          const view = new DataView(buffer);
+          nextChunk.forEach((b, i) => view.setUint8(i, b));
+
+          const int16Array = new Int16Array(buffer);
+          const float32 = new Float32Array(int16Array.length);
+          for (let i = 0; i < int16Array.length; i++) {
+            float32[i] = int16Array[i] / 32768;
+          }
+
+          // Debug converted samples
+          console.log("🔎 Float32 samples (first 10):", float32.slice(0, 10));
+
+          // Create audio buffer (mono, 24kHz)
+          const audioBuffer = audioCtx.createBuffer(
+            1,
+            float32.length,
+            24000
+          );
+          audioBuffer.copyToChannel(float32, 0);
+
+          // Play
+          const source = audioCtx.createBufferSource();
+          source.buffer = audioBuffer;
+          source.connect(audioCtx.destination);
+          source.onended = () => {
+            isPlayingRef.current = false;
+            playNextInQueue(audioCtx, audioQueueRef, isPlayingRef); // dequeue next
+          };
+
+          source.start();
+          console.log("▶️ Playing chunk, duration:", audioBuffer.duration);
+        } catch (err) {
+          console.error("❌ Error playing PCM chunk:", err);
           isPlayingRef.current = false;
-          playNextInQueue(audioCtx, audioQueueRef, isPlayingRef);
-        };
+        }
       }
+
 
       // --- WebSocket onmessage handler ---
       const audioQueueRef = useRef<Uint8Array[]>([]);
