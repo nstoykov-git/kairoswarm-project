@@ -127,7 +127,11 @@ export default function SingleAgentFromSwarm() {
         const source = audioCtxRef.current.createBufferSource();
         source.buffer = buffer;
         source.connect(audioCtxRef.current.destination);
-        source.start(0);
+        try {
+          source.start(0);
+        } catch (err) {
+          console.error("🔇 Failed to start audio playback (agent reply):", err);
+        }
         await audioCtxRef.current.resume();
         audioUnlockedRef.current = true;
         console.debug("[TTS] Audio context unlocked");
@@ -164,13 +168,22 @@ export default function SingleAgentFromSwarm() {
           console.log("[Agent reply]", msg);
         } else {
           const audioBytes = new Uint8Array(event.data);
+          if (audioCtxRef.current?.state === "suspended") {
+            await audioCtxRef.current.resume();
+          }
+
           const audioBuffer = await audioCtxRef.current!.decodeAudioData(
             audioBytes.buffer
           );
+          console.log("🔊 Agent reply duration:", audioBuffer.duration);
           const source = audioCtxRef.current!.createBufferSource();
           source.buffer = audioBuffer;
           source.connect(audioCtxRef.current!.destination);
-          source.start(0);
+          try {
+            source.start(0);
+          } catch (err) {
+            console.error("🔇 Failed to start audio playback (agent reply):", err);
+          }
         }
       };
     }
@@ -200,7 +213,7 @@ export default function SingleAgentFromSwarm() {
         if (wsRef.current?.readyState === WebSocket.OPEN) {
           wsRef.current.send(JSON.stringify({ event: "end_audio" }));
         }
-      }, 50); // ⚡ minimal delay — was 250 ms, now just 50
+      }, 150); // ⚡ minimal delay — was 250 ms, now just 150
     };
 
     // 🚀 Start recording, emit chunks every 50 ms instead of 250
