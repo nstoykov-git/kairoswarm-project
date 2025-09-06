@@ -230,13 +230,19 @@ export default function SingleAgentFromSwarm() {
         } else {
           // 🟢 Binary data → PCM16 audio
           const audioBytes = new Uint8Array(event.data);
+
+          // log queue length when chunk arrives
           audioQueueRef.current.push(audioBytes);
+          console.log(
+            "🔊 Queued PCM16 chunk, queue length:",
+            audioQueueRef.current.length
+          );
 
           if (audioCtxRef.current?.state === "suspended") {
             await audioCtxRef.current.resume();
           }
 
-          // Start playback if idle
+          // Play from queue
           playNextInQueue(audioCtxRef.current!, audioQueueRef, isPlayingRef);
         }
       };
