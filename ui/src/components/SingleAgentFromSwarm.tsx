@@ -167,23 +167,26 @@ export default function SingleAgentFromSwarm() {
           const msg = JSON.parse(event.data);
           console.log("[Agent reply]", msg);
         } else {
-          const audioBytes = new Uint8Array(event.data);
-          if (audioCtxRef.current?.state === "suspended") {
-            await audioCtxRef.current.resume();
+          // 🔊 Handle raw PCM16 streaming
+          const audioBytes = new Int16Array(await event.data.arrayBuffer()); // PCM16
+          const float32 = new Float32Array(audioBytes.length);
+
+          for (let i = 0; i < audioBytes.length; i++) {
+            float32[i] = audioBytes[i] / 32768; // normalize to -1..1
           }
 
-          const audioBuffer = await audioCtxRef.current!.decodeAudioData(
-            audioBytes.buffer
+          const audioBuffer = audioCtxRef.current!.createBuffer(
+            1, // mono
+            float32.length,
+            22050 // sample rate must match backend PCM
           );
-          console.log("🔊 Agent reply duration:", audioBuffer.duration);
+
+          audioBuffer.getChannelData(0).set(float32);
+
           const source = audioCtxRef.current!.createBufferSource();
           source.buffer = audioBuffer;
           source.connect(audioCtxRef.current!.destination);
-          try {
-            source.start(0);
-          } catch (err) {
-            console.error("🔇 Failed to start audio playback (agent reply):", err);
-          }
+          source.start();
         }
       };
     }
