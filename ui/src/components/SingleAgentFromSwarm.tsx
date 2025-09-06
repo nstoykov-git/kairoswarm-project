@@ -84,6 +84,7 @@ export default function SingleAgentFromSwarm() {
     fetchAgentFromSwarm();
   }, [swarmIdParam]);
 
+
   const stopRecording = () => {
     console.log("[VOICE] stopRecording called");
     if (mediaRecorderRef.current) {
@@ -162,31 +163,65 @@ export default function SingleAgentFromSwarm() {
         console.debug("[WS] Connected to /voice");
       };
 
+      // --- Queue playback helper ---
+      function playNextInQueue(
+        audioCtx: AudioContext,
+        audioQueueRef: React.MutableRefObject<Uint8Array[]>,
+        isPlayingRef: React.MutableRefObject<boolean>
+      ) {
+        if (isPlayingRef.current || audioQueueRef.current.length === 0) return;
+
+        const chunk = audioQueueRef.current.shift();
+        if (!chunk) return;
+
+        // Convert PCM16 → Float32
+        const float32 = new Float32Array(chunk.length / 2);
+        for (let i = 0; i < float32.length; i++) {
+          const int16 = (chunk[i * 2 + 1] << 8) | chunk[i * 2];
+          float32[i] = int16 / 0x8000;
+        }
+
+        // Create buffer
+        const audioBuffer = audioCtx.createBuffer(
+          1, // mono
+          float32.length,
+          24000 // Hz — must match ElevenLabs output
+        );
+        audioBuffer.copyToChannel(float32, 0);
+
+        // Create source + playback
+        const source = audioCtx.createBufferSource();
+        source.buffer = audioBuffer;
+        source.connect(audioCtx.destination);
+
+        isPlayingRef.current = true;
+        source.start();
+
+        source.onended = () => {
+          isPlayingRef.current = false;
+          playNextInQueue(audioCtx, audioQueueRef, isPlayingRef);
+        };
+      }
+
+      // --- WebSocket onmessage handler ---
+      const audioQueueRef = useRef<Uint8Array[]>([]);
+      const isPlayingRef = useRef(false);
+
       wsRef.current.onmessage = async (event) => {
         if (typeof event.data === "string") {
           const msg = JSON.parse(event.data);
           console.log("[Agent reply]", msg);
         } else {
-          // 🔊 Handle raw PCM16 streaming
-          const audioBytes = new Int16Array(await event.data.arrayBuffer()); // PCM16
-          const float32 = new Float32Array(audioBytes.length);
+          // 🟢 Binary data → PCM16 audio
+          const audioBytes = new Uint8Array(event.data);
+          audioQueueRef.current.push(audioBytes);
 
-          for (let i = 0; i < audioBytes.length; i++) {
-            float32[i] = audioBytes[i] / 32768; // normalize to -1..1
+          if (audioCtxRef.current?.state === "suspended") {
+            await audioCtxRef.current.resume();
           }
 
-          const audioBuffer = audioCtxRef.current!.createBuffer(
-            1, // mono
-            float32.length,
-            22050 // sample rate must match backend PCM
-          );
-
-          audioBuffer.getChannelData(0).set(float32);
-
-          const source = audioCtxRef.current!.createBufferSource();
-          source.buffer = audioBuffer;
-          source.connect(audioCtxRef.current!.destination);
-          source.start();
+          // Start playback if idle
+          playNextInQueue(audioCtxRef.current!, audioQueueRef, isPlayingRef);
         }
       };
     }
