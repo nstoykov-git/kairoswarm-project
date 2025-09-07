@@ -33,6 +33,8 @@ export default function SingleAgentFromSwarm() {
   const audioQueueRef = useRef<Uint8Array[]>([]);
   const isPlayingRef = useRef(false);
   const silenceTimer = useRef<NodeJS.Timeout | null>(null);
+  const dumpedOnceRef = useRef(false);
+
 
   // Fetch agent metadata & join swarm
   useEffect(() => {
@@ -251,15 +253,19 @@ export default function SingleAgentFromSwarm() {
         float32[i] = int16Array[i] / 32768;
       }
 
-      // 🧪 Log values
+      // 🧪 Debug logs
       console.log("🔬 First 10 PCM16 values:", int16Array.slice(0, 10));
       console.log("🔬 First 10 Float32 values:", float32.slice(0, 10));
       console.log("🎚️ AudioContext sample rate:", audioCtx.sampleRate);
 
-      // 📼 Dump to WAV for manual listening
-      saveAsWav(int16Array, 24000);
+      // 💾 Save this chunk as .wav for debugging
+      if (!dumpedOnceRef.current) {
+        dumpedOnceRef.current = true;
+        saveAsWav(int16Array, 24000);
+      }
 
-      // 🎧 Create audio buffer (24kHz, mono)
+
+      // 🎧 Create audio buffer (24kHz mono)
       const audioBuffer = audioCtx.createBuffer(1, float32.length, 24000);
       audioBuffer.copyToChannel(float32, 0);
 
@@ -269,17 +275,16 @@ export default function SingleAgentFromSwarm() {
 
       source.onended = () => {
         isPlayingRef.current = false;
-        playNextInQueue(audioCtx, audioQueueRef, isPlayingRef); // 🔁 next chunk
+        playNextInQueue(audioCtx, audioQueueRef, isPlayingRef); // 🔁 Play next
       };
 
       source.start();
-      console.log("▶️ Playing chunk, duration:", audioBuffer.duration.toFixed(2));
+      console.log("▶️ Playing chunk, duration:", audioBuffer.duration.toFixed(2), "seconds");
     } catch (err) {
       console.error("❌ Error playing PCM chunk:", err);
       isPlayingRef.current = false;
     }
   }
-
 
 
   if (loading) {
