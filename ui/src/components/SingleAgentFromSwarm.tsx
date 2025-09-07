@@ -91,9 +91,11 @@ export default function SingleAgentFromSwarm() {
   // Unlock mic + audio context on first gesture
   const handleMicUnlock = async () => {
     if (!participantId || !swarmIdParam) return;
-    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-    audioCtxRef.current = new AudioContextClass();
-    console.log("🎚️ AudioContext sample rate:", audioCtxRef.current.sampleRate);
+    if (!audioCtxRef.current) {
+      audioCtxRef.current = new AudioContext({ sampleRate: 24000 });
+      console.log("🎚️ AudioContext sample rate:", audioCtxRef.current.sampleRate);
+    }
+
     await audioCtxRef.current.resume();
 
     const wsUrl = API_INTERNAL_URL!.replace(/^http/, "ws") + "/voice";
