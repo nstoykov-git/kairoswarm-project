@@ -193,45 +193,54 @@ export default function SingleAgentFromSwarm() {
     isPlayingRef.current = true;
 
     try {
-      // Convert raw PCM16 bytes → Float32
+      // Convert PCM16 → Float32
       const buffer = new ArrayBuffer(nextChunk.length);
       const view = new DataView(buffer);
       nextChunk.forEach((b, i) => view.setUint8(i, b));
-
       const int16Array = new Int16Array(buffer);
       const float32 = new Float32Array(int16Array.length);
       for (let i = 0; i < int16Array.length; i++) {
         float32[i] = int16Array[i] / 32768;
       }
 
-      // 🧪 Debug logs
       console.log("🔬 First 10 PCM16 values:", int16Array.slice(0, 10));
       console.log("🔬 First 10 Float32 values:", float32.slice(0, 10));
       console.log("🎚️ AudioContext sample rate:", audioCtx.sampleRate);
 
-      // 🎧 Create buffer at 24kHz (matches ElevenLabs output)
-      const audioBuffer = audioCtx.createBuffer(1, float32.length, 24000);
-      audioBuffer.copyToChannel(float32, 0);
+      // Step 1: Create AudioBuffer at 24kHz
+      const originalBuffer = new AudioBuffer({
+        length: float32.length,
+        numberOfChannels: 1,
+        sampleRate: 24000,
+      });
+      originalBuffer.copyToChannel(float32, 0);
 
-      const source = audioCtx.createBufferSource();
-      source.buffer = audioBuffer;
+      // Step 2: Use OfflineAudioContext to resample to 48000 Hz
+      const offlineCtx = new OfflineAudioContext(1, originalBuffer.length * 2, 48000);
+      const source = offlineCtx.createBufferSource();
+      source.buffer = originalBuffer;
+      source.connect(offlineCtx.destination);
+      source.start();
 
-      // 🔧 Key fix: Resample from 24kHz → 48kHz by slowing playback
-      source.playbackRate.value = 0.5;
+      const resampledBuffer = await offlineCtx.startRendering();
 
-      source.connect(audioCtx.destination);
-      source.onended = () => {
+      // Step 3: Play resampled buffer
+      const playbackSource = audioCtx.createBufferSource();
+      playbackSource.buffer = resampledBuffer;
+      playbackSource.connect(audioCtx.destination);
+      playbackSource.onended = () => {
         isPlayingRef.current = false;
-        playNextInQueue(audioCtx, audioQueueRef, isPlayingRef); // 🔁 next chunk
+        playNextInQueue(audioCtx, audioQueueRef, isPlayingRef); // continue
       };
 
-      source.start();
-      console.log("▶️ Playing chunk with duration:", audioBuffer.duration.toFixed(2), "seconds");
+      playbackSource.start();
+      console.log("▶️ Playing resampled chunk, duration:", resampledBuffer.duration.toFixed(2));
     } catch (err) {
-      console.error("❌ Error playing PCM chunk:", err);
+      console.error("❌ Error during playback:", err);
       isPlayingRef.current = false;
     }
   }
+
 
   if (loading) {
     return <div className="flex items-center justify-center h-screen bg-black text-white"><span className="text-xl animate-pulse">Loading agent...</span></div>;
