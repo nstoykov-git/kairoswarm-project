@@ -92,6 +92,7 @@ export default function SingleAgentFromSwarm() {
     if (!participantId || !swarmIdParam) return;
     const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
     audioCtxRef.current = new AudioContextClass();
+    console.log("🎚️ AudioContext sample rate:", audioCtxRef.current.sampleRate);
     await audioCtxRef.current.resume();
 
     const wsUrl = API_INTERNAL_URL!.replace(/^http/, "ws") + "/voice";
@@ -189,17 +190,27 @@ export default function SingleAgentFromSwarm() {
     const nextChunk = audioQueueRef.current.shift();
     if (!nextChunk) return;
     isPlayingRef.current = true;
+
     try {
-      const buffer = new ArrayBuffer(nextChunk.length);
-      const view = new DataView(buffer);
-      nextChunk.forEach((b, i) => view.setUint8(i, b));
-      const int16Array = new Int16Array(buffer);
+      const pcmBytes = new Uint8Array(nextChunk);
+      const pcmView = new DataView(pcmBytes.buffer);
+
+      const int16Array = new Int16Array(pcmBytes.length / 2);
+      for (let i = 0; i < int16Array.length; i++) {
+        int16Array[i] = pcmView.getInt16(i * 2, true); // little-endian
+      }
+
       const float32 = new Float32Array(int16Array.length);
       for (let i = 0; i < int16Array.length; i++) {
         float32[i] = int16Array[i] / 32768;
       }
+
+      console.log("🔬 First 10 PCM16 values:", int16Array.slice(0, 10));
+      console.log("🔬 First 10 Float32 values:", float32.slice(0, 10));
+
       const audioBuffer = audioCtx.createBuffer(1, float32.length, 24000);
       audioBuffer.copyToChannel(float32, 0);
+
       const source = audioCtx.createBufferSource();
       source.buffer = audioBuffer;
       source.connect(audioCtx.destination);
