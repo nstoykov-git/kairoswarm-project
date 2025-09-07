@@ -86,16 +86,40 @@ export default function SingleAgentFromSwarm() {
 
 
   const stopRecording = () => {
+    if (!mediaRecorderRef.current) return;
+
     console.log("[VOICE] stopRecording called");
 
-    if (mediaRecorderRef.current) {
-      if (mediaRecorderRef.current.state !== "inactive") {
-        // Stop recording — this will trigger onstop later
-        mediaRecorderRef.current.stop();
-      } else {
-        console.warn("[VOICE] Tried to stop, but recorder already inactive");
+    // When the recorder fully stops
+    mediaRecorderRef.current.onstop = () => {
+      console.log("[VOICE] MediaRecorder fully stopped, forcing final flush");
+
+      // Force the browser to give us the last chunk
+      try {
+        mediaRecorderRef.current?.requestData();
+      } catch (err) {
+        console.warn("[VOICE] requestData failed:", err);
       }
-    }
+
+      // Handle that final chunk
+      mediaRecorderRef.current!.ondataavailable = (event: BlobEvent) => {
+        if (event.data.size > 0) {
+          event.data.arrayBuffer().then((buf) => {
+            console.log("[VOICE] Captured final chunk:", buf.byteLength);
+            wsRef.current?.send(buf);
+
+            // 👇 Only after sending the last chunk, tell backend we’re done
+            if (wsRef.current?.readyState === WebSocket.OPEN) {
+              console.log("[VOICE] Sending end_audio (after final flush)");
+              wsRef.current.send(JSON.stringify({ event: "end_audio" }));
+            }
+          });
+        }
+      };
+    };
+
+    // Actually stop the recorder
+    mediaRecorderRef.current.stop();
 
     setRecording(false);
 
@@ -105,29 +129,7 @@ export default function SingleAgentFromSwarm() {
     }
   };
 
-  // 🔊 Handle final flush + end_audio
-  if (mediaRecorderRef.current) {
-    mediaRecorderRef.current.onstop = () => {
-      console.log("[VOICE] MediaRecorder stopped, forcing final flush…");
-
-      try {
-        // Force out any buffered audio immediately
-        mediaRecorderRef.current?.requestData();
-      } catch (err) {
-        console.warn("[VOICE] requestData failed:", err);
-      }
-
-      // Small wait to ensure flush is processed, then send end_audio
-      setTimeout(() => {
-        console.log("[VOICE] Sending end_audio (final after flush)");
-        if (wsRef.current?.readyState === WebSocket.OPEN) {
-          wsRef.current.send(JSON.stringify({ event: "end_audio" }));
-        }
-      }, 100); // cushion to ensure last chunk is delivered
-    };
-  }
-
-
+  
   const toggleRecording = async () => {
     console.log("[VOICE] toggleRecording fired", { participantId, swarmIdParam });
     if (!participantId || !swarmIdParam) {
