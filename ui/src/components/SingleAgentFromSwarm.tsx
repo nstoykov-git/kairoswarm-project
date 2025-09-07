@@ -194,11 +194,11 @@ export default function SingleAgentFromSwarm() {
     isPlayingRef.current = true;
 
     try {
-      // Decode raw PCM16 (little-endian)
+      // Decode PCM16LE to Float32
       const view = new DataView(nextChunk.buffer, nextChunk.byteOffset, nextChunk.byteLength);
       const int16Array = new Int16Array(nextChunk.byteLength / 2);
       for (let i = 0; i < int16Array.length; i++) {
-        int16Array[i] = view.getInt16(i * 2, true); // 👈 ensure little-endian
+        int16Array[i] = view.getInt16(i * 2, true); // little-endian
       }
 
       const float32 = new Float32Array(int16Array.length);
@@ -206,39 +206,37 @@ export default function SingleAgentFromSwarm() {
         float32[i] = int16Array[i] / 32768;
       }
 
-      // Debug logs
+      // Debugging
       console.log("🔬 First 10 PCM16 values:", int16Array.slice(0, 10));
       console.log("🔬 First 10 Float32 values:", float32.slice(0, 10));
       console.log("🎚️ AudioContext sample rate:", audioCtx.sampleRate);
 
-      // Create buffer at 24kHz (matches ElevenLabs)
-      const tempBuffer = audioCtx.createBuffer(1, float32.length, 24000);
-      tempBuffer.copyToChannel(float32, 0);
+      // ⚙️ Step 1: Create offline context at 24kHz
+      const inputSampleRate = 24000;
+      const offlineCtx = new OfflineAudioContext(1, float32.length, inputSampleRate);
 
-      // Resample to AudioContext sample rate using OfflineAudioContext
-      const offlineCtx = new OfflineAudioContext(
-        1,
-        Math.ceil(float32.length * (audioCtx.sampleRate / 24000)),
-        audioCtx.sampleRate
-      );
+      // Fill buffer with incoming Float32
+      const inputBuffer = offlineCtx.createBuffer(1, float32.length, inputSampleRate);
+      inputBuffer.copyToChannel(float32, 0);
 
       const source = offlineCtx.createBufferSource();
-      source.buffer = tempBuffer;
+      source.buffer = inputBuffer;
       source.connect(offlineCtx.destination);
       source.start();
 
+      // ⚙️ Step 2: Resample to audioCtx.sampleRate
       const renderedBuffer = await offlineCtx.startRendering();
 
-      // Play resampled audio
-      const finalSource = audioCtx.createBufferSource();
-      finalSource.buffer = renderedBuffer;
-      finalSource.connect(audioCtx.destination);
-      finalSource.onended = () => {
+      // ⚙️ Step 3: Play via audioCtx (48kHz)
+      const playSource = audioCtx.createBufferSource();
+      playSource.buffer = renderedBuffer;
+      playSource.connect(audioCtx.destination);
+      playSource.onended = () => {
         isPlayingRef.current = false;
-        playNextInQueue(audioCtx, audioQueueRef, isPlayingRef); // 🔁 next chunk
+        playNextInQueue(audioCtx, audioQueueRef, isPlayingRef);
       };
 
-      finalSource.start();
+      playSource.start();
       console.log("▶️ Playing resampled chunk, duration:", renderedBuffer.duration.toFixed(2));
     } catch (err) {
       console.error("❌ Error playing PCM chunk:", err);
