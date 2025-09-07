@@ -13,6 +13,8 @@ interface Agent {
 
 const API_INTERNAL_URL = process.env.NEXT_PUBLIC_MODAL_API_URL;
 const MAX_RECORDING_MS = 30000;
+const VAD_SILENCE_MS = 800;
+const VAD_ENERGY_THRESHOLD = 0.01;
 
 export default function SingleAgentFromSwarm() {
   const searchParams = useSearchParams();
@@ -21,14 +23,15 @@ export default function SingleAgentFromSwarm() {
   const [agent, setAgent] = useState<Agent | null>(null);
   const [loading, setLoading] = useState(true);
   const [participantId, setParticipantId] = useState<string | null>(null);
-  const [recording, setRecording] = useState(false);
+  const [micUnlocked, setMicUnlocked] = useState(false);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const recordingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const audioUnlockedRef = useRef(false);
   const audioCtxRef = useRef<AudioContext | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const endAudioSentRef = useRef(false);
+  const audioQueueRef = useRef<Uint8Array[]>([]);
+  const isPlayingRef = useRef(false);
+  const silenceTimer = useRef<NodeJS.Timeout | null>(null);
 
   // Fetch agent metadata & join swarm
   useEffect(() => {
@@ -73,7 +76,6 @@ export default function SingleAgentFromSwarm() {
           }),
         });
         const joinData = await joinRes.json();
-        console.log("✅ Joined swarm as Guest:", joinData);
         setParticipantId(joinData.participant_id);
       } catch (err) {
         console.error("Failed to fetch agent from swarm", err);
@@ -85,249 +87,130 @@ export default function SingleAgentFromSwarm() {
     fetchAgentFromSwarm();
   }, [swarmIdParam]);
 
+  // Unlock mic + audio context on first gesture
+  const handleMicUnlock = async () => {
+    if (!participantId || !swarmIdParam) return;
+    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+    audioCtxRef.current = new AudioContextClass();
+    await audioCtxRef.current.resume();
 
-  // --- Stop Recording ---
-  const stopRecording = () => {
-    if (!mediaRecorderRef.current) return;
+    const wsUrl = API_INTERNAL_URL!.replace(/^http/, "ws") + "/voice";
+    wsRef.current = new WebSocket(wsUrl);
+    wsRef.current.binaryType = "arraybuffer";
 
-    console.log("[VOICE] stopRecording called");
-
-    mediaRecorderRef.current.onstop = () => {
-      console.log("[VOICE] MediaRecorder fully stopped, forcing final flush");
-
-      try {
-        mediaRecorderRef.current?.requestData();
-      } catch (err) {
-        console.warn("[VOICE] requestData failed:", err);
-      }
-
-      mediaRecorderRef.current!.ondataavailable = (event: BlobEvent) => {
-        if (event.data.size > 0) {
-          event.data.arrayBuffer().then((buf) => {
-            console.log("[VOICE] Captured final chunk:", buf.byteLength);
-            wsRef.current?.send(buf);
-
-            // 👇 Only allow one end_audio per session
-            if (!endAudioSentRef.current && wsRef.current?.readyState === WebSocket.OPEN) {
-              console.log("[VOICE] Sending end_audio (after final flush)");
-              wsRef.current.send(JSON.stringify({ event: "end_audio" }));
-              endAudioSentRef.current = true;
-            }
-          });
-        } else {
-          console.log("[VOICE] Ignored empty ondataavailable event after stop");
-        }
-      };
+    wsRef.current.onopen = () => {
+      wsRef.current?.send(
+        JSON.stringify({ swarm_id: swarmIdParam, participant_id: participantId, type: "human" })
+      );
     };
 
-    if (mediaRecorderRef.current.state !== "inactive") {
-      mediaRecorderRef.current.stop();
-    } else {
-      console.warn("[VOICE] Tried to stop, but recorder already inactive");
-    }
-
-    setRecording(false);
-
-    if (recordingTimeoutRef.current) {
-      clearTimeout(recordingTimeoutRef.current);
-      recordingTimeoutRef.current = null;
-    }
-  };
-
-
-  const toggleRecording = async () => {
-    console.log("[VOICE] toggleRecording fired", { participantId, swarmIdParam });
-    if (!participantId || !swarmIdParam) {
-      console.warn("[Voice] Missing participantId or swarmId");
-      return;
-    }
-
-    endAudioSentRef.current = false;
-
-    if (recording) {
-      stopRecording();
-      return;
-    }
-
-    if (!audioUnlockedRef.current) {
-      try {
-        const AudioContextClass =
-          window.AudioContext || (window as any).webkitAudioContext;
-        if (!audioCtxRef.current) {
-          audioCtxRef.current = new AudioContextClass();
-        }
-        const buffer = audioCtxRef.current.createBuffer(1, 1, 22050);
-        const source = audioCtxRef.current.createBufferSource();
-        source.buffer = buffer;
-        source.connect(audioCtxRef.current.destination);
-        try {
-          source.start(0);
-        } catch (err) {
-          console.error("🔇 Failed to start audio playback (agent reply):", err);
-        }
-        await audioCtxRef.current.resume();
-        audioUnlockedRef.current = true;
-        console.debug("[TTS] Audio context unlocked");
-      } catch (err) {
-        console.warn("[TTS] Failed to unlock audio context:", err);
+    wsRef.current.onmessage = async (event) => {
+      if (typeof event.data === "string") {
+        const msg = JSON.parse(event.data);
+        console.log("[Agent reply]", msg);
+      } else {
+        const audioBytes = new Uint8Array(event.data);
+        audioQueueRef.current.push(audioBytes);
+        if (audioCtxRef.current?.state === "suspended") await audioCtxRef.current.resume();
+        playNextInQueue(audioCtxRef.current!, audioQueueRef, isPlayingRef);
       }
-    }
+    };
 
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const sourceNode = audioCtxRef.current.createMediaStreamSource(stream);
+    const analyser = audioCtxRef.current.createAnalyser();
+    analyser.fftSize = 2048;
+    sourceNode.connect(analyser);
+
+    const data = new Uint8Array(analyser.fftSize);
+
     mediaRecorderRef.current = new MediaRecorder(stream, {
       mimeType: "audio/webm;codecs=opus",
     });
 
-    console.log("[VOICE MODE] FORCED WebSocket");
-    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
-      const wsUrl = API_INTERNAL_URL!.replace(/^http/, "ws") + "/voice";
-      wsRef.current = new WebSocket(wsUrl);
-      wsRef.current.binaryType = "arraybuffer";
-
-      wsRef.current.onopen = () => {
-        wsRef.current?.send(
-          JSON.stringify({
-            swarm_id: swarmIdParam,
-            participant_id: participantId,
-            type: "human",
-          })
-        );
-        console.debug("[WS] Connected to /voice");
-      };
-
-      // --- Queue playback helper ---
-      async function playNextInQueue(
-        audioCtx: AudioContext,
-        audioQueueRef: React.MutableRefObject<Uint8Array[]>,
-        isPlayingRef: React.MutableRefObject<boolean>
-      ) {
-        if (isPlayingRef.current) return;
-        const nextChunk = audioQueueRef.current.shift();
-        if (!nextChunk) return;
-
-        isPlayingRef.current = true;
-
-        try {
-          // Debug raw PCM16
-          console.log("🔎 Raw PCM16 chunk (first 20 bytes):", nextChunk.slice(0, 20));
-
-          // Convert PCM16 → Float32
-          const buffer = new ArrayBuffer(nextChunk.length);
-          const view = new DataView(buffer);
-          nextChunk.forEach((b, i) => view.setUint8(i, b));
-
-          const int16Array = new Int16Array(buffer);
-          const float32 = new Float32Array(int16Array.length);
-          for (let i = 0; i < int16Array.length; i++) {
-            float32[i] = int16Array[i] / 32768;
-          }
-
-          // Debug converted samples
-          console.log("🔎 Float32 samples (first 10):", float32.slice(0, 10));
-
-          // Create audio buffer (mono, 24kHz)
-          const audioBuffer = audioCtx.createBuffer(
-            1,
-            float32.length,
-            24000
-          );
-          audioBuffer.copyToChannel(float32, 0);
-
-          // Play
-          const source = audioCtx.createBufferSource();
-          source.buffer = audioBuffer;
-          source.connect(audioCtx.destination);
-          source.onended = () => {
-            isPlayingRef.current = false;
-            playNextInQueue(audioCtx, audioQueueRef, isPlayingRef); // dequeue next
-          };
-
-          source.start();
-          console.log("▶️ Playing chunk, duration:", audioBuffer.duration);
-        } catch (err) {
-          console.error("❌ Error playing PCM chunk:", err);
-          isPlayingRef.current = false;
-        }
-      }
-
-
-      // --- WebSocket onmessage handler ---
-      const audioQueueRef = useRef<Uint8Array[]>([]);
-      const isPlayingRef = useRef(false);
-
-      wsRef.current.onmessage = async (event) => {
-        if (typeof event.data === "string") {
-          const msg = JSON.parse(event.data);
-          console.log("[Agent reply]", msg);
-        } else {
-          // 🟢 Binary data → PCM16 audio
-          const audioBytes = new Uint8Array(event.data);
-
-          // log queue length when chunk arrives
-          audioQueueRef.current.push(audioBytes);
-          console.log(
-            "🔊 Queued PCM16 chunk, queue length:",
-            audioQueueRef.current.length
-          );
-
-          if (audioCtxRef.current?.state === "suspended") {
-            await audioCtxRef.current.resume();
-          }
-
-          // Play from queue
-          playNextInQueue(audioCtxRef.current!, audioQueueRef, isPlayingRef);
-        }
-      };
-    }
-
-    // 🔊 Handle audio chunks as they come in
     mediaRecorderRef.current.ondataavailable = async (event) => {
       if (event.data.size > 0 && wsRef.current?.readyState === WebSocket.OPEN) {
         const buf = await event.data.arrayBuffer();
-        console.log(`[VOICE] Captured chunk size: ${buf.byteLength}`);
         wsRef.current.send(buf);
       }
     };
 
-    // 🛑 Ensure final flush before ending
     mediaRecorderRef.current.onstop = () => {
-      console.log("[VOICE] MediaRecorder fully stopped, forcing final flush");
-      try {
-        // Force out any buffered audio immediately
-        mediaRecorderRef.current?.requestData();
-      } catch (err) {
-        console.warn("[VOICE] requestData failed:", err);
+      if (!endAudioSentRef.current && wsRef.current?.readyState === WebSocket.OPEN) {
+        wsRef.current.send(JSON.stringify({ event: "end_audio" }));
+        endAudioSentRef.current = true;
       }
-
-      // Small wait to ensure flush is processed, then send end_audio
-      setTimeout(() => {
-        console.log("[VOICE] Sending end_audio (after final flush)");
-        if (wsRef.current?.readyState === WebSocket.OPEN) {
-          wsRef.current.send(JSON.stringify({ event: "end_audio" }));
-        }
-      }, 150); // ⚡ minimal delay — was 250 ms, now just 150
     };
 
-    // 🚀 Start recording, emit chunks every 50 ms instead of 250
-    mediaRecorderRef.current.start(50);
-    setRecording(true);
-    recordingTimeoutRef.current = setTimeout(stopRecording, MAX_RECORDING_MS);
+    const vadLoop = () => {
+      analyser.getByteTimeDomainData(data);
+      let sum = 0;
+      for (let i = 0; i < data.length; i++) {
+        const val = (data[i] - 128) / 128;
+        sum += val * val;
+      }
+      const rms = Math.sqrt(sum / data.length);
+      if (rms > VAD_ENERGY_THRESHOLD) {
+        if (mediaRecorderRef.current?.state === "inactive") {
+          endAudioSentRef.current = false;
+          mediaRecorderRef.current.start(50);
+        }
+        if (silenceTimer.current) {
+          clearTimeout(silenceTimer.current);
+        }
+        silenceTimer.current = setTimeout(() => {
+          if (mediaRecorderRef.current?.state === "recording") {
+            mediaRecorderRef.current.stop();
+          }
+        }, VAD_SILENCE_MS);
+      }
+      requestAnimationFrame(vadLoop);
+    };
+
+    requestAnimationFrame(vadLoop);
+    setMicUnlocked(true);
   };
 
+  function playNextInQueue(
+    audioCtx: AudioContext,
+    audioQueueRef: React.MutableRefObject<Uint8Array[]>,
+    isPlayingRef: React.MutableRefObject<boolean>
+  ) {
+    if (isPlayingRef.current) return;
+    const nextChunk = audioQueueRef.current.shift();
+    if (!nextChunk) return;
+    isPlayingRef.current = true;
+    try {
+      const buffer = new ArrayBuffer(nextChunk.length);
+      const view = new DataView(buffer);
+      nextChunk.forEach((b, i) => view.setUint8(i, b));
+      const int16Array = new Int16Array(buffer);
+      const float32 = new Float32Array(int16Array.length);
+      for (let i = 0; i < int16Array.length; i++) {
+        float32[i] = int16Array[i] / 32768;
+      }
+      const audioBuffer = audioCtx.createBuffer(1, float32.length, 24000);
+      audioBuffer.copyToChannel(float32, 0);
+      const source = audioCtx.createBufferSource();
+      source.buffer = audioBuffer;
+      source.connect(audioCtx.destination);
+      source.onended = () => {
+        isPlayingRef.current = false;
+        playNextInQueue(audioCtx, audioQueueRef, isPlayingRef);
+      };
+      source.start();
+    } catch (err) {
+      console.error("❌ Error playing PCM chunk:", err);
+      isPlayingRef.current = false;
+    }
+  }
+
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-screen bg-black text-white">
-        <span className="text-xl animate-pulse">Loading agent...</span>
-      </div>
-    );
+    return <div className="flex items-center justify-center h-screen bg-black text-white"><span className="text-xl animate-pulse">Loading agent...</span></div>;
   }
 
   if (!agent) {
-    return (
-      <div className="flex items-center justify-center h-screen bg-black text-white">
-        <span className="text-lg">Agent not found.</span>
-      </div>
-    );
+    return <div className="flex items-center justify-center h-screen bg-black text-white"><span className="text-lg">Agent not found.</span></div>;
   }
 
   const isPortrait = agent.orientation === "portrait";
@@ -350,9 +233,7 @@ export default function SingleAgentFromSwarm() {
           <video
             src={agent.video_url}
             className={`rounded-xl shadow-2xl object-cover ${
-              isPortrait
-                ? "h-full w-auto object-top transform scale-150"
-                : "w-full max-w-screen-xl"
+              isPortrait ? "h-full w-auto object-top transform scale-150" : "w-full max-w-screen-xl"
             }`}
             autoPlay
             loop
@@ -360,29 +241,15 @@ export default function SingleAgentFromSwarm() {
             playsInline
           />
         )}
-        <div className="absolute bottom-24 text-center space-y-3">
-          <h1 className="text-white text-4xl font-semibold mb-2 drop-shadow-lg">
-            {agent.name}
-          </h1>
-          <div className="flex justify-center gap-4">
-            <button
-              onClick={() =>
-                window.open(`https://kairoswarm.com/?swarm_id=${swarmIdParam}`, "_blank")
-              }
-              className="text-white text-lg underline hover:opacity-80"
-            >
-              View Transcript
-            </button>
-            <button
-              onClick={toggleRecording}
-              className={`rounded-full p-4 ${
-                recording ? "bg-red-600" : "bg-green-600"
-              } text-white shadow-lg`}
-            >
-              {recording ? "⏹ Stop" : "🎤 Talk"}
-            </button>
+        {!micUnlocked && (
+          <div
+            className="absolute bottom-24 px-6 py-4 text-center bg-white/10 text-white rounded-xl shadow-lg cursor-pointer hover:bg-white/20"
+            onClick={handleMicUnlock}
+          >
+            <h2 className="text-xl font-semibold">🎤 Tap to start talking</h2>
+            <p className="text-sm mt-1 opacity-80">We’ll auto-record when you speak.</p>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
