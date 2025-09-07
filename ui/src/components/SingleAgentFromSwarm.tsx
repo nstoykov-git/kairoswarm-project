@@ -214,6 +214,7 @@ export default function SingleAgentFromSwarm() {
       const source = audioCtx.createBufferSource();
       source.buffer = audioBuffer;
       source.connect(audioCtx.destination);
+      console.log("▶️ Playing chunk with duration:", audioBuffer.duration.toFixed(2), "seconds");
       source.onended = () => {
         isPlayingRef.current = false;
         playNextInQueue(audioCtx, audioQueueRef, isPlayingRef);
