@@ -28,6 +28,7 @@ export default function SingleAgentFromSwarm() {
   const audioUnlockedRef = useRef(false);
   const audioCtxRef = useRef<AudioContext | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
+  const endAudioSentRef = useRef(false);
 
   // Fetch agent metadata & join swarm
   useEffect(() => {
@@ -85,11 +86,12 @@ export default function SingleAgentFromSwarm() {
   }, [swarmIdParam]);
 
 
+  // --- Stop Recording ---
   const stopRecording = () => {
     if (!mediaRecorderRef.current) return;
 
     console.log("[VOICE] stopRecording called");
-    let endAudioSent = false; // 👈 flag to prevent duplicates
+    endAudioSentRef.current = false; // reset fresh each stop
 
     mediaRecorderRef.current.onstop = () => {
       console.log("[VOICE] MediaRecorder fully stopped, forcing final flush");
@@ -106,10 +108,11 @@ export default function SingleAgentFromSwarm() {
             console.log("[VOICE] Captured final chunk:", buf.byteLength);
             wsRef.current?.send(buf);
 
-            if (!endAudioSent && wsRef.current?.readyState === WebSocket.OPEN) {
+            // 👇 Only allow one end_audio per session
+            if (!endAudioSentRef.current && wsRef.current?.readyState === WebSocket.OPEN) {
               console.log("[VOICE] Sending end_audio (after final flush)");
               wsRef.current.send(JSON.stringify({ event: "end_audio" }));
-              endAudioSent = true; // ✅ lock it
+              endAudioSentRef.current = true;
             }
           });
         } else {
@@ -118,7 +121,11 @@ export default function SingleAgentFromSwarm() {
       };
     };
 
-    mediaRecorderRef.current.stop();
+    if (mediaRecorderRef.current.state !== "inactive") {
+      mediaRecorderRef.current.stop();
+    } else {
+      console.warn("[VOICE] Tried to stop, but recorder already inactive");
+    }
 
     setRecording(false);
 
