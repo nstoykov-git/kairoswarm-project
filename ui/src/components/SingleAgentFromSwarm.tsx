@@ -160,7 +160,16 @@ export default function SingleAgentFromSwarm() {
         }
         silenceTimer.current = setTimeout(() => {
           if (mediaRecorderRef.current?.state === "recording") {
-            mediaRecorderRef.current.stop();
+            try {
+              mediaRecorderRef.current.requestData();
+              setTimeout(() => {
+                if (mediaRecorderRef.current?.state === "recording") {
+                  mediaRecorderRef.current.stop();
+                }
+              }, 150);
+            } catch (err) {
+              console.warn("[VAD] Failed to flush recorder data:", err);
+            }
           }
         }, VAD_SILENCE_MS);
       }
