@@ -242,46 +242,32 @@ export default function SingleAgentFromSwarm() {
     isPlayingRef.current = true;
 
     try {
-      // 🔄 Convert Uint8Array → Int16Array
-      const buffer = new ArrayBuffer(nextChunk.length);
-      const view = new DataView(buffer);
-      nextChunk.forEach((b, i) => view.setUint8(i, b));
+      // 🔍 Save MP3 file for debugging
+      const blob = new Blob([nextChunk], { type: "audio/mpeg" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `elevenlabs_output_${Date.now()}.mp3`;
+      a.click();
 
-      const int16Array = new Int16Array(buffer);
-      const float32 = new Float32Array(int16Array.length);
-      for (let i = 0; i < int16Array.length; i++) {
-        float32[i] = int16Array[i] / 32768;
-      }
+      // 🔄 Decode MP3 → AudioBuffer
+      const arrayBuffer = await blob.arrayBuffer();
+      const decodedAudio = await audioCtx.decodeAudioData(arrayBuffer);
 
-      // 🧪 Debug logs
-      console.log("🔬 First 10 PCM16 values:", int16Array.slice(0, 10));
-      console.log("🔬 First 10 Float32 values:", float32.slice(0, 10));
-      console.log("🎚️ AudioContext sample rate:", audioCtx.sampleRate);
-
-      // 💾 Save this chunk as .wav for debugging
-      if (!dumpedOnceRef.current) {
-        dumpedOnceRef.current = true;
-        saveAsWav(int16Array, 24000);
-      }
-
-
-      // 🎧 Create audio buffer (24kHz mono)
-      const audioBuffer = audioCtx.createBuffer(1, float32.length, 24000);
-      audioBuffer.copyToChannel(float32, 0);
-
+      // 🔊 Play decoded buffer
       const source = audioCtx.createBufferSource();
-      source.buffer = audioBuffer;
+      source.buffer = decodedAudio;
       source.connect(audioCtx.destination);
 
       source.onended = () => {
         isPlayingRef.current = false;
-        playNextInQueue(audioCtx, audioQueueRef, isPlayingRef); // 🔁 Play next
+        playNextInQueue(audioCtx, audioQueueRef, isPlayingRef); // 🔁 next
       };
 
       source.start();
-      console.log("▶️ Playing chunk, duration:", audioBuffer.duration.toFixed(2), "seconds");
+      console.log("▶️ Playing decoded MP3, duration:", decodedAudio.duration.toFixed(2), "seconds");
     } catch (err) {
-      console.error("❌ Error playing PCM chunk:", err);
+      console.error("❌ Failed to decode or play MP3 chunk:", err);
       isPlayingRef.current = false;
     }
   }
