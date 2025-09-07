@@ -181,7 +181,7 @@ export default function SingleAgentFromSwarm() {
     setMicUnlocked(true);
   };
 
-  function playNextInQueue(
+  async function playNextInQueue(
     audioCtx: AudioContext,
     audioQueueRef: React.MutableRefObject<Uint8Array[]>,
     isPlayingRef: React.MutableRefObject<boolean>
@@ -189,37 +189,44 @@ export default function SingleAgentFromSwarm() {
     if (isPlayingRef.current) return;
     const nextChunk = audioQueueRef.current.shift();
     if (!nextChunk) return;
+
     isPlayingRef.current = true;
 
     try {
-      const pcmBytes = new Uint8Array(nextChunk);
-      const pcmView = new DataView(pcmBytes.buffer);
+      // Convert raw PCM16 bytes → Float32
+      const buffer = new ArrayBuffer(nextChunk.length);
+      const view = new DataView(buffer);
+      nextChunk.forEach((b, i) => view.setUint8(i, b));
 
-      const int16Array = new Int16Array(pcmBytes.length / 2);
-      for (let i = 0; i < int16Array.length; i++) {
-        int16Array[i] = pcmView.getInt16(i * 2, true); // little-endian
-      }
-
+      const int16Array = new Int16Array(buffer);
       const float32 = new Float32Array(int16Array.length);
       for (let i = 0; i < int16Array.length; i++) {
         float32[i] = int16Array[i] / 32768;
       }
 
+      // 🧪 Debug logs
       console.log("🔬 First 10 PCM16 values:", int16Array.slice(0, 10));
       console.log("🔬 First 10 Float32 values:", float32.slice(0, 10));
+      console.log("🎚️ AudioContext sample rate:", audioCtx.sampleRate);
 
+      // 🎧 Create buffer at 24kHz (matches ElevenLabs output)
       const audioBuffer = audioCtx.createBuffer(1, float32.length, 24000);
       audioBuffer.copyToChannel(float32, 0);
 
       const source = audioCtx.createBufferSource();
       source.buffer = audioBuffer;
+
+      // 🔧 Key fix: Resample from 24kHz → 48kHz by slowing playback
+      source.playbackRate.value = 0.5;
+
       source.connect(audioCtx.destination);
-      console.log("▶️ Playing chunk with duration:", audioBuffer.duration.toFixed(2), "seconds");
       source.onended = () => {
         isPlayingRef.current = false;
-        playNextInQueue(audioCtx, audioQueueRef, isPlayingRef);
+        playNextInQueue(audioCtx, audioQueueRef, isPlayingRef); // 🔁 next chunk
       };
+
       source.start();
+      console.log("▶️ Playing chunk with duration:", audioBuffer.duration.toFixed(2), "seconds");
     } catch (err) {
       console.error("❌ Error playing PCM chunk:", err);
       isPlayingRef.current = false;
