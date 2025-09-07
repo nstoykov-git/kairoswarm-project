@@ -91,7 +91,6 @@ export default function SingleAgentFromSwarm() {
     if (!mediaRecorderRef.current) return;
 
     console.log("[VOICE] stopRecording called");
-    endAudioSentRef.current = false; // reset fresh each stop
 
     mediaRecorderRef.current.onstop = () => {
       console.log("[VOICE] MediaRecorder fully stopped, forcing final flush");
@@ -142,6 +141,8 @@ export default function SingleAgentFromSwarm() {
       console.warn("[Voice] Missing participantId or swarmId");
       return;
     }
+
+    endAudioSentRef.current = false;
 
     if (recording) {
       stopRecording();
