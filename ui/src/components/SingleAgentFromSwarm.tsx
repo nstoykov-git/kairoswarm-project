@@ -96,12 +96,6 @@ export default function SingleAgentFromSwarm() {
       clearTimeout(recordingTimeoutRef.current);
       recordingTimeoutRef.current = null;
     }
-
-    // 🛑 Safety: force end_audio immediately
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
-      console.log("[VOICE] Sending end_audio (safety fallback)");
-      wsRef.current.send(JSON.stringify({ event: "end_audio" }));
-    }
   };
 
 
