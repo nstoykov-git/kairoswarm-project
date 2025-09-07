@@ -89,29 +89,27 @@ export default function SingleAgentFromSwarm() {
     if (!mediaRecorderRef.current) return;
 
     console.log("[VOICE] stopRecording called");
+    let endAudioSent = false; // 👈 flag to prevent duplicates
 
-    // When the recorder fully stops
     mediaRecorderRef.current.onstop = () => {
       console.log("[VOICE] MediaRecorder fully stopped, forcing final flush");
 
-      // Force the browser to give us the last chunk
       try {
         mediaRecorderRef.current?.requestData();
       } catch (err) {
         console.warn("[VOICE] requestData failed:", err);
       }
 
-      // Handle that final chunk
       mediaRecorderRef.current!.ondataavailable = (event: BlobEvent) => {
         if (event.data.size > 0) {
           event.data.arrayBuffer().then((buf) => {
             console.log("[VOICE] Captured final chunk:", buf.byteLength);
             wsRef.current?.send(buf);
 
-            // 👇 Only after sending the last chunk, tell backend we’re done
-            if (wsRef.current?.readyState === WebSocket.OPEN) {
+            if (!endAudioSent && wsRef.current?.readyState === WebSocket.OPEN) {
               console.log("[VOICE] Sending end_audio (after final flush)");
               wsRef.current.send(JSON.stringify({ event: "end_audio" }));
+              endAudioSent = true; // ✅ lock it
             }
           });
         } else {
@@ -120,7 +118,6 @@ export default function SingleAgentFromSwarm() {
       };
     };
 
-    // Actually stop the recorder
     mediaRecorderRef.current.stop();
 
     setRecording(false);
