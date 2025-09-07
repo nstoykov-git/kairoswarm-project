@@ -114,6 +114,8 @@ export default function SingleAgentFromSwarm() {
               wsRef.current.send(JSON.stringify({ event: "end_audio" }));
             }
           });
+        } else {
+          console.log("[VOICE] Ignored empty ondataavailable event after stop");
         }
       };
     };
@@ -129,7 +131,7 @@ export default function SingleAgentFromSwarm() {
     }
   };
 
-  
+
   const toggleRecording = async () => {
     console.log("[VOICE] toggleRecording fired", { participantId, swarmIdParam });
     if (!participantId || !swarmIdParam) {
