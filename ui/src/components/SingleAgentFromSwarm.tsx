@@ -184,6 +184,50 @@ export default function SingleAgentFromSwarm() {
     setMicUnlocked(true);
   };
 
+  function saveAsWav(pcmData: Int16Array, sampleRate = 24000) {
+    const numChannels = 1;
+    const bitsPerSample = 16;
+    const byteRate = (sampleRate * numChannels * bitsPerSample) / 8;
+    const blockAlign = (numChannels * bitsPerSample) / 8;
+    const wavHeader = new ArrayBuffer(44);
+    const view = new DataView(wavHeader);
+
+    // RIFF chunk descriptor
+    view.setUint32(0, 0x52494646, false); // "RIFF"
+    view.setUint32(4, 36 + pcmData.length * 2, true); // File size - 8
+    view.setUint32(8, 0x57415645, false); // "WAVE"
+
+    // fmt sub-chunk
+    view.setUint32(12, 0x666d7420, false); // "fmt "
+    view.setUint32(16, 16, true); // Subchunk1Size
+    view.setUint16(20, 1, true); // AudioFormat = PCM
+    view.setUint16(22, numChannels, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, byteRate, true);
+    view.setUint16(32, blockAlign, true);
+    view.setUint16(34, bitsPerSample, true);
+
+    // data sub-chunk
+    view.setUint32(36, 0x64617461, false); // "data"
+    view.setUint32(40, pcmData.length * 2, true);
+
+    // Combine header + data
+    const wavBytes = new Uint8Array(44 + pcmData.length * 2);
+    wavBytes.set(new Uint8Array(wavHeader), 0);
+    for (let i = 0; i < pcmData.length; i++) {
+      wavBytes[44 + i * 2] = pcmData[i] & 0xff;
+      wavBytes[44 + i * 2 + 1] = (pcmData[i] >> 8) & 0xff;
+    }
+
+    const blob = new Blob([wavBytes], { type: "audio/wav" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `elevenlabs_output_${Date.now()}.wav`;
+    a.click();
+  }
+
+
   async function playNextInQueue(
     audioCtx: AudioContext,
     audioQueueRef: React.MutableRefObject<Uint8Array[]>,
@@ -196,7 +240,7 @@ export default function SingleAgentFromSwarm() {
     isPlayingRef.current = true;
 
     try {
-      // Convert raw PCM16 bytes → Float32
+      // 🔄 Convert Uint8Array → Int16Array
       const buffer = new ArrayBuffer(nextChunk.length);
       const view = new DataView(buffer);
       nextChunk.forEach((b, i) => view.setUint8(i, b));
@@ -207,34 +251,35 @@ export default function SingleAgentFromSwarm() {
         float32[i] = int16Array[i] / 32768;
       }
 
-      // 🧪 Debug logs
+      // 🧪 Log values
       console.log("🔬 First 10 PCM16 values:", int16Array.slice(0, 10));
       console.log("🔬 First 10 Float32 values:", float32.slice(0, 10));
       console.log("🎚️ AudioContext sample rate:", audioCtx.sampleRate);
 
-      // 🎧 Create audio buffer (no resampling needed)
+      // 📼 Dump to WAV for manual listening
+      saveAsWav(int16Array, 24000);
+
+      // 🎧 Create audio buffer (24kHz, mono)
       const audioBuffer = audioCtx.createBuffer(1, float32.length, 24000);
       audioBuffer.copyToChannel(float32, 0);
 
       const source = audioCtx.createBufferSource();
       source.buffer = audioBuffer;
-
-      // ✅ No resampling / pitch shifting
-      source.playbackRate.value = 1.0;
-
       source.connect(audioCtx.destination);
+
       source.onended = () => {
         isPlayingRef.current = false;
         playNextInQueue(audioCtx, audioQueueRef, isPlayingRef); // 🔁 next chunk
       };
 
       source.start();
-      console.log("▶️ Playing chunk, duration:", audioBuffer.duration.toFixed(2), "seconds");
+      console.log("▶️ Playing chunk, duration:", audioBuffer.duration.toFixed(2));
     } catch (err) {
       console.error("❌ Error playing PCM chunk:", err);
       isPlayingRef.current = false;
     }
   }
+
 
 
   if (loading) {
