@@ -12,7 +12,6 @@ interface Agent {
 }
 
 const API_INTERNAL_URL = process.env.NEXT_PUBLIC_MODAL_API_URL;
-const MAX_RECORDING_MS = 30000;
 const VAD_SILENCE_MS = 800;
 const VAD_ENERGY_THRESHOLD = 0.01;
 
@@ -27,24 +26,18 @@ export default function SingleAgentFromSwarm() {
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
-  const audioCtx = new AudioContext({ sampleRate: 24000 });
   const wsRef = useRef<WebSocket | null>(null);
   const endAudioSentRef = useRef(false);
   const audioQueueRef = useRef<Uint8Array[]>([]);
   const isPlayingRef = useRef(false);
   const silenceTimer = useRef<NodeJS.Timeout | null>(null);
-  const dumpedOnceRef = useRef(false);
 
-
-  // Fetch agent metadata & join swarm
   useEffect(() => {
     if (!swarmIdParam) return;
 
     const fetchAgentFromSwarm = async () => {
       try {
-        const participantsRes = await fetch(
-          `${API_INTERNAL_URL}/participants-full?swarm_id=${swarmIdParam}`
-        );
+        const participantsRes = await fetch(`${API_INTERNAL_URL}/participants-full?swarm_id=${swarmIdParam}`);
         const participants = await participantsRes.json();
         const agentParticipant = participants.find((p: any) => p.type === "agent");
         if (!agentParticipant) throw new Error("No agent participant found");
@@ -90,9 +83,9 @@ export default function SingleAgentFromSwarm() {
     fetchAgentFromSwarm();
   }, [swarmIdParam]);
 
-  // Unlock mic + audio context on first gesture
   const handleMicUnlock = async () => {
     if (!participantId || !swarmIdParam) return;
+
     if (!audioCtxRef.current) {
       audioCtxRef.current = new AudioContext({ sampleRate: 24000 });
       console.log("🎚️ AudioContext sample rate:", audioCtxRef.current.sampleRate);
@@ -186,99 +179,59 @@ export default function SingleAgentFromSwarm() {
     setMicUnlocked(true);
   };
 
-  function saveAsWav(pcmData: Int16Array, sampleRate = 24000) {
-    const numChannels = 1;
-    const bitsPerSample = 16;
-    const byteRate = (sampleRate * numChannels * bitsPerSample) / 8;
-    const blockAlign = (numChannels * bitsPerSample) / 8;
-    const wavHeader = new ArrayBuffer(44);
-    const view = new DataView(wavHeader);
-
-    // RIFF chunk descriptor
-    view.setUint32(0, 0x52494646, false); // "RIFF"
-    view.setUint32(4, 36 + pcmData.length * 2, true); // File size - 8
-    view.setUint32(8, 0x57415645, false); // "WAVE"
-
-    // fmt sub-chunk
-    view.setUint32(12, 0x666d7420, false); // "fmt "
-    view.setUint32(16, 16, true); // Subchunk1Size
-    view.setUint16(20, 1, true); // AudioFormat = PCM
-    view.setUint16(22, numChannels, true);
-    view.setUint32(24, sampleRate, true);
-    view.setUint32(28, byteRate, true);
-    view.setUint16(32, blockAlign, true);
-    view.setUint16(34, bitsPerSample, true);
-
-    // data sub-chunk
-    view.setUint32(36, 0x64617461, false); // "data"
-    view.setUint32(40, pcmData.length * 2, true);
-
-    // Combine header + data
-    const wavBytes = new Uint8Array(44 + pcmData.length * 2);
-    wavBytes.set(new Uint8Array(wavHeader), 0);
-    for (let i = 0; i < pcmData.length; i++) {
-      wavBytes[44 + i * 2] = pcmData[i] & 0xff;
-      wavBytes[44 + i * 2 + 1] = (pcmData[i] >> 8) & 0xff;
-    }
-
-    const blob = new Blob([wavBytes], { type: "audio/wav" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `elevenlabs_output_${Date.now()}.wav`;
-    a.click();
-  }
-
-
   async function playNextInQueue(
     audioCtx: AudioContext,
     audioQueueRef: React.MutableRefObject<Uint8Array[]>,
     isPlayingRef: React.MutableRefObject<boolean>
   ) {
     if (isPlayingRef.current) return;
+
     const nextChunk = audioQueueRef.current.shift();
     if (!nextChunk) return;
 
     isPlayingRef.current = true;
 
     try {
-      // 🔍 Save MP3 file for debugging
-      const blob = new Blob([nextChunk], { type: "audio/mpeg" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `elevenlabs_output_${Date.now()}.mp3`;
-      a.click();
+      const fixedBuffer = new ArrayBuffer(nextChunk.byteLength);
+      new Uint8Array(fixedBuffer).set(new Uint8Array(nextChunk));
+      const blob = new Blob([fixedBuffer], { type: "audio/mpeg" });
 
-      // 🔄 Decode MP3 → AudioBuffer
       const arrayBuffer = await blob.arrayBuffer();
-      const decodedAudio = await audioCtx.decodeAudioData(arrayBuffer);
+      const audioBuffer = await new Promise<AudioBuffer>((resolve, reject) => {
+        audioCtx.decodeAudioData(arrayBuffer, resolve, reject);
+      });
 
-      // 🔊 Play decoded buffer
       const source = audioCtx.createBufferSource();
-      source.buffer = decodedAudio;
+      source.buffer = audioBuffer;
       source.connect(audioCtx.destination);
 
       source.onended = () => {
         isPlayingRef.current = false;
-        playNextInQueue(audioCtx, audioQueueRef, isPlayingRef); // 🔁 next
+        playNextInQueue(audioCtx, audioQueueRef, isPlayingRef);
       };
 
       source.start();
-      console.log("▶️ Playing decoded MP3, duration:", decodedAudio.duration.toFixed(2), "seconds");
+      console.log("▶️ Playing decoded MP3, duration:", audioBuffer.duration.toFixed(2), "seconds");
     } catch (err) {
       console.error("❌ Failed to decode or play MP3 chunk:", err);
       isPlayingRef.current = false;
     }
   }
 
-
   if (loading) {
-    return <div className="flex items-center justify-center h-screen bg-black text-white"><span className="text-xl animate-pulse">Loading agent...</span></div>;
+    return (
+      <div className="flex items-center justify-center h-screen bg-black text-white">
+        <span className="text-xl animate-pulse">Loading agent...</span>
+      </div>
+    );
   }
 
   if (!agent) {
-    return <div className="flex items-center justify-center h-screen bg-black text-white"><span className="text-lg">Agent not found.</span></div>;
+    return (
+      <div className="flex items-center justify-center h-screen bg-black text-white">
+        <span className="text-lg">Agent not found.</span>
+      </div>
+    );
   }
 
   const isPortrait = agent.orientation === "portrait";
