@@ -109,6 +109,7 @@ export default function SingleAgentFromSwarm() {
         console.log("[Agent reply]", msg);
       } else {
         const audioBytes = new Uint8Array(event.data);
+        console.log("🎧 Incoming audio chunk size:", audioBytes.length);
         audioQueueRef.current.push(audioBytes);
         if (audioCtxRef.current?.state === "suspended") await audioCtxRef.current.resume();
         playNextInQueue(audioCtxRef.current!, audioQueueRef, isPlayingRef);
@@ -186,6 +187,7 @@ export default function SingleAgentFromSwarm() {
   ) {
     if (isPlayingRef.current) return;
 
+    console.log("📦 Checking queue... Length:", audioQueueRef.current.length);
     const nextChunk = audioQueueRef.current.shift();
     if (!nextChunk) return;
 
