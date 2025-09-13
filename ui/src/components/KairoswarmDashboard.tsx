@@ -441,7 +441,7 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
                       </span>
                     )}
                   </div>
-                  <div>{msg.message}</div>
+                  <div>{typeof msg.message === 'string' ? msg.message : JSON.stringify(msg.message)}</div>
                 </div>
               ))}
             </div>
