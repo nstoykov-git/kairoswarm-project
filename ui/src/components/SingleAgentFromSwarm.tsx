@@ -274,6 +274,16 @@ export default function SingleAgentFromSwarm() {
           </div>
         )}
       </div>
+      <div className="absolute bottom-6 right-6 z-50">
+        <button
+          onClick={() =>
+            window.open(`https://kairoswarm.com/?swarm_id=${swarmIdParam}`, "_blank")
+          }
+          className="bg-black/50 text-white px-4 py-2 rounded-full text-sm hover:bg-black/70 transition"
+        >
+          📜 Transcript
+        </button>
+      </div>
     </div>
   );
 }
