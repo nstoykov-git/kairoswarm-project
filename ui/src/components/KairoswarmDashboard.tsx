@@ -424,7 +424,8 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
                 <div key={msg.timestamp || idx} className="flex flex-col space-y-0.5">
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-white">
-                      {participants.find(p => p.id === (typeof msg.from === 'object' ? msg.from.id : msg.from))?.name || 'Guest'}:
+                      {'Guest'}:
+                      //{participants.find(p => p.id === (typeof msg.from === 'object' ? msg.from.id : msg.from))?.name || 'Guest'}:
                     </span>
                     {msg.timestamp && (
                       <span className="text-xs text-gray-400 font-mono">
