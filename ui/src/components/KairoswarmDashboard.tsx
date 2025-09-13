@@ -421,14 +421,18 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
 
             <div className="space-y-2">
               {tape.map((msg, idx) => (
-                <div key={msg.timestamp || idx} className="flex flex-col space-y-0.5">
+                <div key={`${msg.timestamp}-${idx}`} className="flex flex-col space-y-0.5">
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-white">
-                      {participants.find(p => p.id === (typeof msg.from === 'object' ? msg.from.id : msg.from))?.name || 'Guest'}:
+                      {
+                        typeof msg.from === "string"
+                          ? msg.from
+                          : participants.find(p => p.id === msg.from?.id)?.name || "Guest"
+                      }:
                     </span>
                     {msg.timestamp && (
                       <span className="text-xs text-gray-400 font-mono">
-                        {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        {new Date(msg.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                       </span>
                     )}
                   </div>
