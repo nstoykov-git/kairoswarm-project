@@ -124,13 +124,15 @@ async def add_agent(request: Request):
         redis = await get_redis()
 
         # 🔍 Look up agent in Supabase by Kairoswarm UUID
-        agent_resp = sb.table("agents").select("name", "openai_id").eq("id", agent_id).single().execute()
+        agent_resp = sb.table("agents").select("name", "openai_id", "system_prompt", "voice").eq("id", agent_id).single().execute()
 
         if not agent_resp.data:
             return JSONResponse(status_code=404, content={"error": f"Agent {agent_id} not found."})
 
         openai_id = agent_resp.data["openai_id"]
         name = agent_resp.data["name"]
+        voice = agent_resp.data.get("voice")
+        system_prompt = agent_resp.data.get("system_prompt")
 
         if not openai_id:
             return JSONResponse(status_code=400, content={"error": "Agent does not have an OpenAI assistant ID."})
@@ -143,20 +145,18 @@ async def add_agent(request: Request):
         if ttl <= 0 and ttl != -1:
             return JSONResponse(status_code=400, content={"error": "Swarm expired or not found"})
 
-        # 💾 Save agent + participant in Redis using Kairoswarm UUID
-        await redis.hset(f"{sid}:agents", agent_id, json.dumps({
-            "agent_id": agent_id,              # Kairoswarm UUID
-            "assistant_id": openai_id,         # OpenAI assistant ID (for OpenAI API)
-            "thread_id": thread.id,
-            "name": name
-        }))
-
-        await redis.hset(f"{sid}:agent:{agent_id}", mapping={
+        # 💾 Save agent + participant in Redis
+        agent_blob = {
             "agent_id": agent_id,
             "assistant_id": openai_id,
             "thread_id": thread.id,
-            "name": name
-        })
+            "name": name,
+            "voice": voice,
+            "system_prompt": system_prompt,
+        }
+
+        await redis.hset(f"{sid}:agents", agent_id, json.dumps(agent_blob))
+        await redis.hset(f"{sid}:agent:{agent_id}", mapping=agent_blob)
 
         await redis.hset(f"{sid}:participants", pid, json.dumps({
             "id": pid,
@@ -179,7 +179,6 @@ async def add_agent(request: Request):
         logging.exception("❌ Failed to add agent to swarm")
         return {"error": str(e)}
 
-
 # --- Reload Agent ---
     
 @router.post("/reload-agent")
@@ -192,7 +191,17 @@ async def reload_agent(request: Request):
         return {"status": "error", "message": "Missing agent_id"}
 
     try:
-        assistant = openai.beta.assistants.retrieve(agent_id)
+        sb = get_supabase()
+        agent_resp = sb.table("agents").select("name", "openai_id", "system_prompt", "voice").eq("id", agent_id).single().execute()
+
+        if not agent_resp.data:
+            return {"status": "error", "message": "Agent not found in Supabase."}
+
+        name = agent_resp.data["name"]
+        voice = agent_resp.data.get("voice")
+        system_prompt = agent_resp.data.get("system_prompt")
+        openai_id = agent_resp.data["openai_id"]
+
         thread = openai.beta.threads.create()
 
         async with get_redis() as r:
@@ -211,26 +220,23 @@ async def reload_agent(request: Request):
                 except Exception:
                     continue
 
-            # ✅ If found, update in place
             pid = existing_pid or str(uuid.uuid4())
 
-            await r.hset(f"{swarm_id}:agents", agent_id, json.dumps({
+            agent_blob = {
                 "agent_id": agent_id,
-                "assistant_id": agent_id,  # This is the OpenAI assistant ID in this case
+                "assistant_id": openai_id,
                 "thread_id": thread.id,
-                "name": assistant.name
-            }))
+                "name": name,
+                "voice": voice,
+                "system_prompt": system_prompt,
+            }
 
-            await r.hset(f"{swarm_id}:agent:{agent_id}", mapping={
-                "agent_id": agent_id,
-                "assistant_id": agent_id,
-                "thread_id": thread.id,
-                "name": assistant.name
-            })
+            await r.hset(f"{swarm_id}:agents", agent_id, json.dumps(agent_blob))
+            await r.hset(f"{swarm_id}:agent:{agent_id}", mapping=agent_blob)
 
             await r.hset(f"{swarm_id}:participants", pid, json.dumps({
                 "id": pid,
-                "name": assistant.name,
+                "name": name,
                 "type": "agent",
                 "metadata": {
                     "agent_id": agent_id,
@@ -238,10 +244,11 @@ async def reload_agent(request: Request):
                 }
             }))
 
-        return {"status": "ok", "message": f"Agent {assistant.name} reloaded"}
+        return {"status": "ok", "message": f"Agent {name} reloaded"}
 
     except Exception as e:
-        return {"status": "error", "message": str(e)}    
+        logging.exception("❌ Failed to reload agent")
+        return {"status": "error", "message": str(e)}
 
 
 # --- Generate Embedding for Agent Publishing ---
