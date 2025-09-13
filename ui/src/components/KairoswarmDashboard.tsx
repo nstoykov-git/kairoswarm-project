@@ -98,11 +98,16 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
           const cleanedPrev = prev.filter(m => {
             if (!m.optimistic) return true;
 
-            return !tapeData.some(s =>
-              s.from === m.from &&
-              s.message === m.message &&
-              Math.abs(new Date(s.timestamp).getTime() - new Date(m.timestamp).getTime()) < 5000 // 5s grace
-            );
+            return !tapeData.some(s => {
+              const sFrom = typeof s.from === "string" ? s.from : s.from?.id;
+              const mFrom = typeof m.from === "string" ? m.from : m.from?.id;
+
+              return (
+                sFrom === mFrom &&
+                s.message === m.message &&
+                Math.abs(new Date(s.timestamp).getTime() - new Date(m.timestamp).getTime()) < 5000
+              );
+            });
           });
 
 
