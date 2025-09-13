@@ -423,7 +423,11 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
               {tape.map((msg, idx) => (
                 <div key={msg.timestamp || idx} className="flex flex-col space-y-0.5">
                   <div className="flex items-center justify-between">
-                    <span className="font-bold text-white">{msg.from}:</span>
+                    <span className="font-bold text-white">
+                      {typeof msg.from === 'string'
+                        ? msg.from
+                        : msg.from?.id || 'Unknown'}:
+                    </span>
                     {msg.timestamp && (
                       <span className="text-xs text-gray-400 font-mono">
                         {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
