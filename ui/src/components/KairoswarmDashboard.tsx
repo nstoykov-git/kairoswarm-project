@@ -106,6 +106,7 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
             agent_id: msg.agent_id
           });
         } else if (msg.type === "final") {
+          console.log("Appending to tape:", msg.message);
           setTape(prev => [
             ...prev,
             {
