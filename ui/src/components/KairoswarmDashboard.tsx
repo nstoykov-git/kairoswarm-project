@@ -10,6 +10,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Send, Users, Bot, PlusCircle, Eye, PanelRightClose, PanelRightOpen, Copy
 } from 'lucide-react';
+import { motion, AnimatePresence } from "framer-motion";
 import { useUser } from '@/context/UserContext';
 import { Suspense } from "react"
 import TopBar from '@/components/TopBar';
@@ -106,7 +107,10 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
             agent_id: msg.agent_id
           });
         } else if (msg.type === "final") {
-          console.log("Appending to tape:", msg.message);
+          // Clear live preview
+          setLiveMessage(null);
+
+          // Append the full, persisted message
           setTape(prev => [
             ...prev,
             {
@@ -115,12 +119,12 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
               timestamp: msg.timestamp
             }
           ]);
-          setLiveMessage(null);
         }
       } catch (err) {
         console.error("[WS] Failed to parse message:", err);
       }
     };
+
 
     ws.onclose = () => {
       console.warn("🧠 WebSocket disconnected.");
@@ -468,17 +472,27 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
                 </div>
               ))}
 
-              {liveMessage && (
-                <div className="flex flex-col space-y-0.5 opacity-80 italic">
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-white">
-                      {participants.find(p => p.id === liveMessage.agent_id)?.name || liveMessage.from}:
-                    </span>
-                    <span className="text-xs text-gray-400 font-mono">...</span>
-                  </div>
-                  <div>{liveMessage.text}</div>
-                </div>
-              )}
+              <AnimatePresence>
+                {liveMessage && (
+                  <motion.div
+                    key="liveMessage"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.3 }}
+                    className="flex flex-col space-y-0.5 italic text-gray-400"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-white">
+                        {participants.find(p => p.id === liveMessage.agent_id)?.name || liveMessage.from}:
+                      </span>
+                      <span className="text-xs font-mono">typing…</span>
+                    </div>
+                    <div>{liveMessage.text}</div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
             </div>
 
           </ScrollArea>
