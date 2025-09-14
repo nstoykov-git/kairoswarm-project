@@ -67,6 +67,71 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const participantsScrollRef = useRef<HTMLDivElement | null>(null);
 
+  const refreshParticipants = async (swarmId: string) => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/participants-full?swarm_id=${swarmId}`);
+      const data = await res.json();
+      if (Array.isArray(data)) setParticipants(data);
+    } catch (err) {
+      console.error("[refreshParticipants] Error:", err);
+    }
+  };
+
+  const wsRef = useRef<WebSocket | null>(null);
+  const [liveMessage, setLiveMessage] = useState<{ from: string, text: string, agent_id: string } | null>(null);
+
+  useEffect(() => {
+    if (!participantId || !swarmId) return;
+
+    const ws = new WebSocket(`${API_BASE_URL?.replace(/^http/, 'ws')}/speak`);
+    wsRef.current = ws;
+
+    ws.onopen = () => {
+      ws.send(JSON.stringify({
+        swarm_id: swarmId,
+        participant_id: participantId,
+        type: "human"
+      }));
+      console.log("🧠 WebSocket connected to /speak");
+    };
+
+    ws.onmessage = (event) => {
+      try {
+        const msg = JSON.parse(event.data);
+
+        if (msg.type === "partial") {
+          setLiveMessage({
+            from: msg.from,
+            text: msg.message,
+            agent_id: msg.agent_id
+          });
+        } else if (msg.type === "final") {
+          setTape(prev => [
+            ...prev,
+            {
+              from: { id: msg.agent_id, type: "agent" },
+              message: msg.message,
+              timestamp: msg.timestamp
+            }
+          ]);
+          setLiveMessage(null);
+        }
+      } catch (err) {
+        console.error("[WS] Failed to parse message:", err);
+      }
+    };
+
+    ws.onclose = () => {
+      console.warn("🧠 WebSocket disconnected.");
+      wsRef.current = null;
+    };
+
+    return () => {
+      ws.close();
+    };
+  }, [participantId, swarmId]);
+
+
   useEffect(() => {
     const reloadAllAgents = async () => {
       const res = await fetch(`${API_BASE_URL}/participants-full?swarm_id=${swarmId}`);
@@ -84,57 +149,6 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
     if (swarmId) reloadAllAgents();
   }, [swarmId]);
 
-  useEffect(() => {
-    const poll = setInterval(async () => {
-      const [tapeRes, participantsRes] = await Promise.all([
-        fetch(`${API_BASE_URL}/tape?swarm_id=${swarmId}`),
-        fetch(`${API_BASE_URL}/participants-full?swarm_id=${swarmId}`)
-      ]);
-      const tapeData = await tapeRes.json();
-      const participantsData = await participantsRes.json();
-      if (Array.isArray(tapeData)) {
-        setTape(prev => {
-          // Remove any optimistic messages that have already arrived from server
-          const cleanedPrev = prev.filter(m => {
-            if (!m.optimistic) return true;
-
-            return !tapeData.some(s => {
-              const sFrom = typeof s.from === "string" ? s.from : s.from?.id;
-              const mFrom = typeof m.from === "string" ? m.from : m.from?.id;
-
-              return (
-                sFrom === mFrom &&
-                s.message === m.message &&
-                Math.abs(new Date(s.timestamp).getTime() - new Date(m.timestamp).getTime()) < 5000
-              );
-            });
-          });
-
-
-          // Merge in new server messages without duplication
-          const merged = [...cleanedPrev];
-          tapeData.forEach(serverMsg => {
-            const exists = merged.some(
-              m =>
-                m.from === serverMsg.from &&
-                m.message === serverMsg.message &&
-                m.timestamp === serverMsg.timestamp
-            );
-            if (!exists) merged.push(serverMsg);
-          });
-
-          // Keep sorted by time
-          return merged.sort(
-            (a, b) =>
-              new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-          );
-        });
-      }
-
-      if (Array.isArray(participantsData)) setParticipants(participantsData);
-    }, 2000);
-    return () => clearInterval(poll);
-  }, [swarmId]);
 
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -154,6 +168,7 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
     const data = await res.json();
     if (data.status === 'joined') {
       setParticipantId(data.participant_id);
+      refreshParticipants(swarmId);
     }
   };
 
@@ -275,27 +290,33 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
     return new Blob(byteArrays, { type: contentType });
   }
 
-  const handleSpeak = async () => {
-  if (!participantId || !input.trim()) return;
+  const handleSpeak = () => {
+    if (!participantId || !input.trim()) return;
 
-  const messageToSend = input;
-  setInput(""); // Clear input immediately for user feedback
+    const messageToSend = input;
+    setInput(""); // Clear input immediately for UX feedback
 
-  try {
-    await fetch(`${API_BASE_URL}/speak`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        participant_id: participantId,
-        swarm_id: swarmId,
+    const msgPayload = {
+      message: messageToSend
+    };
+
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify(msgPayload));
+    } else {
+      console.warn("[Speak] WS not ready — skipping send.");
+    }
+
+    // Optionally show the human message immediately (optimistic render)
+    setTape(prev => [
+      ...prev,
+      {
+        from: { id: participantId, type: "human" },
         message: messageToSend,
-      }),
-    });
-    // No local tape update — rely solely on /tape polling to render messages
-  } catch (err) {
-    console.error("[Speak] Error:", err);
-  }
-};
+        timestamp: new Date().toISOString(),
+        optimistic: true
+      }
+    ]);
+  };
 
 
   const handleAddAgent = async () => {
@@ -311,6 +332,7 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
     const data = await res.json();
     if (data.name) {
       alert(`✅ Agent "${data.name}" added`);
+      refreshParticipants(swarmId);
     } else {
       alert("⚠️ Failed to add agent");
     }
@@ -361,7 +383,7 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
           return merged;
         });
       }
-      if (Array.isArray(participantsData)) setParticipants(participantsData);
+      await refreshParticipants(newSwarmId);
 
       for (const p of participantsData) {
         if (p.type === "agent") {
@@ -444,6 +466,18 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
                   <div>{typeof msg.message === 'string' ? msg.message : JSON.stringify(msg.message)}</div>
                 </div>
               ))}
+
+              {liveMessage && (
+                <div className="flex flex-col space-y-0.5 opacity-80 italic">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-white">
+                      {participants.find(p => p.id === liveMessage.agent_id)?.name || liveMessage.from}:
+                    </span>
+                    <span className="text-xs text-gray-400 font-mono">...</span>
+                  </div>
+                  <div>{liveMessage.text}</div>
+                </div>
+              )}
             </div>
 
           </ScrollArea>
