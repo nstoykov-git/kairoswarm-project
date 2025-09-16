@@ -82,6 +82,19 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
   const [liveMessage, setLiveMessage] = useState<{ from: string, text: string, agent_id: string } | null>(null);
 
   useEffect(() => {
+    if (!swarmId) {
+      setSwarmId("default");
+    }
+  }, [swarmId]);
+
+  useEffect(() => {
+    if (swarmId) {
+      fetchSwarmData(swarmId);
+    }
+  }, [swarmId]);
+
+
+  useEffect(() => {
     if (!participantId || !swarmId) return;
 
     const ws = new WebSocket(`${API_BASE_URL?.replace(/^http/, 'ws')}/speak`);
