@@ -120,18 +120,11 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
             agent_id: msg.agent_id
           });
         } else if (msg.type === "final") {
-          // Clear live preview
+          // 💥 Clear the "breaking news"
           setLiveMessage(null);
 
-          // Append the full, persisted message
-          setTape(prev => [
-            ...prev,
-            {
-              from: { id: msg.agent_id, type: "agent" },
-              message: msg.message,
-              timestamp: msg.timestamp
-            }
-          ]);
+          // 🔄 Refresh the canonical transcript from Redis
+          fetchSwarmData(swarmId);
         }
       } catch (err) {
         console.error("[WS] Failed to parse message:", err);
@@ -488,11 +481,11 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
               <AnimatePresence>
                 {liveMessage && (
                   <motion.div
-                    key="liveMessage"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.3 }}
+                    key={`live-${liveMessage.agent_id}`}
+                    initial={{ opacity: 0, y: 4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -4 }}
+                    transition={{ duration: 0.25 }}
                     className="flex flex-col space-y-0.5 italic text-gray-400"
                   >
                     <div className="flex items-center justify-between">
