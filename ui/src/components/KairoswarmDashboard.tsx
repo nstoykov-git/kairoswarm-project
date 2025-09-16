@@ -125,6 +125,7 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
 
           // 🔄 Refresh the canonical transcript from Redis
           fetchSwarmData(swarmId);
+          console.log("Fetched swarm data")
         }
       } catch (err) {
         console.error("[WS] Failed to parse message:", err);
