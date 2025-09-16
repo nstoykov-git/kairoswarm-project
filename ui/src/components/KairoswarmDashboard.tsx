@@ -124,6 +124,7 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
           setLiveMessage(null);
 
           // 🔄 Refresh the canonical transcript from Redis
+          console.log("About to fetch swarm data")
           fetchSwarmData(swarmId);
           console.log("Fetched swarm data")
         }
