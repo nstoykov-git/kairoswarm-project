@@ -112,25 +112,22 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
     ws.onmessage = (event) => {
       try {
         const msg = JSON.parse(event.data);
+        console.log("[WS] Parsed message:", msg);
 
-        if (msg.type === "partial") {
-          console.log("Received a partial message")
+        if (msg.ws_message_type === "partial") {
           setLiveMessage({
             from: msg.from,
             text: msg.message,
             agent_id: msg.agent_id
           });
-        } else if (msg.type === "final") {
-          // 💥 Clear the "breaking news"
+        } else if (msg.ws_message_type === "final") {
           setLiveMessage(null);
-
-          // 🔄 Refresh the canonical transcript from Redis
-          console.log("About to fetch swarm data")
           fetchSwarmData(swarmId);
-          console.log("Fetched swarm data")
+        } else if (msg.ws_message_type === "error") {
+          console.error("[WS] Error message:", msg.detail);
         }
       } catch (err) {
-        console.error("[WS] Failed to parse message:", err);
+        console.error("[WS] Failed to parse message:", err, event.data);
       }
     };
 
