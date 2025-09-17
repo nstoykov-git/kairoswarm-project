@@ -114,6 +114,7 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
         const msg = JSON.parse(event.data);
 
         if (msg.type === "partial") {
+          console.log("Received a partial message")
           setLiveMessage({
             from: msg.from,
             text: msg.message,
