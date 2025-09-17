@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
-  Send, Users, Bot, PlusCircle, Eye, PanelRightClose, PanelRightOpen, Copy
+  Send, Users, Bot, PlusCircle, Eye, Copy
 } from 'lucide-react';
 import { motion, AnimatePresence } from "framer-motion";
 import { useUser } from '@/context/UserContext';
@@ -16,6 +16,8 @@ import { Suspense } from "react"
 import TopBar from '@/components/TopBar';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_MODAL_API_URL;
+const VAD_SILENCE_MS = 800;
+const VAD_ENERGY_THRESHOLD = 0.01;
 
 function SwarmInfo({ swarmId }: { swarmId: string }) {
   const [copied, setCopied] = useState(false)
@@ -46,7 +48,6 @@ function SwarmInfo({ swarmId }: { swarmId: string }) {
   )
 }
 
-
 export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?: string }) {
   const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
   const initialSwarmId = swarmIdProp || searchParams?.get('swarm_id') || 'default';
@@ -61,9 +62,6 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
   const [participants, setParticipants] = useState<any[]>([]);
   const [tape, setTape] = useState<any[]>([]);
   const [showParticipants, setShowParticipants] = useState(true);
-  const [isRecording, setIsRecording] = useState(false);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const participantsScrollRef = useRef<HTMLDivElement | null>(null);
@@ -81,7 +79,17 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
   const wsRef = useRef<WebSocket | null>(null);
   const [liveMessage, setLiveMessage] = useState<{ from: string, text: string, agent_id: string } | null>(null);
 
-  useEffect(() => {
+  // 🎤 Voice refs
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const wsVoiceRef = useRef<WebSocket | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const endAudioSentRef = useRef(false);
+  const audioQueueRef = useRef<Uint8Array[]>([]);
+  const isPlayingRef = useRef(false);
+  const silenceTimer = useRef<NodeJS.Timeout | null>(null);
+  const [isRecording, setIsRecording] = useState(false);
+
+    useEffect(() => {
     if (!swarmId) {
       setSwarmId("default");
     }
@@ -93,7 +101,7 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
     }
   }, [swarmId]);
 
-
+  // WS for /speak (text messages, partial/final updates)
   useEffect(() => {
     if (!participantId || !swarmId) return;
 
@@ -131,7 +139,6 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
       }
     };
 
-
     ws.onclose = () => {
       console.warn("🧠 WebSocket disconnected.");
       wsRef.current = null;
@@ -141,25 +148,6 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
       ws.close();
     };
   }, [participantId, swarmId]);
-
-
-  useEffect(() => {
-    const reloadAllAgents = async () => {
-      const res = await fetch(`${API_BASE_URL}/participants-full?swarm_id=${swarmId}`);
-      const participantsData = await res.json();
-      for (const p of participantsData) {
-        if (p.type === 'agent') {
-          await fetch(`${API_BASE_URL}/swarm/reload-agent`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ swarm_id: swarmId, agent_id: p.metadata?.agent_id || p.id })
-          });
-        }
-      }
-    };
-    if (swarmId) reloadAllAgents();
-  }, [swarmId]);
-
 
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -183,129 +171,166 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
     }
   };
 
+  // 🎤 Start/stop voice (toggle with VAD)
   const handleToggleVoice = async () => {
-    if (!participantId) return;
+    if (!participantId || !swarmId) return;
 
-    // Keep unlock state for audio context
-    let localAudioContext: AudioContext | null = null;
-    let audioUnlocked = false;
-
-    if (!isRecording) {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      mediaRecorderRef.current = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs=opus' });
-      chunksRef.current = [];
-
-      mediaRecorderRef.current.ondataavailable = e => chunksRef.current.push(e.data);
-
-      mediaRecorderRef.current.onstart = async () => {
-        if (!audioUnlocked) {
-          try {
-            const AudioContextClass =
-              window.AudioContext || (window as any).webkitAudioContext;
-            if (!localAudioContext) {
-              localAudioContext = new AudioContextClass();
-            }
-
-            // Create a 1-frame silent buffer to unlock audio
-            const buffer = localAudioContext.createBuffer(1, 1, 22050);
-            const source = localAudioContext.createBufferSource();
-            source.buffer = buffer;
-            source.connect(localAudioContext.destination);
-            source.start(0);
-
-            // Resume for Safari
-            await localAudioContext.resume();
-
-            audioUnlocked = true;
-            console.debug("[TTS] Audio context unlocked via Web Audio API");
-          } catch (err) {
-            console.warn("[TTS] Failed to unlock audio context:", err);
-          }
-        }
-      };
-
-      mediaRecorderRef.current.onstop = async () => {
-        try {
-          const blob = new Blob(chunksRef.current, { type: 'audio/webm;codecs=opus' });
-          const formData = new FormData();
-          formData.append('audio', blob, 'voice-input.webm');
-          formData.append('participant_id', participantId);
-          formData.append('swarm_id', swarmId);
-
-          const res = await fetch(`${API_BASE_URL}/voice`, { method: 'POST', body: formData });
-          const data = await res.json();
-
-          // Append agent reply to tape
-          if (data.entry) {
-            setTape(prev => [...prev, data.entry]);
-          }
-
-          // Play TTS reply if available
-          if (data.audioBase64) {
-            if (!localAudioContext) {
-              const AudioContextClass =
-                window.AudioContext || (window as any).webkitAudioContext;
-              localAudioContext = new AudioContextClass();
-              await localAudioContext.resume();
-            }
-
-            const audioArrayBuffer = Uint8Array.from(
-              atob(data.audioBase64),
-              c => c.charCodeAt(0)
-            ).buffer;
-
-            localAudioContext.decodeAudioData(
-              audioArrayBuffer,
-              buffer => {
-                const source = localAudioContext!.createBufferSource();
-                source.buffer = buffer;
-                source.connect(localAudioContext!.destination);
-                source.start(0);
-                console.debug('[TTS] Playback started via Web Audio API');
-              },
-              err => {
-                console.error('[TTS] decodeAudioData failed:', err);
-              }
-            );
-
-          } else {
-            console.warn('[TTS] No audioBase64 returned from /voice');
-          }
-        } catch (err) {
-          console.error('[Voice] Error during onstop processing:', err);
-        } finally {
-          chunksRef.current = [];
-        }
-      };
-
-      mediaRecorderRef.current.start();
-      setIsRecording(true);
-    } else {
-      mediaRecorderRef.current?.stop();
+    if (isRecording) {
+      // ⏹ Stop
+      if (mediaRecorderRef.current?.state === "recording") {
+        mediaRecorderRef.current.stop();
+      }
+      if (!endAudioSentRef.current && wsVoiceRef.current?.readyState === WebSocket.OPEN) {
+        wsVoiceRef.current.send(JSON.stringify({ event: "end_audio" }));
+        endAudioSentRef.current = true;
+      }
+      wsVoiceRef.current?.close();
+      wsVoiceRef.current = null;
       setIsRecording(false);
+      console.log("⏹ Voice stopped, back to text mode");
+      return;
     }
+
+    // 🎤 Start
+    if (!audioCtxRef.current) {
+      audioCtxRef.current = new AudioContext({ sampleRate: 24000 });
+      console.log("🎚️ AudioContext sample rate:", audioCtxRef.current.sampleRate);
+    }
+    await audioCtxRef.current.resume();
+
+    const wsUrl = API_BASE_URL!.replace(/^http/, "ws") + "/voice";
+    wsVoiceRef.current = new WebSocket(wsUrl);
+    wsVoiceRef.current.binaryType = "arraybuffer";
+
+    wsVoiceRef.current.onopen = () => {
+      wsVoiceRef.current?.send(
+        JSON.stringify({ swarmId, participant_id: participantId, type: "human" })
+      );
+      console.log("🎤 Voice WebSocket opened");
+    };
+
+    wsVoiceRef.current.onmessage = async (event) => {
+      if (typeof event.data === "string") {
+        const msg = JSON.parse(event.data);
+        console.log("[Agent reply]", msg);
+      } else {
+        const audioBytes = new Uint8Array(event.data);
+        console.log("🎧 Incoming audio chunk size:", audioBytes.length);
+        audioQueueRef.current.push(audioBytes);
+        if (audioCtxRef.current?.state === "suspended") await audioCtxRef.current.resume();
+        playNextInQueue(audioCtxRef.current!, audioQueueRef, isPlayingRef);
+      }
+    };
+
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const sourceNode = audioCtxRef.current.createMediaStreamSource(stream);
+    const analyser = audioCtxRef.current.createAnalyser();
+    analyser.fftSize = 2048;
+    sourceNode.connect(analyser);
+
+    const data = new Uint8Array(analyser.fftSize);
+
+    mediaRecorderRef.current = new MediaRecorder(stream, {
+      mimeType: "audio/webm;codecs=opus",
+    });
+
+    mediaRecorderRef.current.ondataavailable = async (event) => {
+      if (event.data.size > 0 && wsVoiceRef.current?.readyState === WebSocket.OPEN) {
+        const buf = await event.data.arrayBuffer();
+        wsVoiceRef.current.send(buf);
+      }
+    };
+
+    mediaRecorderRef.current.onstop = () => {
+      if (!endAudioSentRef.current && wsVoiceRef.current?.readyState === WebSocket.OPEN) {
+        wsVoiceRef.current.send(JSON.stringify({ event: "end_audio" }));
+        endAudioSentRef.current = true;
+      }
+    };
+
+    const vadLoop = () => {
+      analyser.getByteTimeDomainData(data);
+      let sum = 0;
+      for (let i = 0; i < data.length; i++) {
+        const val = (data[i] - 128) / 128;
+        sum += val * val;
+      }
+      const rms = Math.sqrt(sum / data.length);
+      if (rms > VAD_ENERGY_THRESHOLD) {
+        if (mediaRecorderRef.current?.state === "inactive") {
+          endAudioSentRef.current = false;
+          mediaRecorderRef.current.start(50);
+        }
+        if (silenceTimer.current) {
+          clearTimeout(silenceTimer.current);
+        }
+        silenceTimer.current = setTimeout(() => {
+          if (mediaRecorderRef.current?.state === "recording") {
+            try {
+              mediaRecorderRef.current.requestData();
+              setTimeout(() => {
+                if (mediaRecorderRef.current?.state === "recording") {
+                  mediaRecorderRef.current.stop();
+                }
+              }, 150);
+            } catch (err) {
+              console.warn("[VAD] Failed to flush recorder data:", err);
+            }
+          }
+        }, VAD_SILENCE_MS);
+      }
+      requestAnimationFrame(vadLoop);
+    };
+
+    requestAnimationFrame(vadLoop);
+    setIsRecording(true);
   };
 
+  async function playNextInQueue(
+    audioCtx: AudioContext,
+    audioQueueRef: React.MutableRefObject<Uint8Array[]>,
+    isPlayingRef: React.MutableRefObject<boolean>
+  ) {
+    if (isPlayingRef.current) return;
 
-  function b64ToBlob(b64Data: string, contentType = '', sliceSize = 512) {
-    const byteChars = atob(b64Data);
-    const byteArrays = [];
-    for (let offset = 0; offset < byteChars.length; offset += sliceSize) {
-      const slice = byteChars.slice(offset, offset + sliceSize);
-      const byteNumbers = new Array(slice.length);
-      for (let i = 0; i < slice.length; i++) {
-        byteNumbers[i] = slice.charCodeAt(i);
-      }
-      byteArrays.push(new Uint8Array(byteNumbers));
+    console.log("📦 Checking queue... Length:", audioQueueRef.current.length);
+    const nextChunk = audioQueueRef.current.shift();
+    if (!nextChunk) return;
+
+    isPlayingRef.current = true;
+
+    try {
+      const fixedBuffer = new ArrayBuffer(nextChunk.byteLength);
+      new Uint8Array(fixedBuffer).set(new Uint8Array(nextChunk));
+      const blob = new Blob([fixedBuffer], { type: "audio/mpeg" });
+
+      const arrayBuffer = await blob.arrayBuffer();
+      const audioBuffer = await new Promise<AudioBuffer>((resolve, reject) => {
+        audioCtx.decodeAudioData(arrayBuffer, resolve, reject);
+      });
+
+      const source = audioCtx.createBufferSource();
+      source.buffer = audioBuffer;
+      source.connect(audioCtx.destination);
+
+      source.onended = () => {
+        isPlayingRef.current = false;
+        playNextInQueue(audioCtx, audioQueueRef, isPlayingRef);
+      };
+
+      source.start();
+      console.log("▶️ Playing decoded MP3, duration:", audioBuffer.duration.toFixed(2), "seconds");
+    } catch (err) {
+      console.error("❌ Failed to decode or play MP3 chunk:", err);
+      isPlayingRef.current = false;
     }
-    return new Blob(byteArrays, { type: contentType });
   }
 
   const handleSpeak = () => {
     if (!participantId || !input.trim()) return;
 
     const messageToSend = input;
-    setInput(""); // Clear input immediately for UX feedback
+    setInput(""); // Clear input immediately
 
     const msgPayload = {
       message: messageToSend
@@ -317,7 +342,7 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
       console.warn("[Speak] WS not ready — skipping send.");
     }
 
-    // Optionally show the human message immediately (optimistic render)
+    // Optimistic render
     setTape(prev => [
       ...prev,
       {
@@ -328,7 +353,6 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
       }
     ]);
   };
-
 
   const handleAddAgent = async () => {
     const agentId = prompt("Enter Kairoswarm Agent ID:");
@@ -380,40 +404,13 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
       const tapeData = await tapeRes.json();
       const participantsData = await participantsRes.json();
 
-      if (Array.isArray(tapeData)) {
-        setTape(prev => {
-          const seen = new Set();
-          const merged = [...prev, ...tapeData]
-            .filter(msg => {
-              const key = (msg.timestamp || "") + msg.message;
-              if (seen.has(key)) return false;
-              seen.add(key);
-              return true;
-            })
-            .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
-          return merged;
-        });
-      }
-      await refreshParticipants(newSwarmId);
-
-      for (const p of participantsData) {
-        if (p.type === "agent") {
-          await fetch(`${API_BASE_URL}/swarm/reload-agent`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              swarm_id: newSwarmId,
-              agent_id: p.metadata?.agent_id || p.id,
-            }),
-          });
-        }
-      }
+      if (Array.isArray(tapeData)) setTape(tapeData);
+      if (Array.isArray(participantsData)) setParticipants(participantsData);
     }
   };
 
   const handleEditMemories = () => {
     const inputId = window.prompt("Enter your Agent ID to update memories:");
-
     if (inputId && inputId.trim().length > 0) {
       router.push(`/agents/${inputId.trim()}/edit-memories`);
     }
@@ -430,7 +427,7 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
     if (Array.isArray(participantsData)) setParticipants(participantsData);
   };
 
-  return (
+    return (
     <div className="p-4 h-screen bg-gray-900 text-white">
       <Suspense fallback={<div />}>
         <TopBar />
@@ -453,10 +450,9 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
 
           <ScrollArea
             className="flex-1 bg-black rounded-xl p-4 overflow-y-scroll"
-            style={{ height: '400px' }} // 👈 Adjust this height as needed
+            style={{ height: '400px' }}
             ref={scrollRef}
           >
-
             <div className="space-y-2">
               {tape.map((msg, idx) => (
                 <div key={`${msg.timestamp}-${idx}`} className="flex flex-col space-y-0.5">
@@ -498,14 +494,12 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
                   </motion.div>
                 )}
               </AnimatePresence>
-
             </div>
-
           </ScrollArea>
 
           <div className="flex gap-2 items-center">
             <Input
-              key={tape.length} // ⬅ forces DOM remount when tape updates
+              key={tape.length}
               type="text"
               name="chat-message"
               autoComplete="off"
@@ -525,18 +519,17 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
               size="icon"
               onClick={handleToggleVoice}
               disabled={!participantId}
-              title={isRecording ? "Stop recording" : "Start voice message"}
+              title={isRecording ? "Stop voice" : "Start voice"}
             >
-              {isRecording ? "⏹" : "🎙"}
+              {isRecording ? "⏹" : "🎤"}
             </Button>
             <Button
               onClick={handleSpeak}
-              disabled={!participantId || isRecording} // ⬅ disables send while recording
+              disabled={!participantId || isRecording}
             >
               <Send className="w-4 h-4" />
             </Button>
           </div>
-
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2">
             <Button variant="secondary" onClick={() => router.push("/def-tools")}>
@@ -573,7 +566,6 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
               <PlusCircle className="w-4 h-4 mr-2" />
               Create Portal
             </Button>
-
           </div>
         </div>
 
@@ -585,7 +577,7 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
                 <ScrollArea className="h-64" ref={participantsScrollRef}>
                   {participants.map((p) => (
                     <div key={p.id} className="mb-1">
-                      {p.name} {p.type === "agent" ? "" : ""} {/*"🤖" : "🧑"*/}
+                      {p.name}
                     </div>
                   ))}
                 </ScrollArea>
@@ -605,7 +597,6 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
                   placeholder="Your Name"
                   onChange={(e) => setJoinName(e.target.value)}
                 />
-
                 <Button variant="secondary" onClick={handleJoin}>
                   <Users className="w-4 h-4 mr-2" />
                   Join Swarm
