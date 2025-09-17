@@ -154,22 +154,38 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
   }, [tape]);
 
   const handleJoin = async () => {
-    if (!joinName.trim() && !user) return;
-    const res = await fetch(`${API_BASE_URL}/swarm/join`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name: joinName || user?.display_name,
-        user_id: user?.id,
-        swarm_id: swarmId
-      })
-    });
-    const data = await res.json();
-    if (data.status === 'joined') {
-      setParticipantId(data.participant_id);
-      refreshParticipants(swarmId);
+  if (!joinName.trim() && !user) return;
+  const res = await fetch(`${API_BASE_URL}/swarm/join`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      name: joinName || user?.display_name,
+      user_id: user?.id,
+      swarm_id: swarmId
+    })
+  });
+  const data = await res.json();
+  if (data.status === 'joined') {
+    setParticipantId(data.participant_id);
+    await refreshParticipants(swarmId);
+
+    // 🔄 Ensure all agents are reloaded into Redis
+    const participantsRes = await fetch(`${API_BASE_URL}/participants-full?swarm_id=${swarmId}`);
+    const participantsData = await participantsRes.json();
+    for (const p of participantsData) {
+      if (p.type === "agent") {
+        await fetch(`${API_BASE_URL}/swarm/reload-agent`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            swarm_id: swarmId,
+            agent_id: p.metadata?.agent_id || p.id,
+          }),
+        });
+      }
     }
-  };
+  }
+};
 
   // 🎤 Start/stop voice (toggle with VAD)
   const handleToggleVoice = async () => {
@@ -358,44 +374,83 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
     const agentId = prompt("Enter Kairoswarm Agent ID:");
     if (!agentId) return;
 
-    const res = await fetch(`${API_BASE_URL}/swarm/add-agent`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ agentId, swarm_id: swarmId }),
-    });
+    try {
+      const res = await fetch(`${API_BASE_URL}/swarm/add-agent`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ agentId, swarm_id: swarmId }),
+      });
 
-    const data = await res.json();
-    if (data.name) {
-      alert(`✅ Agent "${data.name}" added`);
-      refreshParticipants(swarmId);
-    } else {
+      const data = await res.json();
+      if (data.name) {
+        alert(`✅ Agent "${data.name}" added`);
+        await refreshParticipants(swarmId);
+
+        // ✅ Reload the newly added agent
+        await fetch(`${API_BASE_URL}/swarm/reload-agent`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            swarm_id: swarmId,
+            agent_id: agentId,
+          }),
+        });
+      } else {
+        alert("⚠️ Failed to add agent");
+      }
+    } catch (err) {
+      console.error("[handleAddAgent] Error:", err);
       alert("⚠️ Failed to add agent");
     }
   };
 
+
   const handleCreateSwarm = async () => {
     const name = prompt("Enter a name for your new swarm:") || "Untitled Swarm";
-    const res = await fetch(`${API_BASE_URL}/swarm/create`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name }),
-    });
-    const data = await res.json();
-    if (data.id) {
+    try {
+      const res = await fetch(`${API_BASE_URL}/swarm/create`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+      const data = await res.json();
+      if (!data.id) throw new Error("No swarm ID returned");
+
       setSwarmId(data.id);
       setParticipantId(null);
       await fetchSwarmData(data.id);
+
+      // ✅ Reload agents right after swarm creation
+      const participantsRes = await fetch(
+        `${API_BASE_URL}/participants-full?swarm_id=${data.id}`
+      );
+      const participantsData = await participantsRes.json();
+      for (const p of participantsData) {
+        if (p.type === "agent") {
+          await fetch(`${API_BASE_URL}/swarm/reload-agent`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ swarm_id: data.id, agent_id: p.metadata?.agent_id || p.id }),
+          });
+        }
+      }
+    } catch (err) {
+      console.error("[handleCreateSwarm] Error:", err);
+      alert("⚠️ Failed to create swarm");
     }
   };
 
+
   const handleViewSwarm = async () => {
     const newSwarmId = prompt("Enter Swarm ID to view:");
-    if (newSwarmId) {
-      setSwarmId(newSwarmId);
-      setParticipantId(null);
-      setTape([]);
-      setParticipants([]);
+    if (!newSwarmId) return;
 
+    setSwarmId(newSwarmId);
+    setParticipantId(null);
+    setTape([]);
+    setParticipants([]);
+
+    try {
       const [tapeRes, participantsRes] = await Promise.all([
         fetch(`${API_BASE_URL}/tape?swarm_id=${newSwarmId}`),
         fetch(`${API_BASE_URL}/participants-full?swarm_id=${newSwarmId}`),
@@ -404,8 +459,44 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
       const tapeData = await tapeRes.json();
       const participantsData = await participantsRes.json();
 
-      if (Array.isArray(tapeData)) setTape(tapeData);
-      if (Array.isArray(participantsData)) setParticipants(participantsData);
+      if (Array.isArray(tapeData)) {
+        setTape(prev => {
+          const seen = new Set();
+          const merged = [...prev, ...tapeData]
+            .filter(msg => {
+              const key = (msg.timestamp || "") + msg.message;
+              if (seen.has(key)) return false;
+              seen.add(key);
+              return true;
+            })
+            .sort(
+              (a, b) =>
+                new Date(a.timestamp).getTime() -
+                new Date(b.timestamp).getTime()
+            );
+          return merged;
+        });
+      }
+      if (Array.isArray(participantsData)) {
+        setParticipants(participantsData);
+
+        // ✅ Reload agents immediately after fetching participants
+        for (const p of participantsData) {
+          if (p.type === "agent") {
+            await fetch(`${API_BASE_URL}/swarm/reload-agent`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                swarm_id: newSwarmId,
+                agent_id: p.metadata?.agent_id || p.id,
+              }),
+            });
+          }
+        }
+      }
+    } catch (err) {
+      console.error("[handleViewSwarm] Error:", err);
+      alert("⚠️ Failed to view swarm");
     }
   };
 
