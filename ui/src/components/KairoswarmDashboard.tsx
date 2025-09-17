@@ -220,7 +220,7 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
 
     wsVoiceRef.current.onopen = () => {
       wsVoiceRef.current?.send(
-        JSON.stringify({ swarmId, participant_id: participantId, type: "human" })
+        JSON.stringify({ swarm_id: swarmId, participant_id: participantId, type: "human" })
       );
       console.log("🎤 Voice WebSocket opened");
     };
