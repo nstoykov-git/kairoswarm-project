@@ -14,7 +14,7 @@ const API_INTERNAL_URL = process.env.NEXT_PUBLIC_MODAL_API_URL;
 const VAD_SILENCE_MS = 800;
 const VAD_ENERGY_THRESHOLD = 0.01;
 
-// 🎨 Gradients for fallback background
+// 🎨 Background gradients for fallback
 const GRADIENTS = [
   ["from-pink-800", "to-purple-900"],
   ["from-indigo-900", "to-blue-800"],
@@ -47,55 +47,53 @@ export default function SingleAgentIntro({ agentName }: { agentName: string }) {
   const isPlayingRef = useRef(false);
   const silenceTimer = useRef<NodeJS.Timeout | null>(null);
 
-  // 1️⃣ Fetch agent details
+  // 1️⃣ Lookup agent, create swarm, reload agent, join as Guest
   useEffect(() => {
     if (!agentName) return;
-    const fetchAgent = async () => {
+
+    const setupSwarm = async () => {
       try {
-        const res = await fetch(`${API_INTERNAL_URL}/swarm/agents/by-names`, {
+        // Lookup agent metadata
+        const agentRes = await fetch(`${API_INTERNAL_URL}/swarm/agents/by-names`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ names: [agentName] }),
         });
-        const data = await res.json();
-        if (Array.isArray(data.agents) && data.agents.length > 0) {
-          const a = data.agents[0];
-          setAgent({
-            id: a.id,
-            name: a.name,
-            video_url: a.video_url || undefined,
-            media_mime_type: a.media_mime_type || undefined,
-            orientation: a.orientation || "landscape",
-          });
-        }
-      } catch (err) {
-        console.error("Failed to fetch agent", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchAgent();
-  }, [agentName]);
+        const data = await agentRes.json();
+        if (!data.agents || data.agents.length === 0) throw new Error("Agent not found");
 
-  // 2️⃣ Auto-initiate swarm + join as Guest
-  useEffect(() => {
-    if (!agent) return;
-    const initAndJoin = async () => {
-      try {
-        const res = await fetch(`${API_INTERNAL_URL}/swarm/initiate`, {
+        const a = data.agents[0];
+        setAgent({
+          id: a.id,
+          name: a.name,
+          video_url: a.video_url || undefined,
+          media_mime_type: a.media_mime_type || undefined,
+          orientation: a.orientation || "landscape",
+        });
+
+        // Create swarm
+        const initRes = await fetch(`${API_INTERNAL_URL}/swarm/initiate`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ agent_ids: [agent.id] }),
+          body: JSON.stringify({ agent_ids: [a.id] }),
         });
-        const data = await res.json();
-        if (!data.swarm_id) throw new Error("No swarm_id returned");
-        setSwarmId(data.swarm_id);
+        const initData = await initRes.json();
+        if (!initData.swarm_id) throw new Error("No swarm_id returned");
+        setSwarmId(initData.swarm_id);
 
+        // Reload agent so Redis has system_prompt + voice
+        await fetch(`${API_INTERNAL_URL}/swarm/reload-agent`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ swarm_id: initData.swarm_id, agent_id: a.id }),
+        });
+
+        // Join swarm as Guest
         const joinRes = await fetch(`${API_INTERNAL_URL}/swarm/join`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            swarm_id: data.swarm_id,
+            swarm_id: initData.swarm_id,
             name: "Guest",
             user_id: null,
           }),
@@ -103,11 +101,14 @@ export default function SingleAgentIntro({ agentName }: { agentName: string }) {
         const joinData = await joinRes.json();
         setParticipantId(joinData.participant_id);
       } catch (err) {
-        console.error("Failed to auto-initiate or join swarm", err);
+        console.error("Failed to set up swarm for agent", err);
+      } finally {
+        setLoading(false);
       }
     };
-    initAndJoin();
-  }, [agent]);
+
+    setupSwarm();
+  }, [agentName]);
 
   const handleMicUnlock = async () => {
     if (!participantId || !swarmId) return;
@@ -119,6 +120,7 @@ export default function SingleAgentIntro({ agentName }: { agentName: string }) {
 
     await audioCtxRef.current.resume();
 
+    // Connect WS
     const wsUrl = API_INTERNAL_URL!.replace(/^http/, "ws") + "/voice";
     wsRef.current = new WebSocket(wsUrl);
     wsRef.current.binaryType = "arraybuffer";
@@ -135,13 +137,13 @@ export default function SingleAgentIntro({ agentName }: { agentName: string }) {
         console.log("[Agent reply]", msg);
       } else {
         const audioBytes = new Uint8Array(event.data);
-        console.log("🎧 Incoming audio chunk size:", audioBytes.length);
         audioQueueRef.current.push(audioBytes);
         if (audioCtxRef.current?.state === "suspended") await audioCtxRef.current.resume();
         playNextInQueue(audioCtxRef.current!, audioQueueRef, isPlayingRef);
       }
     };
 
+    // Mic + VAD
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     const sourceNode = audioCtxRef.current.createMediaStreamSource(stream);
     const analyser = audioCtxRef.current.createAnalyser();
@@ -150,9 +152,7 @@ export default function SingleAgentIntro({ agentName }: { agentName: string }) {
 
     const data = new Uint8Array(analyser.fftSize);
 
-    mediaRecorderRef.current = new MediaRecorder(stream, {
-      mimeType: "audio/webm;codecs=opus",
-    });
+    mediaRecorderRef.current = new MediaRecorder(stream, { mimeType: "audio/webm;codecs=opus" });
 
     mediaRecorderRef.current.ondataavailable = async (event) => {
       if (event.data.size > 0 && wsRef.current?.readyState === WebSocket.OPEN) {
@@ -181,9 +181,7 @@ export default function SingleAgentIntro({ agentName }: { agentName: string }) {
           endAudioSentRef.current = false;
           mediaRecorderRef.current.start(50);
         }
-        if (silenceTimer.current) {
-          clearTimeout(silenceTimer.current);
-        }
+        if (silenceTimer.current) clearTimeout(silenceTimer.current);
         silenceTimer.current = setTimeout(() => {
           if (mediaRecorderRef.current?.state === "recording") {
             try {
@@ -212,8 +210,6 @@ export default function SingleAgentIntro({ agentName }: { agentName: string }) {
     isPlayingRef: React.MutableRefObject<boolean>
   ) {
     if (isPlayingRef.current) return;
-
-    console.log("📦 Checking queue... Length:", audioQueueRef.current.length);
     const nextChunk = audioQueueRef.current.shift();
     if (!nextChunk) return;
 
@@ -239,7 +235,6 @@ export default function SingleAgentIntro({ agentName }: { agentName: string }) {
       };
 
       source.start();
-      console.log("▶️ Playing decoded MP3, duration:", audioBuffer.duration.toFixed(2), "seconds");
     } catch (err) {
       console.error("❌ Failed to decode or play MP3 chunk:", err);
       isPlayingRef.current = false;
@@ -323,7 +318,6 @@ export default function SingleAgentIntro({ agentName }: { agentName: string }) {
           </div>
         )}
 
-        {/* Mic unlock overlay */}
         {!micUnlocked && (
           <div
             className="absolute bottom-24 px-6 py-4 text-center bg-white/10 text-white rounded-xl shadow-lg cursor-pointer hover:bg-white/20"
@@ -335,10 +329,11 @@ export default function SingleAgentIntro({ agentName }: { agentName: string }) {
         )}
       </div>
 
-      {/* Transcript button */}
       <div className="absolute bottom-6 right-6 z-50">
         <button
-          onClick={() => window.open(`https://kairoswarm.com/?swarm_id=${swarmId}`, "_blank")}
+          onClick={() =>
+            window.open(`https://kairoswarm.com/?swarm_id=${swarmId}`, "_blank")
+          }
           className="bg-black/50 text-white px-4 py-2 rounded-full text-sm hover:bg-black/70 transition"
         >
           📜 Transcript
