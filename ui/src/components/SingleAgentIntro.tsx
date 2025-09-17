@@ -11,7 +11,7 @@ interface Agent {
 }
 
 const API_INTERNAL_URL = process.env.NEXT_PUBLIC_MODAL_API_URL;
-const MAX_RECORDING_MS = 30000; // 30 seconds cap
+const MAX_RECORDING_MS = 30000;
 
 // Gradients to choose from
 const GRADIENTS = [
@@ -39,10 +39,12 @@ export default function SingleAgentIntro({ agentName }: { agentName: string }) {
   const [recording, setRecording] = useState(false);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const audioChunksRef = useRef<Blob[]>([]);
   const recordingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const audioUnlockedRef = useRef(false);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const wsRef = useRef<WebSocket | null>(null);
 
-  // 1️⃣ Fetch agent details
+  // 1️⃣ Fetch agent metadata by name
   useEffect(() => {
     if (!agentName) return;
     const fetchAgent = async () => {
@@ -72,7 +74,7 @@ export default function SingleAgentIntro({ agentName }: { agentName: string }) {
     fetchAgent();
   }, [agentName]);
 
-  // 2️⃣ Auto-initiate swarm + join as Guest
+  // 2️⃣ Initiate new swarm with this agent + join as Guest
   useEffect(() => {
     if (!agent) return;
     const initAndJoin = async () => {
@@ -86,7 +88,6 @@ export default function SingleAgentIntro({ agentName }: { agentName: string }) {
         if (!data.swarm_id) throw new Error("No swarm_id returned");
         setSwarmId(data.swarm_id);
 
-        // Join as Guest with explicit null user_id
         const joinRes = await fetch(`${API_INTERNAL_URL}/swarm/join`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -96,11 +97,6 @@ export default function SingleAgentIntro({ agentName }: { agentName: string }) {
             user_id: null,
           }),
         });
-
-        if (!joinRes.ok) {
-          throw new Error(`Join swarm failed with status ${joinRes.status}`);
-        }
-
         const joinData = await joinRes.json();
         console.log("✅ Joined swarm as Guest:", joinData);
         setParticipantId(joinData.participant_id);
@@ -111,135 +107,115 @@ export default function SingleAgentIntro({ agentName }: { agentName: string }) {
     initAndJoin();
   }, [agent]);
 
-// --- Safari/Web Audio API unlock ---
-const audioUnlockedRef = useRef(false);
-const audioCtxRef = useRef<AudioContext | null>(null);
-
-// Stop recording helper
-const stopRecording = () => {
-  mediaRecorderRef.current?.stop();
-  setRecording(false);
-  if (recordingTimeoutRef.current) {
-    clearTimeout(recordingTimeoutRef.current);
-    recordingTimeoutRef.current = null;
-  }
-};
-
-// 🎤 Toggle recording (Dashboard behavior)
-const toggleRecording = async () => {
-  if (!participantId || !swarmId) {
-    console.warn("[Voice] Missing participantId or swarmId");
-    return;
-  }
-
-  if (recording) {
-    stopRecording();
-    return;
-  }
-
-  // Unlock audio context on first button press (Safari requirement)
-  if (!audioUnlockedRef.current) {
-    try {
-      const AudioContextClass =
-        window.AudioContext || (window as any).webkitAudioContext;
-      if (!audioCtxRef.current) {
-        audioCtxRef.current = new AudioContextClass();
-      }
-      const buffer = audioCtxRef.current.createBuffer(1, 1, 22050);
-      const source = audioCtxRef.current.createBufferSource();
-      source.buffer = buffer;
-      source.connect(audioCtxRef.current.destination);
-      source.start(0);
-      await audioCtxRef.current.resume();
-      audioUnlockedRef.current = true;
-      console.debug("[TTS] Audio context unlocked");
-    } catch (err) {
-      console.warn("[TTS] Failed to unlock audio context:", err);
+  const stopRecording = () => {
+    console.log("[VOICE] stopRecording called");
+    if (mediaRecorderRef.current) {
+      mediaRecorderRef.current.stop();
     }
-  }
+    setRecording(false);
 
-  const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-  mediaRecorderRef.current = new MediaRecorder(stream, {
-    mimeType: "audio/webm;codecs=opus",
-  });
-  audioChunksRef.current = [];
-
-  mediaRecorderRef.current.ondataavailable = (event) => {
-    if (event.data.size > 0) {
-      audioChunksRef.current.push(event.data);
+    if (recordingTimeoutRef.current) {
+      clearTimeout(recordingTimeoutRef.current);
+      recordingTimeoutRef.current = null;
     }
   };
 
-  mediaRecorderRef.current.onstop = async () => {
-    try {
-      const blob = new Blob(audioChunksRef.current, {
-        type: "audio/webm;codecs=opus",
-      });
-      const formData = new FormData();
-      formData.append("audio", blob, "voice-input.webm");
-      formData.append("participant_id", participantId);
-      formData.append("swarm_id", swarmId);
+  const toggleRecording = async () => {
+    console.log("[VOICE] toggleRecording fired", { participantId, swarmId });
+    if (!participantId || !swarmId) {
+      console.warn("[Voice] Missing participantId or swarmId");
+      return;
+    }
 
-      const res = await fetch(`${API_INTERNAL_URL}/voice`, {
-        method: "POST",
-        body: formData,
-      });
-      const data = await res.json();
+    if (recording) {
+      stopRecording();
+      return;
+    }
 
-      if (data.entry) {
-        console.debug("[TTS] Agent replied:", data.entry.message);
-      }
-
-      if (data.audioBase64) {
-        try {
-          const audioBytes = Uint8Array.from(atob(data.audioBase64), (c) => c.charCodeAt(0));
-          if (!audioCtxRef.current) {
-            const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-            audioCtxRef.current = new AudioContextClass();
-          }
-          const audioBuffer = await audioCtxRef.current.decodeAudioData(audioBytes.buffer);
-          const source = audioCtxRef.current.createBufferSource();
-          source.buffer = audioBuffer;
-          source.connect(audioCtxRef.current.destination);
-          source.start(0);
-          console.debug("[TTS] Playback started via Web Audio API");
-        } catch (err) {
-          console.error("[TTS] Playback via Web Audio API failed:", err);
+    // Unlock audio context (Safari)
+    if (!audioUnlockedRef.current) {
+      try {
+        const AudioContextClass =
+          window.AudioContext || (window as any).webkitAudioContext;
+        if (!audioCtxRef.current) {
+          audioCtxRef.current = new AudioContextClass();
         }
-      } else {
-        console.warn("[TTS] No audioBase64 returned from /voice");
+        const buffer = audioCtxRef.current.createBuffer(1, 1, 22050);
+        const source = audioCtxRef.current.createBufferSource();
+        source.buffer = buffer;
+        source.connect(audioCtxRef.current.destination);
+        source.start(0);
+        await audioCtxRef.current.resume();
+        audioUnlockedRef.current = true;
+        console.debug("[TTS] Audio context unlocked");
+      } catch (err) {
+        console.warn("[TTS] Failed to unlock audio context:", err);
       }
-
-    } catch (err) {
-      console.error("[Voice] Error during onstop processing:", err);
-    } finally {
-      audioChunksRef.current = [];
     }
+
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    mediaRecorderRef.current = new MediaRecorder(stream, {
+      mimeType: "audio/webm;codecs=opus",
+    });
+
+    // --- WS path ---
+    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+      const wsUrl = API_INTERNAL_URL!.replace(/^http/, "ws") + "/voice";
+      wsRef.current = new WebSocket(wsUrl);
+      wsRef.current.binaryType = "arraybuffer";
+
+      wsRef.current.onopen = () => {
+        wsRef.current?.send(
+          JSON.stringify({
+            swarm_id: swarmId,
+            participant_id: participantId,
+            type: "human",
+          })
+        );
+        console.debug("[WS] Connected to /voice");
+      };
+
+      wsRef.current.onmessage = async (event) => {
+        if (typeof event.data === "string") {
+          const msg = JSON.parse(event.data);
+          console.log("[Agent reply]", msg);
+        } else {
+          const audioBytes = new Uint8Array(event.data);
+          const audioBuffer = await audioCtxRef.current!.decodeAudioData(
+            audioBytes.buffer
+          );
+          const source = audioCtxRef.current!.createBufferSource();
+          source.buffer = audioBuffer;
+          source.connect(audioCtxRef.current!.destination);
+          source.start(0);
+        }
+      };
+    }
+
+    // 🔊 Handle chunks
+    mediaRecorderRef.current.ondataavailable = async (event) => {
+      if (event.data.size > 0 && wsRef.current?.readyState === WebSocket.OPEN) {
+        const buf = await event.data.arrayBuffer();
+        console.log(`[VOICE] Sending chunk of size: ${buf.byteLength}`);
+        wsRef.current.send(buf);
+      }
+    };
+
+    // 🛑 Ensure end_audio comes last
+    mediaRecorderRef.current.onstop = () => {
+      console.log("[VOICE] MediaRecorder fully stopped (waiting for last chunk...)");
+      setTimeout(() => {
+        console.log("[VOICE] Sending end_audio (after final chunk)");
+        if (wsRef.current?.readyState === WebSocket.OPEN) {
+          wsRef.current.send(JSON.stringify({ event: "end_audio" }));
+        }
+      }, 250);
+    };
+
+    mediaRecorderRef.current.start(250); // stream every 250ms
+    setRecording(true);
+    recordingTimeoutRef.current = setTimeout(stopRecording, MAX_RECORDING_MS);
   };
-
-  mediaRecorderRef.current.start();
-  setRecording(true);
-
-  // Auto-stop after MAX_RECORDING_MS
-  recordingTimeoutRef.current = setTimeout(() => {
-    stopRecording();
-  }, MAX_RECORDING_MS);
-};
-
-// Helper for base64 → Blob
-function b64ToBlob(b64Data: string, contentType = "", sliceSize = 512) {
-  const byteCharacters = atob(b64Data);
-  const byteArrays = [];
-  for (let offset = 0; offset < byteCharacters.length; offset += sliceSize) {
-    const slice = byteCharacters.slice(offset, offset + sliceSize);
-    const byteNumbers = new Array(slice.length);
-    for (let i = 0; i < slice.length; i++) {
-      byteNumbers[i] = slice.charCodeAt(i);
-    }
-    byteArrays.push(new Uint8Array(byteNumbers));
-  }
-  return new Blob(byteArrays, { type: contentType });
-}
 
   if (loading) {
     return (
@@ -262,31 +238,17 @@ function b64ToBlob(b64Data: string, contentType = "", sliceSize = 512) {
   const [fromColor, toColor] = gradientForName(agent.name);
 
   return (
-    <div className="relative w-full h-screen bg-black overflow-hidden animate-fadeIn">
-      {/* Background */}
-      {hasMedia ? (
-        agent.media_mime_type!.startsWith("video/") ? (
-          <video
-            src={agent.video_url}
-            className="absolute w-full h-full object-cover filter blur-2xl brightness-50"
-            autoPlay
-            loop
-            muted
-            playsInline
-          />
-        ) : (
-          <img
-            src={agent.video_url}
-            className="absolute w-full h-full object-cover filter blur-2xl brightness-50"
-          />
-        )
-      ) : (
-        <div
-          className={`absolute w-full h-full bg-gradient-to-br ${fromColor} ${toColor} filter blur-2xl brightness-75`}
+    <div className="relative w-full h-screen bg-black overflow-hidden">
+      {hasMedia && agent.media_mime_type!.startsWith("video/") && (
+        <video
+          src={agent.video_url}
+          className="absolute w-full h-full object-cover filter blur-2xl brightness-50"
+          autoPlay
+          loop
+          muted
+          playsInline
         />
       )}
-
-      {/* Foreground */}
       <div className="relative z-10 flex flex-col items-center justify-center h-full">
         {hasMedia ? (
           agent.media_mime_type!.startsWith("video/") ? (
@@ -331,10 +293,7 @@ function b64ToBlob(b64Data: string, contentType = "", sliceSize = 512) {
           <div className="flex justify-center gap-4">
             <button
               onClick={() =>
-                window.open(
-                  `https://kairoswarm.com/?swarm_id=${swarmId}`,
-                  "_blank"
-                )
+                window.open(`https://kairoswarm.com/?swarm_id=${swarmId}`, "_blank")
               }
               className="text-white text-lg underline hover:opacity-80"
             >

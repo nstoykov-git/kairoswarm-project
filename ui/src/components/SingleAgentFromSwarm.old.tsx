@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { useSearchParams } from "next/navigation";
 
 interface Agent {
   id: string;
@@ -14,15 +13,28 @@ interface Agent {
 const API_INTERNAL_URL = process.env.NEXT_PUBLIC_MODAL_API_URL;
 const MAX_RECORDING_MS = 30000;
 
-// 🚨 Force WebSocket path only
-const USE_WS = true;
+// Gradients to choose from
+const GRADIENTS = [
+  ["from-pink-800", "to-purple-900"],
+  ["from-indigo-900", "to-blue-800"],
+  ["from-teal-900", "to-emerald-800"],
+  ["from-amber-900", "to-red-800"],
+  ["from-sky-900", "to-cyan-800"],
+  ["from-fuchsia-900", "to-rose-800"],
+];
 
-export default function SingleAgentFromSwarm() {
-  const searchParams = useSearchParams();
-  const swarmIdParam = searchParams.get("swarm_id");
+function gradientForName(name: string) {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return GRADIENTS[Math.abs(hash) % GRADIENTS.length];
+}
 
+export default function SingleAgentIntro({ agentName }: { agentName: string }) {
   const [agent, setAgent] = useState<Agent | null>(null);
   const [loading, setLoading] = useState(true);
+  const [swarmId, setSwarmId] = useState<string | null>(null);
   const [participantId, setParticipantId] = useState<string | null>(null);
   const [recording, setRecording] = useState(false);
 
@@ -32,47 +44,55 @@ export default function SingleAgentFromSwarm() {
   const audioCtxRef = useRef<AudioContext | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
 
-  // Fetch agent metadata & join swarm
+  // 1️⃣ Fetch agent metadata by name
   useEffect(() => {
-    if (!swarmIdParam) return;
-
-    const fetchAgentFromSwarm = async () => {
+    if (!agentName) return;
+    const fetchAgent = async () => {
       try {
-        // 1️⃣ Get participants so we know the agent's name
-        const participantsRes = await fetch(
-          `${API_INTERNAL_URL}/participants-full?swarm_id=${swarmIdParam}`
-        );
-        const participants = await participantsRes.json();
-        const agentParticipant = participants.find((p: any) => p.type === "agent");
-        if (!agentParticipant) throw new Error("No agent participant found");
-
-        const agentName = agentParticipant.name;
-        if (!agentName) throw new Error("Agent name missing from participant");
-
-        // 2️⃣ Fetch agent details by name
-        const agentRes = await fetch(`${API_INTERNAL_URL}/swarm/agents/by-names`, {
+        const res = await fetch(`${API_INTERNAL_URL}/swarm/agents/by-names`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ names: [agentName] }),
         });
-        const data = await agentRes.json();
-        if (!data.agents || data.agents.length === 0) throw new Error("Agent not found");
+        const data = await res.json();
+        if (Array.isArray(data.agents) && data.agents.length > 0) {
+          const a = data.agents[0];
+          setAgent({
+            id: a.id,
+            name: a.name,
+            video_url: a.video_url || undefined,
+            media_mime_type: a.media_mime_type || undefined,
+            orientation: a.orientation || "landscape",
+          });
+        }
+      } catch (err) {
+        console.error("Failed to fetch agent", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchAgent();
+  }, [agentName]);
 
-        const a = data.agents[0];
-        setAgent({
-          id: a.id,
-          name: a.name,
-          video_url: a.video_url || undefined,
-          media_mime_type: a.media_mime_type || undefined,
-          orientation: a.orientation || "landscape",
+  // 2️⃣ Initiate new swarm with this agent + join as Guest
+  useEffect(() => {
+    if (!agent) return;
+    const initAndJoin = async () => {
+      try {
+        const res = await fetch(`${API_INTERNAL_URL}/swarm/initiate`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ agent_ids: [agent.id] }),
         });
+        const data = await res.json();
+        if (!data.swarm_id) throw new Error("No swarm_id returned");
+        setSwarmId(data.swarm_id);
 
-        // 3️⃣ Join swarm
         const joinRes = await fetch(`${API_INTERNAL_URL}/swarm/join`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            swarm_id: swarmIdParam,
+            swarm_id: data.swarm_id,
             name: "Guest",
             user_id: null,
           }),
@@ -81,14 +101,11 @@ export default function SingleAgentFromSwarm() {
         console.log("✅ Joined swarm as Guest:", joinData);
         setParticipantId(joinData.participant_id);
       } catch (err) {
-        console.error("Failed to fetch agent from swarm", err);
-      } finally {
-        setLoading(false);
+        console.error("Failed to auto-initiate or join swarm", err);
       }
     };
-
-    fetchAgentFromSwarm();
-  }, [swarmIdParam]);
+    initAndJoin();
+  }, [agent]);
 
   const stopRecording = () => {
     console.log("[VOICE] stopRecording called");
@@ -104,8 +121,8 @@ export default function SingleAgentFromSwarm() {
   };
 
   const toggleRecording = async () => {
-    console.log("[VOICE] toggleRecording fired", { participantId, swarmIdParam });
-    if (!participantId || !swarmIdParam) {
+    console.log("[VOICE] toggleRecording fired", { participantId, swarmId });
+    if (!participantId || !swarmId) {
       console.warn("[Voice] Missing participantId or swarmId");
       return;
     }
@@ -141,8 +158,7 @@ export default function SingleAgentFromSwarm() {
       mimeType: "audio/webm;codecs=opus",
     });
 
-    // --- Force WebSocket path ---
-    console.log("[VOICE MODE] FORCED WebSocket");
+    // --- WS path ---
     if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
       const wsUrl = API_INTERNAL_URL!.replace(/^http/, "ws") + "/voice";
       wsRef.current = new WebSocket(wsUrl);
@@ -151,7 +167,7 @@ export default function SingleAgentFromSwarm() {
       wsRef.current.onopen = () => {
         wsRef.current?.send(
           JSON.stringify({
-            swarm_id: swarmIdParam,
+            swarm_id: swarmId,
             participant_id: participantId,
             type: "human",
           })
@@ -188,16 +204,13 @@ export default function SingleAgentFromSwarm() {
     // 🛑 Ensure end_audio comes last
     mediaRecorderRef.current.onstop = () => {
       console.log("[VOICE] MediaRecorder fully stopped (waiting for last chunk...)");
-
-      // Delay end_audio until after the final dataavailable fires
       setTimeout(() => {
         console.log("[VOICE] Sending end_audio (after final chunk)");
         if (wsRef.current?.readyState === WebSocket.OPEN) {
           wsRef.current.send(JSON.stringify({ event: "end_audio" }));
         }
-      }, 250); // small delay ensures the last chunk is flushed first
+      }, 250);
     };
-
 
     mediaRecorderRef.current.start(250); // stream every 250ms
     setRecording(true);
@@ -222,6 +235,7 @@ export default function SingleAgentFromSwarm() {
 
   const isPortrait = agent.orientation === "portrait";
   const hasMedia = agent.video_url && agent.media_mime_type;
+  const [fromColor, toColor] = gradientForName(agent.name);
 
   return (
     <div className="relative w-full h-screen bg-black overflow-hidden">
@@ -236,20 +250,42 @@ export default function SingleAgentFromSwarm() {
         />
       )}
       <div className="relative z-10 flex flex-col items-center justify-center h-full">
-        {hasMedia && agent.media_mime_type!.startsWith("video/") && (
-          <video
-            src={agent.video_url}
-            className={`rounded-xl shadow-2xl object-cover ${
+        {hasMedia ? (
+          agent.media_mime_type!.startsWith("video/") ? (
+            <video
+              src={agent.video_url}
+              className={`rounded-xl shadow-2xl object-cover ${
+                isPortrait
+                  ? "h-full w-auto object-top transform scale-150"
+                  : "w-full max-w-screen-xl"
+              }`}
+              autoPlay
+              loop
+              muted
+              playsInline
+            />
+          ) : (
+            <img
+              src={agent.video_url}
+              className={`rounded-xl shadow-2xl object-cover ${
+                isPortrait
+                  ? "h-full w-auto object-top transform scale-150"
+                  : "w-full max-w-screen-xl"
+              }`}
+            />
+          )
+        ) : (
+          <div
+            className={`rounded-xl shadow-2xl flex items-center justify-center bg-gradient-to-br ${fromColor} ${toColor} text-white text-3xl font-semibold ${
               isPortrait
-                ? "h-full w-auto object-top transform scale-150"
-                : "w-full max-w-screen-xl"
+                ? "h-full w-auto px-12 py-24"
+                : "w-full max-w-screen-xl h-96"
             }`}
-            autoPlay
-            loop
-            muted
-            playsInline
-          />
+          >
+            {agent.name}
+          </div>
         )}
+
         <div className="absolute bottom-24 text-center space-y-3">
           <h1 className="text-white text-4xl font-semibold mb-2 drop-shadow-lg">
             {agent.name}
@@ -257,7 +293,7 @@ export default function SingleAgentFromSwarm() {
           <div className="flex justify-center gap-4">
             <button
               onClick={() =>
-                window.open(`https://kairoswarm.com/?swarm_id=${swarmIdParam}`, "_blank")
+                window.open(`https://kairoswarm.com/?swarm_id=${swarmId}`, "_blank")
               }
               className="text-white text-lg underline hover:opacity-80"
             >
