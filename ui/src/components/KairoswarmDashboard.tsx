@@ -604,7 +604,7 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
               onKeyDown={(e) => e.key === "Enter" && handleSpeak()}
               disabled={!participantId || isRecording}
             />
-
+{/*
             <Button
               variant="ghost"
               size="icon"
@@ -614,6 +614,7 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
             >
               {isRecording ? "⏹" : "🎤"}
             </Button>
+*/}
             <Button
               onClick={handleSpeak}
               disabled={!participantId || isRecording}
@@ -653,11 +654,12 @@ export default function KairoswarmDashboard({ swarmId: swarmIdProp }: { swarmId?
             <Button variant="secondary" onClick={() => router.push("/concierge?gift=true")}>
               🎁 Gift a Moment
             </Button>
-            <Button variant="secondary" onClick={() => router.push("/portal-tools")}>
+ {/*           <Button variant="secondary" onClick={() => router.push("/portal-tools")}>
               <PlusCircle className="w-4 h-4 mr-2" />
               Create Portal
             </Button>
-          </div>
+ */}
+            </div>
         </div>
 
         {showParticipants && (
