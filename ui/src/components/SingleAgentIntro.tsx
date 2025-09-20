@@ -131,6 +131,22 @@ export default function SingleAgentIntro({ agentName }: { agentName: string }) {
       );
     };
 
+    wsRef.current.onopen = () => {
+      wsRef.current?.send(
+        JSON.stringify({ swarm_id: swarmId, participant_id: participantId, type: "human" })
+      );
+
+      // 🎬 Trigger auto-intro once per session
+      if (!sessionStorage.getItem("introSent")) {
+        setTimeout(() => {
+          wsRef.current?.send(
+            JSON.stringify({ event: "__auto_intro_request__" })
+          );
+          sessionStorage.setItem("introSent", "true");
+        }, 1000);
+      }
+    };
+
     wsRef.current.onmessage = async (event) => {
       if (typeof event.data === "string") {
         const msg = JSON.parse(event.data);
