@@ -101,7 +101,16 @@ export default function SingleAgentFromSwarm() {
       wsRef.current?.send(
         JSON.stringify({ swarm_id: swarmIdParam, participant_id: participantId, type: "human" })
       );
+
+      // 🔁 Auto-intro logic: match SingleAgentIntro.tsx
+      if (!sessionStorage.getItem("introSent")) {
+        setTimeout(() => {
+          wsRef.current?.send(JSON.stringify({ event: "__auto_intro_request__" }));
+          sessionStorage.setItem("introSent", "true");
+        }, 1000);
+      }
     };
+
 
     wsRef.current.onmessage = async (event) => {
       if (typeof event.data === "string") {
