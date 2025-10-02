@@ -293,13 +293,12 @@ export default function SingleAgentFromSwarm() {
           📜 Transcript
         </button>
       </div>
-      <div className="absolute bottom-6 left-6 z-50 max-w-xs text-green-400 text-sm leading-snug">
-        <p>
+      <div className="absolute bottom-6 left-6 z-50 bg-black/50 text-white px-4 py-3 rounded-xl text-xs leading-snug max-w-xs shadow-md backdrop-blur-sm">
+        <p className="font-medium">
           We value your privacy and our reputation.
-          <br />
-          Kairoswarm does not listen to or read the transcripts of your conversations.
-          <br />
-          All conversations auto-destruct 24 hours after you start them.
+        </p>
+        <p className="mt-1 opacity-80">
+          Kairoswarm does not listen to or read your transcripts. All conversations auto-destruct after 24 hours.
         </p>
       </div>
     </div>
