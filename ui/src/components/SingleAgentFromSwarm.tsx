@@ -293,6 +293,15 @@ export default function SingleAgentFromSwarm() {
           📜 Transcript
         </button>
       </div>
+      <div className="absolute bottom-6 left-6 z-50 max-w-xs text-green-400 text-sm leading-snug">
+        <p>
+          We value your privacy and our reputation.
+          <br />
+          Kairoswarm does not listen to or read the transcripts of your conversations.
+          <br />
+          All conversations auto-destruct 24 hours after you start them.
+        </p>
+      </div>
     </div>
   );
 }
