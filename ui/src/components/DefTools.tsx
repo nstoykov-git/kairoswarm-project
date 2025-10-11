@@ -94,7 +94,7 @@ async function createAgent({
   videoUrl,
   mediaMimeType,
   voice,              // ✅ voice prop
-  functions,          // ✅ control schema prop
+  //functions,          // ✅ control schema prop
 }: {
   name: string;
   userId: string;
@@ -111,7 +111,7 @@ async function createAgent({
   videoUrl?: string | null;
   mediaMimeType?: string | null;
   voice: string;
-  functions?: any[];
+  //functions?: any[];
 }) {
   const res = await fetch(`${API_BASE_URL}/swarm/create-agent`, {
     method: "POST",
@@ -134,7 +134,7 @@ async function createAgent({
       video_url: videoUrl || null,
       media_mime_type: mediaMimeType || null,
       voice,              // ✅ include voice
-      functions,          // ✅ include control schema
+      //functions,          // ✅ include control schema
     }),
   });
 
