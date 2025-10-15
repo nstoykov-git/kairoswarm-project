@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import { useWavRecorder } from "@/components/useWavRecorder";
+import { encodeWAV } from "@/lib/wavEncoder";
 
 interface Agent {
   id: string;
@@ -11,10 +13,6 @@ interface Agent {
 }
 
 const API_INTERNAL_URL = process.env.NEXT_PUBLIC_MODAL_API_URL;
-const VAD_SILENCE_MS = 800;
-const VAD_ENERGY_THRESHOLD = 0.01;
-
-// 🎨 Background gradients for fallback
 const GRADIENTS = [
   ["from-pink-800", "to-purple-900"],
   ["from-indigo-900", "to-blue-800"],
@@ -38,22 +36,18 @@ export default function SingleAgentIntro({ agentName }: { agentName: string }) {
   const [swarmId, setSwarmId] = useState<string | null>(null);
   const [participantId, setParticipantId] = useState<string | null>(null);
   const [micUnlocked, setMicUnlocked] = useState(false);
+  const [micActive, setMicActive] = useState(false);
 
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
-  const endAudioSentRef = useRef(false);
   const audioQueueRef = useRef<Uint8Array[]>([]);
   const isPlayingRef = useRef(false);
-  const silenceTimer = useRef<NodeJS.Timeout | null>(null);
 
-  // 1️⃣ Lookup agent, create swarm, reload agent, join as Guest
   useEffect(() => {
     if (!agentName) return;
 
     const setupSwarm = async () => {
       try {
-        // Lookup agent metadata
         const agentRes = await fetch(`${API_INTERNAL_URL}/swarm/agents/by-names`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -71,7 +65,6 @@ export default function SingleAgentIntro({ agentName }: { agentName: string }) {
           orientation: a.orientation || "landscape",
         });
 
-        // Create swarm
         const initRes = await fetch(`${API_INTERNAL_URL}/swarm/initiate`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -81,22 +74,16 @@ export default function SingleAgentIntro({ agentName }: { agentName: string }) {
         if (!initData.swarm_id) throw new Error("No swarm_id returned");
         setSwarmId(initData.swarm_id);
 
-        // Reload agent so Redis has system_prompt + voice
         await fetch(`${API_INTERNAL_URL}/swarm/reload-agent`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ swarm_id: initData.swarm_id, agent_id: a.id }),
         });
 
-        // Join swarm as Guest
         const joinRes = await fetch(`${API_INTERNAL_URL}/swarm/join`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            swarm_id: initData.swarm_id,
-            name: "Guest",
-            user_id: null,
-          }),
+          body: JSON.stringify({ swarm_id: initData.swarm_id, name: "Guest", user_id: null }),
         });
         const joinData = await joinRes.json();
         setParticipantId(joinData.participant_id);
@@ -110,17 +97,46 @@ export default function SingleAgentIntro({ agentName }: { agentName: string }) {
     setupSwarm();
   }, [agentName]);
 
+  const { startRecording } = useWavRecorder({
+    onWavReady: async (wavBlob) => {
+      if (!participantId || !swarmId) return;
+
+      const ws = new WebSocket(API_INTERNAL_URL!.replace(/^http/, "ws") + "/voice");
+      ws.binaryType = "arraybuffer";
+
+      ws.onopen = () => {
+        ws.send(
+          JSON.stringify({ swarm_id: swarmId, participant_id: participantId, type: "human" })
+        );
+        ws.send(wavBlob);
+        ws.send(JSON.stringify({ event: "end_audio" }));
+      };
+
+      ws.onmessage = async (event) => {
+        if (typeof event.data === "string") {
+          const msg = JSON.parse(event.data);
+          console.log("[Agent reply]", msg);
+        } else {
+          const audioBytes = new Uint8Array(event.data);
+          audioQueueRef.current.push(audioBytes);
+          if (audioCtxRef.current?.state === "suspended") await audioCtxRef.current.resume();
+          playNextInQueue(audioCtxRef.current!, audioQueueRef, isPlayingRef);
+        }
+      };
+    },
+    onSpeakingChange: (speaking) => {
+      setMicActive(speaking);
+    },
+  });
+
   const handleMicUnlock = async () => {
     if (!participantId || !swarmId) return;
 
     if (!audioCtxRef.current) {
       audioCtxRef.current = new AudioContext({ sampleRate: 24000 });
-      console.log("🎚️ AudioContext sample rate:", audioCtxRef.current.sampleRate);
     }
-
     await audioCtxRef.current.resume();
 
-    // Connect WS
     const wsUrl = API_INTERNAL_URL!.replace(/^http/, "ws") + "/voice";
     wsRef.current = new WebSocket(wsUrl);
     wsRef.current.binaryType = "arraybuffer";
@@ -129,28 +145,22 @@ export default function SingleAgentIntro({ agentName }: { agentName: string }) {
       wsRef.current?.send(
         JSON.stringify({ swarm_id: swarmId, participant_id: participantId, type: "human" })
       );
-    };
-
-    wsRef.current.onopen = () => {
-      wsRef.current?.send(
-        JSON.stringify({ swarm_id: swarmId, participant_id: participantId, type: "human" })
-      );
-
-      // 🎬 Trigger auto-intro once per session
       if (!sessionStorage.getItem("introSent")) {
-        setTimeout(() => {
-          wsRef.current?.send(
-            JSON.stringify({ event: "__auto_intro_request__" })
-          );
+        requestAnimationFrame(() => {
+          wsRef.current?.send(JSON.stringify({ event: "__auto_intro_request__" }));
           sessionStorage.setItem("introSent", "true");
-        }, 1000);
+        });
       }
     };
 
     wsRef.current.onmessage = async (event) => {
       if (typeof event.data === "string") {
         const msg = JSON.parse(event.data);
-        console.log("[Agent reply]", msg);
+        if (msg.ws_message_type === "final" && msg.type === "agent") {
+          setTimeout(() => {
+            startRecording();
+          }, 500);
+        }
       } else {
         const audioBytes = new Uint8Array(event.data);
         audioQueueRef.current.push(audioBytes);
@@ -159,64 +169,6 @@ export default function SingleAgentIntro({ agentName }: { agentName: string }) {
       }
     };
 
-    // Mic + VAD
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    const sourceNode = audioCtxRef.current.createMediaStreamSource(stream);
-    const analyser = audioCtxRef.current.createAnalyser();
-    analyser.fftSize = 2048;
-    sourceNode.connect(analyser);
-
-    const data = new Uint8Array(analyser.fftSize);
-
-    mediaRecorderRef.current = new MediaRecorder(stream, { mimeType: "audio/webm;codecs=opus" });
-
-    mediaRecorderRef.current.ondataavailable = async (event) => {
-      if (event.data.size > 0 && wsRef.current?.readyState === WebSocket.OPEN) {
-        const buf = await event.data.arrayBuffer();
-        wsRef.current.send(buf);
-      }
-    };
-
-    mediaRecorderRef.current.onstop = () => {
-      if (!endAudioSentRef.current && wsRef.current?.readyState === WebSocket.OPEN) {
-        wsRef.current.send(JSON.stringify({ event: "end_audio" }));
-        endAudioSentRef.current = true;
-      }
-    };
-
-    const vadLoop = () => {
-      analyser.getByteTimeDomainData(data);
-      let sum = 0;
-      for (let i = 0; i < data.length; i++) {
-        const val = (data[i] - 128) / 128;
-        sum += val * val;
-      }
-      const rms = Math.sqrt(sum / data.length);
-      if (rms > VAD_ENERGY_THRESHOLD) {
-        if (mediaRecorderRef.current?.state === "inactive") {
-          endAudioSentRef.current = false;
-          mediaRecorderRef.current.start(50);
-        }
-        if (silenceTimer.current) clearTimeout(silenceTimer.current);
-        silenceTimer.current = setTimeout(() => {
-          if (mediaRecorderRef.current?.state === "recording") {
-            try {
-              mediaRecorderRef.current.requestData();
-              setTimeout(() => {
-                if (mediaRecorderRef.current?.state === "recording") {
-                  mediaRecorderRef.current.stop();
-                }
-              }, 150);
-            } catch (err) {
-              console.warn("[VAD] Failed to flush recorder data:", err);
-            }
-          }
-        }, VAD_SILENCE_MS);
-      }
-      requestAnimationFrame(vadLoop);
-    };
-
-    requestAnimationFrame(vadLoop);
     setMicUnlocked(true);
   };
 
@@ -279,7 +231,6 @@ export default function SingleAgentIntro({ agentName }: { agentName: string }) {
 
   return (
     <div className="relative w-full h-screen bg-black overflow-hidden">
-      {/* Background */}
       {hasMedia ? (
         agent.media_mime_type!.startsWith("video/") ? (
           <video
@@ -302,7 +253,6 @@ export default function SingleAgentIntro({ agentName }: { agentName: string }) {
         />
       )}
 
-      {/* Foreground */}
       <div className="relative z-10 flex flex-col items-center justify-center h-full">
         {hasMedia ? (
           agent.media_mime_type!.startsWith("video/") ? (
@@ -342,6 +292,10 @@ export default function SingleAgentIntro({ agentName }: { agentName: string }) {
             <h2 className="text-xl font-semibold">🎤 Tap to start talking</h2>
             <p className="text-sm mt-1 opacity-80">We’ll auto-record when you speak.</p>
           </div>
+        )}
+
+        {micActive && (
+          <div className="absolute bottom-36 text-green-400 text-sm">🎙️ Listening...</div>
         )}
       </div>
 
