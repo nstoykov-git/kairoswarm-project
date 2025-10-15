@@ -18,6 +18,13 @@ export function useWavRecorder({ onWavReady, onSpeakingChange }: UseWavRecorderO
   const audioBufferRef = useRef<Float32Array[]>([]);
   const vadRef = useRef(new VoiceActivityDetector(0.01, 800));
   const lastSpeakingRef = useRef(false);
+  // Call this early to warm up the mic, but not record yet
+  const warmUpMic = async () => {
+    if (mediaStreamRef.current) return; // Already warmed up
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    mediaStreamRef.current = stream;
+    // Optionally set up analyser/VAD here
+  };
 
   useEffect(() => {
     return () => {
@@ -93,6 +100,6 @@ export function useWavRecorder({ onWavReady, onSpeakingChange }: UseWavRecorderO
     return result;
   };
 
-  return { isRecording, startRecording, stopRecording };
+  return { isRecording, startRecording, stopRecording, warmUpMic, };
 }
 

@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useWavRecorder } from "@/components/useWavRecorder";
-import { encodeWAV } from "@/lib/wavEncoder";
 
 interface Agent {
   id: string;
@@ -97,7 +96,7 @@ export default function SingleAgentIntro({ agentName }: { agentName: string }) {
     setupSwarm();
   }, [agentName]);
 
-  const { startRecording } = useWavRecorder({
+  const { startRecording, warmUpMic } = useWavRecorder({
     onWavReady: async (wavBlob) => {
       if (!participantId || !swarmId) return;
 
@@ -157,6 +156,7 @@ export default function SingleAgentIntro({ agentName }: { agentName: string }) {
       if (typeof event.data === "string") {
         const msg = JSON.parse(event.data);
         if (msg.ws_message_type === "final" && msg.type === "agent") {
+          await warmUpMic(); // 🔥 mic warming begins as intro ends
           setTimeout(() => {
             startRecording();
           }, 500);
