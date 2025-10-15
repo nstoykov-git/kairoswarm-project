@@ -144,6 +144,7 @@ export default function SingleAgentIntro({ agentName }: { agentName: string }) {
       wsRef.current?.send(
         JSON.stringify({ swarm_id: swarmId, participant_id: participantId, type: "human" })
       );
+      warmUpMic();
       if (!sessionStorage.getItem("introSent")) {
         requestAnimationFrame(() => {
           wsRef.current?.send(JSON.stringify({ event: "__auto_intro_request__" }));
@@ -156,7 +157,6 @@ export default function SingleAgentIntro({ agentName }: { agentName: string }) {
       if (typeof event.data === "string") {
         const msg = JSON.parse(event.data);
         if (msg.ws_message_type === "final" && msg.type === "agent") {
-          await warmUpMic(); // 🔥 mic warming begins as intro ends
           setTimeout(() => {
             startRecording();
           }, 500);
