@@ -1,105 +1,87 @@
-// src/components/useWavRecorder.ts
-import { useEffect, useRef, useState } from "react";
-import { encodeWAV } from "@/lib/wavEncoder";
-import { VoiceActivityDetector } from "@/lib/VoiceActivityDetector";
-
-const SAMPLE_RATE = 24000;
+import { useRef, useEffect } from "react";
 
 interface UseWavRecorderOptions {
-  onWavReady: (wav: Blob) => void;
-  onSpeakingChange?: (isSpeaking: boolean) => void;
+  onWavReady: (blob: Blob) => void;
+  onSpeakingChange?: (speaking: boolean) => void;
 }
 
 export function useWavRecorder({ onWavReady, onSpeakingChange }: UseWavRecorderOptions) {
-  const [isRecording, setIsRecording] = useState(false);
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const processorRef = useRef<ScriptProcessorNode | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
-  const audioBufferRef = useRef<Float32Array[]>([]);
-  const vadRef = useRef(new VoiceActivityDetector(0.01, 800));
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const isRecordingRef = useRef(false);
   const lastSpeakingRef = useRef(false);
-  // Call this early to warm up the mic, but not record yet
+
+  // 🔥 Call this early to prompt permission and warm up mic
   const warmUpMic = async () => {
     if (mediaStreamRef.current) return; // Already warmed up
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    mediaStreamRef.current = stream;
-    // Optionally set up analyser/VAD here
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaStreamRef.current = stream;
+    } catch (err) {
+      console.error("🎙️ Failed to get user media:", err);
+    }
+  };
+
+  // 🎛️ Call to prepare the recorder after warmup
+  const prepareRecorder = () => {
+    if (!mediaStreamRef.current) {
+      console.warn("🎙️ Tried to prepare before warm-up.");
+      return;
+    }
+
+    const recorder = new MediaRecorder(mediaStreamRef.current, {
+      mimeType: "audio/webm",
+      audioBitsPerSecond: 128000,
+    });
+
+    recorder.ondataavailable = (e) => {
+      if (e.data.size > 0) chunksRef.current.push(e.data);
+    };
+
+    recorder.onstop = () => {
+      const blob = new Blob(chunksRef.current, { type: "audio/webm" });
+      chunksRef.current = [];
+      onWavReady(blob);
+    };
+
+    mediaRecorderRef.current = recorder;
+  };
+
+  // 🟢 Call this to actually begin recording
+  const startRecording = () => {
+    if (mediaRecorderRef.current && !isRecordingRef.current) {
+      chunksRef.current = [];
+      mediaRecorderRef.current.start();
+      isRecordingRef.current = true;
+      if (onSpeakingChange) onSpeakingChange(true);
+    }
+  };
+
+  // 🔴 Call this to manually stop
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecordingRef.current) {
+      mediaRecorderRef.current.stop();
+      isRecordingRef.current = false;
+      if (onSpeakingChange) onSpeakingChange(false);
+    }
   };
 
   useEffect(() => {
     return () => {
-      stopRecording();
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+        mediaRecorderRef.current.stop();
+      }
+      if (mediaStreamRef.current) {
+        mediaStreamRef.current.getTracks().forEach((t) => t.stop());
+      }
     };
   }, []);
 
-  const startRecording = async () => {
-    if (isRecording) return;
-
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    const audioContext = new AudioContext({ sampleRate: SAMPLE_RATE });
-    const source = audioContext.createMediaStreamSource(stream);
-    const processor = audioContext.createScriptProcessor(2048, 1, 1);
-
-    audioContextRef.current = audioContext;
-    mediaStreamRef.current = stream;
-    processorRef.current = processor;
-
-    processor.onaudioprocess = (e) => {
-      const input = e.inputBuffer.getChannelData(0);
-      const rms = Math.sqrt(input.reduce((sum, val) => sum + val * val, 0) / input.length);
-      const vad = vadRef.current;
-      const speakingNow = vad.update(rms);
-
-      // 🔄 Notify UI if speaking state changes
-      if (speakingNow !== lastSpeakingRef.current) {
-        lastSpeakingRef.current = speakingNow;
-        onSpeakingChange?.(speakingNow);
-      }
-
-      if (speakingNow) {
-        audioBufferRef.current.push(new Float32Array(input));
-      } else if (vad.timeSinceLastSpeech() > 800 && audioBufferRef.current.length > 0) {
-        finishRecording();
-      }
-    };
-
-    source.connect(processor);
-    processor.connect(audioContext.destination);
-    setIsRecording(true);
+  return {
+    warmUpMic,
+    prepareRecorder,
+    startRecording,
+    stopRecording,
   };
-
-  const stopRecording = () => {
-    processorRef.current?.disconnect();
-    mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
-    audioContextRef.current?.close();
-
-    processorRef.current = null;
-    mediaStreamRef.current = null;
-    audioContextRef.current = null;
-    audioBufferRef.current = [];
-
-    setIsRecording(false);
-  };
-
-  const finishRecording = () => {
-    const allSamples = flattenBuffers(audioBufferRef.current);
-    audioBufferRef.current = [];
-
-    const wavBlob = encodeWAV(allSamples, SAMPLE_RATE);
-    onWavReady(wavBlob);
-  };
-
-  const flattenBuffers = (buffers: Float32Array[]): Float32Array => {
-    const length = buffers.reduce((acc, b) => acc + b.length, 0);
-    const result = new Float32Array(length);
-    let offset = 0;
-    for (const b of buffers) {
-      result.set(b, offset);
-      offset += b.length;
-    }
-    return result;
-  };
-
-  return { isRecording, startRecording, stopRecording, warmUpMic, };
 }
-
