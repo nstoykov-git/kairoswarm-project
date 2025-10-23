@@ -32,6 +32,7 @@ export function useWavRecorder({ onWavReady, onSpeakingChange }: UseWavRecorderO
       return;
     }
 
+    console.log("🎧 Supported type:", MediaRecorder.isTypeSupported("audio/webm"));
     const recorder = new MediaRecorder(mediaStreamRef.current, {
       mimeType: "audio/webm",
       audioBitsPerSecond: 128000,
