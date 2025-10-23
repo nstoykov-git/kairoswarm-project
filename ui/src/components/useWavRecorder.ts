@@ -17,7 +17,9 @@ export function useWavRecorder({ onWavReady, onSpeakingChange }: UseWavRecorderO
     if (mediaStreamRef.current) return; // Already warmed up
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      console.log("🎙️ Mic stream acquired:", stream);
       mediaStreamRef.current = stream;
+      prepareRecorder();
     } catch (err) {
       console.error("🎙️ Failed to get user media:", err);
     }
