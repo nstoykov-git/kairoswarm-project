@@ -107,6 +107,7 @@ export default function SingleAgentIntro({ agentName }: { agentName: string }) {
         ws.send(
           JSON.stringify({ swarm_id: swarmId, participant_id: participantId, type: "human" })
         );
+        console.log("📤 WAV blob ready, sending to server", wavBlob);
         ws.send(wavBlob);
         ws.send(JSON.stringify({ event: "end_audio" }));
       };
