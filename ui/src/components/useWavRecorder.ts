@@ -38,6 +38,7 @@ export function useWavRecorder({ onWavReady, onSpeakingChange }: UseWavRecorderO
     });
 
     recorder.ondataavailable = (e) => {
+      console.log("📦 Data available:", e.data.size, "bytes");
       if (e.data.size > 0) chunksRef.current.push(e.data);
     };
 
@@ -53,6 +54,7 @@ export function useWavRecorder({ onWavReady, onSpeakingChange }: UseWavRecorderO
   // 🟢 Call this to actually begin recording
   const startRecording = () => {
     if (mediaRecorderRef.current && !isRecordingRef.current) {
+      console.log("⏺️ Starting MediaRecorder...");
       chunksRef.current = [];
       mediaRecorderRef.current.start();
       isRecordingRef.current = true;

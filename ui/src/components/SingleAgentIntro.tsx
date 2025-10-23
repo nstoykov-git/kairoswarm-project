@@ -160,6 +160,7 @@ export default function SingleAgentIntro({ agentName }: { agentName: string }) {
       if (typeof event.data === "string") {
         const msg = JSON.parse(event.data);
         if (msg.ws_message_type === "final" && msg.type === "agent") {
+          console.log("📥 Final agent message received — starting recording...");
           setTimeout(() => {
             startRecording();
           }, 500);
