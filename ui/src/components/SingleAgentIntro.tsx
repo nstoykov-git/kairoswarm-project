@@ -98,6 +98,8 @@ export default function SingleAgentIntro({ agentName }: { agentName: string }) {
 
   const { startRecording, warmUpMic } = useWavRecorder({
     onWavReady: async (wavBlob) => {
+      console.log("📼 onWavReady fired");
+      console.log("📤 WAV Blob Size:", wavBlob.size);
       if (!participantId || !swarmId) return;
 
       const ws = new WebSocket(API_INTERNAL_URL!.replace(/^http/, "ws") + "/voice");
