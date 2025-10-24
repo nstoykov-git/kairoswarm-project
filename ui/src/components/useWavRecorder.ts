@@ -5,88 +5,128 @@ interface UseWavRecorderOptions {
   onSpeakingChange?: (speaking: boolean) => void;
 }
 
+const VAD_SILENCE_MS = 800;
+const VAD_ENERGY_THRESHOLD = 0.01;
+
 export function useWavRecorder({ onWavReady, onSpeakingChange }: UseWavRecorderOptions) {
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const silenceTimer = useRef<NodeJS.Timeout | null>(null);
   const isRecordingRef = useRef(false);
+
+  const vadLoopRef = useRef<number | null>(null);
   const lastSpeakingRef = useRef(false);
 
-  // 🔥 Call this early to prompt permission and warm up mic
   const warmUpMic = async () => {
-    if (mediaStreamRef.current) return; // Already warmed up
+    if (mediaStreamRef.current) return;
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       console.log("🎙️ Mic stream acquired:", stream);
       mediaStreamRef.current = stream;
+
+      audioCtxRef.current = new AudioContext({ sampleRate: 24000 });
+      const source = audioCtxRef.current.createMediaStreamSource(stream);
+      const analyser = audioCtxRef.current.createAnalyser();
+      analyser.fftSize = 2048;
+      source.connect(analyser);
+
+      analyserRef.current = analyser;
+
+      mediaRecorderRef.current = new MediaRecorder(stream, {
+        mimeType: "audio/webm;codecs=opus",
+        audioBitsPerSecond: 128000,
+      });
+
+      mediaRecorderRef.current.ondataavailable = (e) => {
+        if (e.data.size > 0) chunksRef.current.push(e.data);
+      };
+
+      mediaRecorderRef.current.onstop = () => {
+        const blob = new Blob(chunksRef.current, { type: "audio/webm" });
+        chunksRef.current = [];
+        onWavReady(blob);
+        if (onSpeakingChange) onSpeakingChange(false);
+        isRecordingRef.current = false;
+      };
+
+      startVAD();
     } catch (err) {
       console.error("🎙️ Failed to get user media:", err);
     }
-    prepareRecorder();
   };
 
-  // 🎛️ Call to prepare the recorder after warmup
-  const prepareRecorder = () => {
-    if (!mediaStreamRef.current) {
-      console.warn("🎙️ Tried to prepare before warm-up.");
-      return;
-    }
+  const startVAD = () => {
+    const analyser = analyserRef.current;
+    if (!analyser) return;
 
-    console.log("🎧 Supported type:", MediaRecorder.isTypeSupported("audio/webm"));
-    const recorder = new MediaRecorder(mediaStreamRef.current, {
-      mimeType: "audio/webm",
-      audioBitsPerSecond: 128000,
-    });
+    const data = new Uint8Array(analyser.fftSize);
 
-    recorder.ondataavailable = (e) => {
-      console.log("📦 Data available:", e.data.size, "bytes");
-      if (e.data.size > 0) chunksRef.current.push(e.data);
+    const loop = () => {
+      analyser.getByteTimeDomainData(data);
+      let sum = 0;
+      for (let i = 0; i < data.length; i++) {
+        const val = (data[i] - 128) / 128;
+        sum += val * val;
+      }
+      const rms = Math.sqrt(sum / data.length);
+
+      if (rms > VAD_ENERGY_THRESHOLD) {
+        if (!isRecordingRef.current && mediaRecorderRef.current?.state === "inactive") {
+          console.log("🎤 Voice detected — starting recording");
+          chunksRef.current = [];
+          mediaRecorderRef.current.start(50);
+          isRecordingRef.current = true;
+          if (onSpeakingChange) onSpeakingChange(true);
+        }
+        if (silenceTimer.current) clearTimeout(silenceTimer.current);
+
+        silenceTimer.current = setTimeout(() => {
+          if (mediaRecorderRef.current?.state === "recording") {
+            console.log("🤫 Silence — stopping recording");
+            mediaRecorderRef.current.requestData();
+            setTimeout(() => {
+              if (mediaRecorderRef.current?.state === "recording") {
+                mediaRecorderRef.current.stop();
+              }
+            }, 150);
+          }
+        }, VAD_SILENCE_MS);
+      }
+
+      vadLoopRef.current = requestAnimationFrame(loop);
     };
 
-    recorder.onstop = () => {
-      const blob = new Blob(chunksRef.current, { type: "audio/webm" });
-      chunksRef.current = [];
-      onWavReady(blob);
-    };
-
-    mediaRecorderRef.current = recorder;
+    vadLoopRef.current = requestAnimationFrame(loop);
   };
 
-  // 🟢 Call this to actually begin recording
-  const startRecording = () => {
-    if (mediaRecorderRef.current && !isRecordingRef.current) {
-      console.log("⏺️ Starting MediaRecorder...");
-      chunksRef.current = [];
-      mediaRecorderRef.current.start();
-      isRecordingRef.current = true;
-      if (onSpeakingChange) onSpeakingChange(true);
-    }
-  };
-
-  // 🔴 Call this to manually stop
-  const stopRecording = () => {
-    if (mediaRecorderRef.current && isRecordingRef.current) {
+  const stop = () => {
+    if (mediaRecorderRef.current?.state === "recording") {
       mediaRecorderRef.current.stop();
-      isRecordingRef.current = false;
-      if (onSpeakingChange) onSpeakingChange(false);
+    }
+    if (mediaStreamRef.current) {
+      mediaStreamRef.current.getTracks().forEach((t) => t.stop());
+      mediaStreamRef.current = null;
+    }
+    if (audioCtxRef.current) {
+      audioCtxRef.current.close();
+      audioCtxRef.current = null;
+    }
+    if (vadLoopRef.current) {
+      cancelAnimationFrame(vadLoopRef.current);
+      vadLoopRef.current = null;
     }
   };
 
   useEffect(() => {
-    return () => {
-      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
-        mediaRecorderRef.current.stop();
-      }
-      if (mediaStreamRef.current) {
-        mediaStreamRef.current.getTracks().forEach((t) => t.stop());
-      }
-    };
+    return () => stop();
   }, []);
 
   return {
     warmUpMic,
-    prepareRecorder,
-    startRecording,
-    stopRecording,
+    stopRecording: stop,
   };
 }

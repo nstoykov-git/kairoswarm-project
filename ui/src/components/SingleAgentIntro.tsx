@@ -96,7 +96,7 @@ export default function SingleAgentIntro({ agentName }: { agentName: string }) {
     setupSwarm();
   }, [agentName]);
 
-  const { startRecording, warmUpMic } = useWavRecorder({
+  const { warmUpMic } = useWavRecorder({
     onWavReady: async (wavBlob) => {
       console.log("📼 onWavReady fired");
       console.log("📤 WAV Blob Size:", wavBlob.size);
@@ -159,12 +159,6 @@ export default function SingleAgentIntro({ agentName }: { agentName: string }) {
     wsRef.current.onmessage = async (event) => {
       if (typeof event.data === "string") {
         const msg = JSON.parse(event.data);
-        if (msg.ws_message_type === "final" && msg.type === "agent") {
-          console.log("📥 Final agent message received — starting recording...");
-          setTimeout(() => {
-            startRecording();
-          }, 500);
-        }
       } else {
         const audioBytes = new Uint8Array(event.data);
         audioQueueRef.current.push(audioBytes);
