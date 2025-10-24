@@ -239,6 +239,24 @@ export default function SingleAgentFromSwarm() {
 
         {micActive && <div className="absolute bottom-36 text-green-400 text-sm">🎙️ Listening...</div>}
       </div>
+      {/* Transcript button */}
+      <div className="absolute bottom-6 right-6 z-50">
+        <button
+          onClick={() =>
+            window.open(`https://kairoswarm.com/?swarm_id=${swarmIdParam}`, "_blank")
+          }
+          className="bg-black/50 text-white px-4 py-2 rounded-full text-sm hover:bg-black/70 transition"
+        >
+          📜 Transcript
+        </button>
+      </div>
+
+      {/* Privacy notice */}
+      <div className="absolute bottom-6 left-6 z-50 bg-black/50 text-white px-4 py-3 rounded-xl text-xs leading-snug max-w-xs shadow-md backdrop-blur-sm">
+        <p className="font-medium">
+          Kairoswarm does not listen to or read your transcripts. All conversations auto-destruct after 24 hours.
+        </p>
+      </div>
     </div>
   );
 }
