@@ -6,7 +6,7 @@ interface UseWavRecorderOptions {
 }
 
 const VAD_SILENCE_MS = 800;
-const VAD_ENERGY_THRESHOLD = 0.01;
+const VAD_ENERGY_THRESHOLD = 0.03;
 
 export function useWavRecorder({ onWavReady, onSpeakingChange }: UseWavRecorderOptions) {
   const mediaStreamRef = useRef<MediaStream | null>(null);
